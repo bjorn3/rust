@@ -610,8 +610,7 @@ for ty::TypeVariants<'gcx>
                 def_id.hash_stable(hcx, hasher);
                 closure_substs.hash_stable(hcx, hasher);
             }
-            TyGenerator(def_id, closure_substs, interior)
-             => {
+            TyGenerator(def_id, closure_substs, interior) => {
                 def_id.hash_stable(hcx, hasher);
                 closure_substs.hash_stable(hcx, hasher);
                 interior.hash_stable(hcx, hasher);
@@ -629,6 +628,9 @@ for ty::TypeVariants<'gcx>
             }
             TyParam(param_ty) => {
                 param_ty.hash_stable(hcx, hasher);
+            }
+            TyForeign(def_id) => {
+                def_id.hash_stable(hcx, hasher);
             }
             TyInfer(..) => {
                 bug!("ty::TypeVariants::hash_stable() - Unexpected variant {:?}.", *self)
@@ -755,13 +757,11 @@ impl<'gcx> HashStable<StableHashingContext<'gcx>> for ty::CrateVariancesMap {
                                           hcx: &mut StableHashingContext<'gcx>,
                                           hasher: &mut StableHasher<W>) {
         let ty::CrateVariancesMap {
-            ref dependencies,
             ref variances,
             // This is just an irrelevant helper value.
             empty_variance: _,
         } = *self;
 
-        dependencies.hash_stable(hcx, hasher);
         variances.hash_stable(hcx, hasher);
     }
 }

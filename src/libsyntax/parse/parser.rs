@@ -36,7 +36,7 @@ use ast::SelfKind;
 use ast::{TraitItem, TraitRef, TraitObjectSyntax};
 use ast::{Ty, TyKind, TypeBinding, TyParam, TyParamBounds};
 use ast::{ViewPath, ViewPathGlob, ViewPathList, ViewPathSimple};
-use ast::{Visibility, WhereClause};
+use ast::{Visibility, WhereClause, CrateSugar};
 use ast::{BinOpKind, UnOp};
 use ast::{RangeEnd, RangeSyntax};
 use {ast, attr};
@@ -1033,7 +1033,23 @@ impl<'a> Parser<'a> {
                 } else {
                     if let Err(e) = self.expect(t) {
                         fe(e);
-                        break;
+                        // Attempt to keep parsing if it was a similar separator
+                        if let Some(ref tokens) = t.similar_tokens() {
+                            if tokens.contains(&self.token) {
+                                self.bump();
+                            }
+                        }
+                        // Attempt to keep parsing if it was an omitted separator
+                        match f(self) {
+                            Ok(t) => {
+                                v.push(t);
+                                continue;
+                            },
+                            Err(mut e) => {
+                                e.cancel();
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -1287,10 +1303,10 @@ impl<'a> Parser<'a> {
                          mut attrs: Vec<Attribute>) -> PResult<'a, TraitItem> {
         let lo = self.span;
 
-        let (name, node) = if self.eat_keyword(keywords::Type) {
+        let (name, node, generics) = if self.eat_keyword(keywords::Type) {
             let TyParam {ident, bounds, default, ..} = self.parse_ty_param(vec![])?;
             self.expect(&token::Semi)?;
-            (ident, TraitItemKind::Type(bounds, default))
+            (ident, TraitItemKind::Type(bounds, default), ast::Generics::default())
         } else if self.is_const_item() {
             self.expect_keyword(keywords::Const)?;
             let ident = self.parse_ident()?;
@@ -1305,7 +1321,7 @@ impl<'a> Parser<'a> {
                 self.expect(&token::Semi)?;
                 None
             };
-            (ident, TraitItemKind::Const(ty, default))
+            (ident, TraitItemKind::Const(ty, default), ast::Generics::default())
         } else if self.token.is_path_start() {
             // trait item macro.
             // code copied from parse_macro_use_or_failure... abstraction!
@@ -1328,7 +1344,7 @@ impl<'a> Parser<'a> {
             }
 
             let mac = respan(lo.to(self.prev_span), Mac_ { path: pth, tts: tts });
-            (keywords::Invalid.ident(), ast::TraitItemKind::Macro(mac))
+            (keywords::Invalid.ident(), ast::TraitItemKind::Macro(mac), ast::Generics::default())
         } else {
             let (constness, unsafety, abi) = self.parse_fn_front_matter()?;
 
@@ -1341,13 +1357,12 @@ impl<'a> Parser<'a> {
                 // definition...
                 p.parse_arg_general(false)
             })?;
-
             generics.where_clause = self.parse_where_clause()?;
+
             let sig = ast::MethodSig {
                 unsafety,
                 constness,
                 decl: d,
-                generics,
                 abi,
             };
 
@@ -1370,13 +1385,14 @@ impl<'a> Parser<'a> {
                     return Err(self.fatal(&format!("expected `;` or `{{`, found `{}`", token_str)));
                 }
             };
-            (ident, ast::TraitItemKind::Method(sig, body))
+            (ident, ast::TraitItemKind::Method(sig, body), generics)
         };
 
         Ok(TraitItem {
             id: ast::DUMMY_NODE_ID,
             ident: name,
             attrs,
+            generics,
             node,
             span: lo.to(self.prev_span),
             tokens: None,
@@ -4901,12 +4917,12 @@ impl<'a> Parser<'a> {
         let lo = self.span;
         let vis = self.parse_visibility(false)?;
         let defaultness = self.parse_defaultness()?;
-        let (name, node) = if self.eat_keyword(keywords::Type) {
+        let (name, node, generics) = if self.eat_keyword(keywords::Type) {
             let name = self.parse_ident()?;
             self.expect(&token::Eq)?;
             let typ = self.parse_ty()?;
             self.expect(&token::Semi)?;
-            (name, ast::ImplItemKind::Type(typ))
+            (name, ast::ImplItemKind::Type(typ), ast::Generics::default())
         } else if self.is_const_item() {
             self.expect_keyword(keywords::Const)?;
             let name = self.parse_ident()?;
@@ -4915,11 +4931,11 @@ impl<'a> Parser<'a> {
             self.expect(&token::Eq)?;
             let expr = self.parse_expr()?;
             self.expect(&token::Semi)?;
-            (name, ast::ImplItemKind::Const(typ, expr))
+            (name, ast::ImplItemKind::Const(typ, expr), ast::Generics::default())
         } else {
-            let (name, inner_attrs, node) = self.parse_impl_method(&vis, at_end)?;
+            let (name, inner_attrs, generics, node) = self.parse_impl_method(&vis, at_end)?;
             attrs.extend(inner_attrs);
-            (name, node)
+            (name, node, generics)
         };
 
         Ok(ImplItem {
@@ -4929,6 +4945,7 @@ impl<'a> Parser<'a> {
             vis,
             defaultness,
             attrs,
+            generics,
             node,
             tokens: None,
         })
@@ -4986,7 +5003,8 @@ impl<'a> Parser<'a> {
 
     /// Parse a method or a macro invocation in a trait impl.
     fn parse_impl_method(&mut self, vis: &Visibility, at_end: &mut bool)
-                         -> PResult<'a, (Ident, Vec<ast::Attribute>, ast::ImplItemKind)> {
+                         -> PResult<'a, (Ident, Vec<ast::Attribute>, ast::Generics,
+                             ast::ImplItemKind)> {
         // code copied from parse_macro_use_or_failure... abstraction!
         if self.token.is_path_start() {
             // Method macro.
@@ -5013,7 +5031,8 @@ impl<'a> Parser<'a> {
             }
 
             let mac = respan(lo.to(self.prev_span), Mac_ { path: pth, tts: tts });
-            Ok((keywords::Invalid.ident(), vec![], ast::ImplItemKind::Macro(mac)))
+            Ok((keywords::Invalid.ident(), vec![], ast::Generics::default(),
+                ast::ImplItemKind::Macro(mac)))
         } else {
             let (constness, unsafety, abi) = self.parse_fn_front_matter()?;
             let ident = self.parse_ident()?;
@@ -5022,8 +5041,7 @@ impl<'a> Parser<'a> {
             generics.where_clause = self.parse_where_clause()?;
             *at_end = true;
             let (inner_attrs, body) = self.parse_inner_attrs_and_block()?;
-            Ok((ident, inner_attrs, ast::ImplItemKind::Method(ast::MethodSig {
-                generics,
+            Ok((ident, inner_attrs, generics, ast::ImplItemKind::Method(ast::MethodSig {
                 abi,
                 unsafety,
                 constness,
@@ -5325,6 +5343,10 @@ impl<'a> Parser<'a> {
     pub fn parse_visibility(&mut self, can_take_tuple: bool) -> PResult<'a, Visibility> {
         maybe_whole!(self, NtVis, |x| x);
 
+        if self.eat_keyword(keywords::Crate) {
+            return Ok(Visibility::Crate(self.prev_span, CrateSugar::JustCrate));
+        }
+
         if !self.eat_keyword(keywords::Pub) {
             return Ok(Visibility::Inherited)
         }
@@ -5338,7 +5360,7 @@ impl<'a> Parser<'a> {
                 // `pub(crate)`
                 self.bump(); // `(`
                 self.bump(); // `crate`
-                let vis = Visibility::Crate(self.prev_span);
+                let vis = Visibility::Crate(self.prev_span, CrateSugar::PubCrate);
                 self.expect(&token::CloseDelim(token::Paren))?; // `)`
                 return Ok(vis)
             } else if self.look_ahead(1, |t| t.is_keyword(keywords::In)) {
@@ -5662,6 +5684,24 @@ impl<'a> Parser<'a> {
             id: ast::DUMMY_NODE_ID,
             span: lo.to(hi),
             vis,
+        })
+    }
+
+    /// Parse a type from a foreign module
+    fn parse_item_foreign_type(&mut self, vis: ast::Visibility, lo: Span, attrs: Vec<Attribute>)
+                             -> PResult<'a, ForeignItem> {
+        self.expect_keyword(keywords::Type)?;
+
+        let ident = self.parse_ident()?;
+        let hi = self.span;
+        self.expect(&token::Semi)?;
+        Ok(ast::ForeignItem {
+            ident: ident,
+            attrs: attrs,
+            node: ForeignItemKind::Ty,
+            id: ast::DUMMY_NODE_ID,
+            span: lo.to(hi),
+            vis: vis
         })
     }
 
@@ -6138,6 +6178,10 @@ impl<'a> Parser<'a> {
         // FOREIGN FUNCTION ITEM
         if self.check_keyword(keywords::Fn) {
             return Ok(Some(self.parse_item_foreign_fn(visibility, lo, attrs)?));
+        }
+        // FOREIGN TYPE ITEM
+        if self.check_keyword(keywords::Type) {
+            return Ok(Some(self.parse_item_foreign_type(visibility, lo, attrs)?));
         }
 
         // FIXME #5668: this will occur for a macro invocation:

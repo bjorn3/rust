@@ -138,7 +138,9 @@ pub fn run<F>(run_compiler: F) -> isize
                 }
                 None => {
                     let emitter =
-                        errors::emitter::EmitterWriter::stderr(errors::ColorConfig::Auto, None);
+                        errors::emitter::EmitterWriter::stderr(errors::ColorConfig::Auto,
+                                                               None,
+                                                               true);
                     let handler = errors::Handler::with_emitter(true, false, Box::new(emitter));
                     handler.emit(&MultiSpan::new(),
                                  "aborting due to previous error(s)",
@@ -224,8 +226,6 @@ pub fn run_compiler<'a>(args: &[String],
         },
     };
 
-    let cstore = Rc::new(CStore::new(DefaultTransCrate::metadata_loader()));
-
     let loader = file_loader.unwrap_or(box RealFileLoader);
     let codemap = Rc::new(CodeMap::with_file_loader(loader, sopts.file_path_mapping()));
     let mut sess = session::build_session_with_codemap(
@@ -238,23 +238,32 @@ pub fn run_compiler<'a>(args: &[String],
     target_features::add_configuration(&mut cfg, &sess);
     sess.parse_sess.config = cfg;
 
-    do_or_return!(callbacks.late_callback(&matches,
-                                          &sess,
-                                          &*cstore,
-                                          &input,
-                                          &odir,
-                                          &ofile), Some(sess));
-
     let plugins = sess.opts.debugging_opts.extra_plugins.clone();
     let control = callbacks.build_controller(&sess, &matches);
-    (driver::compile_input(&sess,
-                           &cstore,
-                           &input,
-                           &odir,
-                           &ofile,
-                           Some(plugins),
-                           &control),
-     Some(sess))
+
+    let trans_name = sess.opts.debugging_opts.trans.unwrap_or_else(||"llvm".to_string());
+    match *trans_name {
+        "llvm" => {
+            let cstore = Rc::new(CStore::new(DefaultTransCrate::metadata_loader()));
+
+            do_or_return!(callbacks.late_callback(&matches,
+                                                  &sess,
+                                                  &*cstore,
+                                                  &input,
+                                                  &odir,
+                                                  &ofile), Some(sess));
+
+            (driver::compile_input::<DefaultTransCrate>(&sess,
+                                                        &cstore,
+                                                        &input,
+                                                        &odir,
+                                                        &ofile,
+                                                        Some(plugins),
+                                                        &control),
+            Some(sess))
+        }
+        _ => sess.fatal(&format!("Invalid trans {}", trans_name)),
+    }
 }
 
 // Extract output directory and file from matches.
@@ -1208,7 +1217,9 @@ pub fn monitor<F: FnOnce() + Send + 'static>(f: F) {
         // Thread panicked without emitting a fatal diagnostic
         if !value.is::<errors::FatalError>() {
             let emitter =
-                Box::new(errors::emitter::EmitterWriter::stderr(errors::ColorConfig::Auto, None));
+                Box::new(errors::emitter::EmitterWriter::stderr(errors::ColorConfig::Auto,
+                                                                None,
+                                                                false));
             let handler = errors::Handler::with_emitter(true, false, emitter);
 
             // a .span_bug or .bug call has already printed what

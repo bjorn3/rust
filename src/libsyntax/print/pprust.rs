@@ -1112,6 +1112,13 @@ impl<'a> State<'a> {
                 self.end()?; // end the head-ibox
                 self.end() // end the outer cbox
             }
+            ast::ForeignItemKind::Ty => {
+                self.head(&visibility_qualified(&item.vis, "type"))?;
+                self.print_ident(item.ident)?;
+                self.s.word(";")?;
+                self.end()?; // end the head-ibox
+                self.end() // end the outer cbox
+            }
         }
     }
 
@@ -1440,7 +1447,10 @@ impl<'a> State<'a> {
     pub fn print_visibility(&mut self, vis: &ast::Visibility) -> io::Result<()> {
         match *vis {
             ast::Visibility::Public => self.word_nbsp("pub"),
-            ast::Visibility::Crate(_) => self.word_nbsp("pub(crate)"),
+            ast::Visibility::Crate(_, sugar) => match sugar {
+                ast::CrateSugar::PubCrate => self.word_nbsp("pub(crate)"),
+                ast::CrateSugar::JustCrate => self.word_nbsp("crate")
+            }
             ast::Visibility::Restricted { ref path, .. } => {
                 let path = to_string(|s| s.print_path(path, false, 0, true));
                 if path == "self" || path == "super" {
@@ -1525,6 +1535,7 @@ impl<'a> State<'a> {
 
     pub fn print_method_sig(&mut self,
                             ident: ast::Ident,
+                            generics: &ast::Generics,
                             m: &ast::MethodSig,
                             vis: &ast::Visibility)
                             -> io::Result<()> {
@@ -1533,7 +1544,7 @@ impl<'a> State<'a> {
                       m.constness.node,
                       m.abi,
                       Some(ident),
-                      &m.generics,
+                      &generics,
                       vis)
     }
 
@@ -1553,7 +1564,7 @@ impl<'a> State<'a> {
                 if body.is_some() {
                     self.head("")?;
                 }
-                self.print_method_sig(ti.ident, sig, &ast::Visibility::Inherited)?;
+                self.print_method_sig(ti.ident, &ti.generics, sig, &ast::Visibility::Inherited)?;
                 if let Some(ref body) = *body {
                     self.nbsp()?;
                     self.print_block_with_attrs(body, &ti.attrs)?;
@@ -1592,7 +1603,7 @@ impl<'a> State<'a> {
             }
             ast::ImplItemKind::Method(ref sig, ref body) => {
                 self.head("")?;
-                self.print_method_sig(ii.ident, sig, &ii.vis)?;
+                self.print_method_sig(ii.ident, &ii.generics, sig, &ii.vis)?;
                 self.nbsp()?;
                 self.print_block_with_attrs(body, &ii.attrs)?;
             }

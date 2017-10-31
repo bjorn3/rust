@@ -261,19 +261,9 @@ fn type_param_predicates<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
 
     let item_node_id = tcx.hir.as_local_node_id(item_def_id).unwrap();
     let ast_generics = match tcx.hir.get(item_node_id) {
-        NodeTraitItem(item) => {
-            match item.node {
-                TraitItemKind::Method(ref sig, _) => &sig.generics,
-                _ => return result
-            }
-        }
+        NodeTraitItem(item) => &item.generics,
 
-        NodeImplItem(item) => {
-            match item.node {
-                ImplItemKind::Method(ref sig, _) => &sig.generics,
-                _ => return result
-            }
-        }
+        NodeImplItem(item) => &item.generics,
 
         NodeItem(item) => {
             match item.node {
@@ -818,12 +808,12 @@ fn has_late_bound_regions<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
     match node {
         hir_map::NodeTraitItem(item) => match item.node {
             hir::TraitItemKind::Method(ref sig, _) =>
-                has_late_bound_regions(tcx, &sig.generics, &sig.decl),
+                has_late_bound_regions(tcx, &item.generics, &sig.decl),
             _ => None,
         },
         hir_map::NodeImplItem(item) => match item.node {
             hir::ImplItemKind::Method(ref sig, _) =>
-                has_late_bound_regions(tcx, &sig.generics, &sig.decl),
+                has_late_bound_regions(tcx, &item.generics, &sig.decl),
             _ => None,
         },
         hir_map::NodeForeignItem(item) => match item.node {
@@ -881,19 +871,9 @@ fn generics_of<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
 
     let no_generics = hir::Generics::empty();
     let ast_generics = match node {
-        NodeTraitItem(item) => {
-            match item.node {
-                TraitItemKind::Method(ref sig, _) => &sig.generics,
-                _ => &no_generics
-            }
-        }
+        NodeTraitItem(item) => &item.generics,
 
-        NodeImplItem(item) => {
-            match item.node {
-                ImplItemKind::Method(ref sig, _) => &sig.generics,
-                _ => &no_generics
-            }
-        }
+        NodeImplItem(item) => &item.generics,
 
         NodeItem(item) => {
             match item.node {
@@ -936,7 +916,8 @@ fn generics_of<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
         NodeForeignItem(item) => {
             match item.node {
                 ForeignItemStatic(..) => &no_generics,
-                ForeignItemFn(_, _, ref generics) => generics
+                ForeignItemFn(_, _, ref generics) => generics,
+                ForeignItemType => &no_generics,
             }
         }
 
@@ -1114,7 +1095,8 @@ fn type_of<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
                     let substs = Substs::identity_for_item(tcx, def_id);
                     tcx.mk_fn_def(def_id, substs)
                 }
-                ForeignItemStatic(ref t, _) => icx.to_ty(t)
+                ForeignItemStatic(ref t, _) => icx.to_ty(t),
+                ForeignItemType => tcx.mk_foreign(def_id),
             }
         }
 
@@ -1353,19 +1335,9 @@ fn explicit_predicates_of<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
     let icx = ItemCtxt::new(tcx, def_id);
     let no_generics = hir::Generics::empty();
     let ast_generics = match node {
-        NodeTraitItem(item) => {
-            match item.node {
-                TraitItemKind::Method(ref sig, _) => &sig.generics,
-                _ => &no_generics
-            }
-        }
+        NodeTraitItem(item) => &item.generics,
 
-        NodeImplItem(item) => {
-            match item.node {
-                ImplItemKind::Method(ref sig, _) => &sig.generics,
-                _ => &no_generics
-            }
-        }
+        NodeImplItem(item) => &item.generics,
 
         NodeItem(item) => {
             match item.node {
@@ -1393,7 +1365,8 @@ fn explicit_predicates_of<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
         NodeForeignItem(item) => {
             match item.node {
                 ForeignItemStatic(..) => &no_generics,
-                ForeignItemFn(_, _, ref generics) => generics
+                ForeignItemFn(_, _, ref generics) => generics,
+                ForeignItemType => &no_generics,
             }
         }
 

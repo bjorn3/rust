@@ -12,6 +12,7 @@ pub use self::code_stats::{CodeStats, DataTypeKind, FieldInfo};
 pub use self::code_stats::{SizeKind, TypeSizeInfo, VariantInfo};
 
 use hir::def_id::{CrateNum, DefIndex};
+use ich::Fingerprint;
 
 use lint;
 use middle::allocator::AllocatorKind;
@@ -29,7 +30,6 @@ use syntax::json::JsonEmitter;
 use syntax::feature_gate;
 use syntax::parse;
 use syntax::parse::ParseSess;
-use syntax::symbol::Symbol;
 use syntax::{ast, codemap};
 use syntax::feature_gate::AttributeType;
 use syntax_pos::{Span, MultiSpan};
@@ -75,20 +75,20 @@ pub struct Session {
     pub working_dir: (String, bool),
     pub lint_store: RefCell<lint::LintStore>,
     pub buffered_lints: RefCell<Option<lint::LintBuffer>>,
-    /// Set of (LintId, Option<Span>, message) tuples tracking lint
+    /// Set of (DiagnosticId, Option<Span>, message) tuples tracking
     /// (sub)diagnostics that have been set once, but should not be set again,
-    /// in order to avoid redundantly verbose output (Issue #24690).
-    pub one_time_diagnostics: RefCell<FxHashSet<(lint::LintId, Option<Span>, String)>>,
+    /// in order to avoid redundantly verbose output (Issue #24690, #44953).
+    pub one_time_diagnostics: RefCell<FxHashSet<(DiagnosticMessageId, Option<Span>, String)>>,
     pub plugin_llvm_passes: RefCell<Vec<String>>,
     pub plugin_attributes: RefCell<Vec<(String, AttributeType)>>,
     pub crate_types: RefCell<Vec<config::CrateType>>,
     pub dependency_formats: RefCell<dependency_format::Dependencies>,
-    /// The crate_disambiguator is constructed out of all the `-C metadata`
+        /// The crate_disambiguator is constructed out of all the `-C metadata`
     /// arguments passed to the compiler. Its value together with the crate-name
     /// forms a unique global identifier for the crate. It is used to allow
     /// multiple crates with the same name to coexist. See the
     /// trans::back::symbol_names module for more information.
-    pub crate_disambiguator: RefCell<Option<Symbol>>,
+    pub crate_disambiguator: RefCell<Option<CrateDisambiguator>>,
     pub features: RefCell<feature_gate::Features>,
 
     /// The maximum recursion limit for potentially infinitely recursive
@@ -164,10 +164,17 @@ enum DiagnosticBuilderMethod {
     // add more variants as needed to support one-time diagnostics
 }
 
+/// Diagnostic message id - used in order to avoid emitting the same message more than once
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum DiagnosticMessageId {
+    LintId(lint::LintId),
+    StabilityId(u32)
+}
+
 impl Session {
-    pub fn local_crate_disambiguator(&self) -> Symbol {
+    pub fn local_crate_disambiguator(&self) -> CrateDisambiguator {
         match *self.crate_disambiguator.borrow() {
-            Some(sym) => sym,
+            Some(value) => value,
             None => bug!("accessing disambiguator before initialization"),
         }
     }
@@ -360,7 +367,7 @@ impl Session {
                 do_method()
             },
             _ => {
-                let lint_id = lint::LintId::of(lint);
+                let lint_id = DiagnosticMessageId::LintId(lint::LintId::of(lint));
                 let id_span_message = (lint_id, span, message.to_owned());
                 let fresh = self.one_time_diagnostics.borrow_mut().insert(id_span_message);
                 if fresh {
@@ -471,14 +478,18 @@ impl Session {
 
     /// Returns the symbol name for the registrar function,
     /// given the crate Svh and the function DefIndex.
-    pub fn generate_plugin_registrar_symbol(&self, disambiguator: Symbol, index: DefIndex)
+    pub fn generate_plugin_registrar_symbol(&self, disambiguator: CrateDisambiguator,
+                                            index: DefIndex)
                                             -> String {
-        format!("__rustc_plugin_registrar__{}_{}", disambiguator, index.as_usize())
+        format!("__rustc_plugin_registrar__{}_{}", disambiguator.to_fingerprint().to_hex(),
+                                                   index.as_usize())
     }
 
-    pub fn generate_derive_registrar_symbol(&self, disambiguator: Symbol, index: DefIndex)
+    pub fn generate_derive_registrar_symbol(&self, disambiguator: CrateDisambiguator,
+                                            index: DefIndex)
                                             -> String {
-        format!("__rustc_derive_registrar__{}_{}", disambiguator, index.as_usize())
+        format!("__rustc_derive_registrar__{}_{}", disambiguator.to_fingerprint().to_hex(),
+                                                   index.as_usize())
     }
 
     pub fn sysroot<'a>(&'a self) -> &'a Path {
@@ -711,18 +722,22 @@ pub fn build_session_with_codemap(sopts: config::Options,
 
     let emitter: Box<Emitter> = match (sopts.error_format, emitter_dest) {
         (config::ErrorOutputType::HumanReadable(color_config), None) => {
-            Box::new(EmitterWriter::stderr(color_config,
-                                           Some(codemap.clone())))
+            Box::new(EmitterWriter::stderr(color_config, Some(codemap.clone()), false))
         }
         (config::ErrorOutputType::HumanReadable(_), Some(dst)) => {
-            Box::new(EmitterWriter::new(dst,
-                                        Some(codemap.clone())))
+            Box::new(EmitterWriter::new(dst, Some(codemap.clone()), false))
         }
         (config::ErrorOutputType::Json, None) => {
             Box::new(JsonEmitter::stderr(Some(registry), codemap.clone()))
         }
         (config::ErrorOutputType::Json, Some(dst)) => {
             Box::new(JsonEmitter::new(dst, Some(registry), codemap.clone()))
+        }
+        (config::ErrorOutputType::Short(color_config), None) => {
+            Box::new(EmitterWriter::stderr(color_config, Some(codemap.clone()), true))
+        }
+        (config::ErrorOutputType::Short(_), Some(dst)) => {
+            Box::new(EmitterWriter::new(dst, Some(codemap.clone()), true))
         }
     };
 
@@ -768,7 +783,12 @@ pub fn build_session_(sopts: config::Options,
     let print_fuel_crate = sopts.debugging_opts.print_fuel.clone();
     let print_fuel = Cell::new(0);
 
-    let working_dir = env::current_dir().unwrap().to_string_lossy().into_owned();
+    let working_dir = match env::current_dir() {
+        Ok(dir) => dir.to_string_lossy().into_owned(),
+        Err(e) => {
+            panic!(p_s.span_diagnostic.fatal(&format!("Current directory is invalid: {}", e)))
+        }
+    };
     let working_dir = file_path_mapping.map_prefix(working_dir);
 
     let sess = Session {
@@ -838,6 +858,26 @@ pub fn build_session_(sopts: config::Options,
     sess
 }
 
+/// Hash value constructed out of all the `-C metadata` arguments passed to the
+/// compiler. Together with the crate-name forms a unique global identifier for
+/// the crate.
+#[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Clone, Copy, RustcEncodable, RustcDecodable)]
+pub struct CrateDisambiguator(Fingerprint);
+
+impl CrateDisambiguator {
+    pub fn to_fingerprint(self) -> Fingerprint {
+        self.0
+    }
+}
+
+impl From<Fingerprint> for CrateDisambiguator {
+    fn from(fingerprint: Fingerprint) -> CrateDisambiguator {
+        CrateDisambiguator(fingerprint)
+    }
+}
+
+impl_stable_hash_for!(tuple_struct CrateDisambiguator { fingerprint });
+
 /// Holds data on the current incremental compilation session, if there is one.
 #[derive(Debug)]
 pub enum IncrCompSession {
@@ -867,10 +907,12 @@ pub enum IncrCompSession {
 pub fn early_error(output: config::ErrorOutputType, msg: &str) -> ! {
     let emitter: Box<Emitter> = match output {
         config::ErrorOutputType::HumanReadable(color_config) => {
-            Box::new(EmitterWriter::stderr(color_config,
-                                           None))
+            Box::new(EmitterWriter::stderr(color_config, None, false))
         }
         config::ErrorOutputType::Json => Box::new(JsonEmitter::basic()),
+        config::ErrorOutputType::Short(color_config) => {
+            Box::new(EmitterWriter::stderr(color_config, None, true))
+        }
     };
     let handler = errors::Handler::with_emitter(true, false, emitter);
     handler.emit(&MultiSpan::new(), msg, errors::Level::Fatal);
@@ -880,10 +922,12 @@ pub fn early_error(output: config::ErrorOutputType, msg: &str) -> ! {
 pub fn early_warn(output: config::ErrorOutputType, msg: &str) {
     let emitter: Box<Emitter> = match output {
         config::ErrorOutputType::HumanReadable(color_config) => {
-            Box::new(EmitterWriter::stderr(color_config,
-                                           None))
+            Box::new(EmitterWriter::stderr(color_config, None, false))
         }
         config::ErrorOutputType::Json => Box::new(JsonEmitter::basic()),
+        config::ErrorOutputType::Short(color_config) => {
+            Box::new(EmitterWriter::stderr(color_config, None, true))
+        }
     };
     let handler = errors::Handler::with_emitter(true, false, emitter);
     handler.emit(&MultiSpan::new(), msg, errors::Level::Warning);

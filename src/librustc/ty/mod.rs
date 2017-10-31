@@ -26,6 +26,7 @@ use middle::privacy::AccessLevels;
 use middle::resolve_lifetime::ObjectLifetimeDefault;
 use mir::Mir;
 use mir::GeneratorLayout;
+use session::CrateDisambiguator;
 use traits;
 use ty;
 use ty::subst::{Subst, Substs};
@@ -55,7 +56,6 @@ use rustc_const_math::ConstInt;
 use rustc_data_structures::accumulate_vec::IntoIter as AccIntoIter;
 use rustc_data_structures::stable_hasher::{StableHasher, StableHasherResult,
                                            HashStable};
-use rustc_data_structures::transitive_relation::TransitiveRelation;
 
 use hir;
 
@@ -313,11 +313,6 @@ pub enum Variance {
 /// `tcx.variances_of()` to get the variance for a *particular*
 /// item.
 pub struct CrateVariancesMap {
-    /// This relation tracks the dependencies between the variance of
-    /// various items. In particular, if `a < b`, then the variance of
-    /// `a` depends on the sources of `b`.
-    pub dependencies: TransitiveRelation<DefId>,
-
     /// For each item with generics, maps to a vector of the variance
     /// of its generics.  If an item has no generics, it will have no
     /// entry.
@@ -1789,7 +1784,7 @@ impl<'a, 'gcx, 'tcx> AdtDef {
                 vec![]
             }
 
-            TyStr | TyDynamic(..) | TySlice(_) | TyError => {
+            TyStr | TyDynamic(..) | TySlice(_) | TyForeign(..) | TyError => {
                 // these are never sized - return the target type
                 vec![ty]
             }
@@ -2562,7 +2557,7 @@ fn param_env<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
 }
 
 fn crate_disambiguator<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
-                                 crate_num: CrateNum) -> Symbol {
+                                 crate_num: CrateNum) -> CrateDisambiguator {
     assert_eq!(crate_num, LOCAL_CRATE);
     tcx.sess.local_crate_disambiguator()
 }

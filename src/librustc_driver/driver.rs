@@ -14,7 +14,7 @@ use rustc::hir::lowering::lower_crate;
 use rustc::ich::Fingerprint;
 use rustc_data_structures::stable_hasher::StableHasher;
 use rustc_mir as mir;
-use rustc::session::{Session, CompileResult};
+use rustc::session::{Session, CompileResult, CrateDisambiguator};
 use rustc::session::CompileIncomplete;
 use rustc::session::config::{self, Input, OutputFilenames, OutputType};
 use rustc::session::search_paths::PathKind;
@@ -58,7 +58,6 @@ use syntax::{ast, diagnostics, visit};
 use syntax::attr;
 use syntax::ext::base::ExtCtxt;
 use syntax::parse::{self, PResult};
-use syntax::symbol::Symbol;
 use syntax::util::node_count::NodeCounter;
 use syntax;
 use syntax_ext;
@@ -68,7 +67,7 @@ use derive_registrar;
 
 use profile;
 
-pub fn compile_input(sess: &Session,
+pub fn compile_input<Trans: TransCrate>(sess: &Session,
                      cstore: &CStore,
                      input: &Input,
                      outdir: &Option<PathBuf>,
@@ -208,7 +207,7 @@ pub fn compile_input(sess: &Session,
             None
         };
 
-        phase_3_run_analysis_passes(sess,
+        phase_3_run_analysis_passes<Trans, _, _>(sess,
                                     cstore,
                                     hir_map,
                                     analysis,
@@ -245,7 +244,7 @@ pub fn compile_input(sess: &Session,
                 tcx.print_debug_stats();
             }
 
-            let trans = phase_4_translate_to_llvm::<DefaultTransCrate>(tcx, rx);
+            let trans = phase_4_translate_to_llvm::<Trans>(tcx, rx);
 
             if log_enabled!(::log::LogLevel::Info) {
                 println!("Post-trans");
@@ -268,7 +267,7 @@ pub fn compile_input(sess: &Session,
     }
 
     let (phase5_result, trans) =
-        phase_5_run_llvm_passes::<DefaultTransCrate>(sess, &dep_graph, trans);
+        phase_5_run_llvm_passes::<Trans>(sess, &dep_graph, trans);
 
     controller_entry_point!(after_llvm,
                             sess,
@@ -279,7 +278,7 @@ pub fn compile_input(sess: &Session,
     // Run the linker on any artifacts that resulted from the LLVM run.
     // This should produce either a finished executable or library.
     time(sess.time_passes(), "linking", || {
-        DefaultTransCrate::link_binary(sess, &trans, &outputs)
+        Trans::link_binary(sess, &trans, &outputs)
     });
 
     // Now that we won't touch anything in the incremental compilation directory
@@ -633,12 +632,12 @@ pub fn phase_2_configure_and_expand<F>(sess: &Session,
 
     *sess.crate_types.borrow_mut() = collect_crate_types(sess, &krate.attrs);
 
-    let disambiguator = Symbol::intern(&compute_crate_disambiguator(sess));
+    let disambiguator = compute_crate_disambiguator(sess);
     *sess.crate_disambiguator.borrow_mut() = Some(disambiguator);
     rustc_incremental::prepare_session_directory(
         sess,
         &crate_name,
-        &disambiguator.as_str(),
+        disambiguator,
     );
 
     let dep_graph = if sess.opts.build_dep_graph() {
@@ -911,7 +910,7 @@ pub fn phase_2_configure_and_expand<F>(sess: &Session,
 /// Run the resolution, typechecking, region checking and other
 /// miscellaneous analysis passes on the crate. Return various
 /// structures carrying the results of the analysis.
-pub fn phase_3_run_analysis_passes<'tcx, F, R>(sess: &'tcx Session,
+pub fn phase_3_run_analysis_passes<'tcx, Trans: TransCrate, F, R>(sess: &'tcx Session,
                                                cstore: &'tcx CrateStore,
                                                hir_map: hir_map::Map<'tcx>,
                                                mut analysis: ty::CrateAnalysis,
@@ -967,7 +966,7 @@ pub fn phase_3_run_analysis_passes<'tcx, F, R>(sess: &'tcx Session,
     mir::provide(&mut local_providers);
     reachable::provide(&mut local_providers);
     rustc_privacy::provide(&mut local_providers);
-    DefaultTransCrate::provide_local(&mut local_providers);
+    Trans::provide_local(&mut local_providers);
     typeck::provide(&mut local_providers);
     ty::provide(&mut local_providers);
     traits::provide(&mut local_providers);
@@ -980,7 +979,7 @@ pub fn phase_3_run_analysis_passes<'tcx, F, R>(sess: &'tcx Session,
 
     let mut extern_providers = ty::maps::Providers::default();
     cstore::provide(&mut extern_providers);
-    DefaultTransCrate::provide_extern(&mut extern_providers);
+    Trans::provide_extern(&mut extern_providers);
     ty::provide_extern(&mut extern_providers);
     traits::provide_extern(&mut extern_providers);
     // FIXME(eddyb) get rid of this once we replace const_eval with miri.
@@ -1312,16 +1311,13 @@ pub fn collect_crate_types(session: &Session, attrs: &[ast::Attribute]) -> Vec<c
         .collect()
 }
 
-pub fn compute_crate_disambiguator(session: &Session) -> String {
+pub fn compute_crate_disambiguator(session: &Session) -> CrateDisambiguator {
     use std::hash::Hasher;
 
     // The crate_disambiguator is a 128 bit hash. The disambiguator is fed
     // into various other hashes quite a bit (symbol hashes, incr. comp. hashes,
     // debuginfo type IDs, etc), so we don't want it to be too wide. 128 bits
     // should still be safe enough to avoid collisions in practice.
-    // FIXME(mw): It seems that the crate_disambiguator is used everywhere as
-    //            a hex-string instead of raw bytes. We should really use the
-    //            smaller representation.
     let mut hasher = StableHasher::<Fingerprint>::new();
 
     let mut metadata = session.opts.cg.metadata.clone();
@@ -1340,11 +1336,13 @@ pub fn compute_crate_disambiguator(session: &Session) -> String {
         hasher.write(s.as_bytes());
     }
 
-    // If this is an executable, add a special suffix, so that we don't get
-    // symbol conflicts when linking against a library of the same name.
+    // Also incorporate crate type, so that we don't get symbol conflicts when
+    // linking against a library of the same name, if this is an executable.
     let is_exe = session.crate_types.borrow().contains(&config::CrateTypeExecutable);
+    hasher.write(if is_exe { b"exe" } else { b"lib" });
 
-    format!("{}{}", hasher.finish().to_hex(), if is_exe { "-exe" } else {""})
+    CrateDisambiguator::from(hasher.finish())
+
 }
 
 pub fn build_output_filenames(input: &Input,

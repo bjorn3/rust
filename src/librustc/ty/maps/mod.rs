@@ -29,7 +29,7 @@ use middle::lang_items::{LanguageItems, LangItem};
 use middle::exported_symbols::SymbolExportLevel;
 use middle::trans::{CodegenUnit, Stats};
 use mir;
-use session::CompileResult;
+use session::{CompileResult, CrateDisambiguator};
 use session::config::OutputFilenames;
 use traits::Vtable;
 use traits::specialization_graph;
@@ -183,6 +183,8 @@ define_maps! { <'tcx>
 
     [] fn typeck_tables_of: TypeckTables(DefId) -> &'tcx ty::TypeckTables<'tcx>,
 
+    [] fn used_trait_imports: UsedTraitImports(DefId) -> Rc<DefIdSet>,
+
     [] fn has_typeck_tables: HasTypeckTables(DefId) -> bool,
 
     [] fn coherent_trait: coherent_trait_dep_node((CrateNum, DefId)) -> (),
@@ -283,7 +285,7 @@ define_maps! { <'tcx>
     [] fn native_libraries: NativeLibraries(CrateNum) -> Rc<Vec<NativeLibrary>>,
     [] fn plugin_registrar_fn: PluginRegistrarFn(CrateNum) -> Option<DefId>,
     [] fn derive_registrar_fn: DeriveRegistrarFn(CrateNum) -> Option<DefId>,
-    [] fn crate_disambiguator: CrateDisambiguator(CrateNum) -> Symbol,
+    [] fn crate_disambiguator: CrateDisambiguator(CrateNum) -> CrateDisambiguator,
     [] fn crate_hash: CrateHash(CrateNum) -> Svh,
     [] fn original_crate_name: OriginalCrateName(CrateNum) -> Symbol,
 
@@ -349,6 +351,7 @@ define_maps! { <'tcx>
     // Normally you would just use `tcx.erase_regions(&value)`,
     // however, which uses this query as a kind of cache.
     [] fn erase_regions_ty: erase_regions_ty(Ty<'tcx>) -> Ty<'tcx>,
+    [] fn fully_normalize_monormophic_ty: normalize_ty_node(Ty<'tcx>) -> Ty<'tcx>,
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -489,4 +492,7 @@ fn output_filenames_node<'tcx>(_: CrateNum) -> DepConstructor<'tcx> {
 
 fn vtable_methods_node<'tcx>(trait_ref: ty::PolyTraitRef<'tcx>) -> DepConstructor<'tcx> {
     DepConstructor::VtableMethods{ trait_ref }
+}
+fn normalize_ty_node<'tcx>(_: Ty<'tcx>) -> DepConstructor<'tcx> {
+    DepConstructor::NormalizeTy
 }

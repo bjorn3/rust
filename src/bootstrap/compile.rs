@@ -29,7 +29,7 @@ use build_helper::{output, mtime, up_to_date};
 use filetime::FileTime;
 use serde_json;
 
-use util::{exe, libdir, is_dylib, copy, read_stamp_file};
+use util::{exe, libdir, is_dylib, copy, read_stamp_file, CiEnv};
 use {Build, Compiler, Mode};
 use native;
 use tool;
@@ -792,7 +792,7 @@ fn run_cargo(build: &Build, cargo: &mut Command, stamp: &Path) {
     cargo.arg("--message-format").arg("json")
          .stdout(Stdio::piped());
 
-    if stderr_isatty() {
+    if stderr_isatty() && build.ci_env == CiEnv::None {
         // since we pass message-format=json to cargo, we need to tell the rustc
         // wrapper to give us colored output if necessary. This is because we
         // only want Cargo's JSON output, not rustcs.
@@ -860,10 +860,18 @@ fn run_cargo(build: &Build, cargo: &mut Command, stamp: &Path) {
             // have a hash in the name, but there's a version of this file in
             // the `deps` folder which *does* have a hash in the name. That's
             // the one we'll want to we'll probe for it later.
-            toplevel.push((filename.file_stem().unwrap()
-                                    .to_str().unwrap().to_string(),
-                            filename.extension().unwrap().to_owned()
-                                    .to_str().unwrap().to_string()));
+            //
+            // We do not use `Path::file_stem` or `Path::extension` here,
+            // because some generated files may have multiple extensions e.g.
+            // `std-<hash>.dll.lib` on Windows. The aforementioned methods only
+            // split the file name by the last extension (`.lib`) while we need
+            // to split by all extensions (`.dll.lib`).
+            let filename = filename.file_name().unwrap().to_str().unwrap();
+            let mut parts = filename.splitn(2, '.');
+            let file_stem = parts.next().unwrap().to_owned();
+            let extension = parts.next().unwrap().to_owned();
+
+            toplevel.push((file_stem, extension));
         }
     }
 

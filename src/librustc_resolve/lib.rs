@@ -468,7 +468,8 @@ impl<'a> PathSource<'a> {
             PathSource::Type => match def {
                 Def::Struct(..) | Def::Union(..) | Def::Enum(..) |
                 Def::Trait(..) | Def::TyAlias(..) | Def::AssociatedTy(..) |
-                Def::PrimTy(..) | Def::TyParam(..) | Def::SelfTy(..) => true,
+                Def::PrimTy(..) | Def::TyParam(..) | Def::SelfTy(..) |
+                Def::TyForeign(..) => true,
                 _ => false,
             },
             PathSource::Trait => match def {
@@ -707,6 +708,7 @@ impl<'a, 'tcx> Visitor<'tcx> for Resolver<'a> {
                 HasTypeParameters(generics, ItemRibKind)
             }
             ForeignItemKind::Static(..) => NoTypeParameters,
+            ForeignItemKind::Ty => NoTypeParameters,
         };
         self.with_type_parameter_rib(type_parameters, |this| {
             visit::walk_foreign_item(this, foreign_item);
@@ -718,12 +720,10 @@ impl<'a, 'tcx> Visitor<'tcx> for Resolver<'a> {
                 _: Span,
                 node_id: NodeId) {
         let rib_kind = match function_kind {
-            FnKind::ItemFn(_, generics, ..) => {
-                self.visit_generics(generics);
+            FnKind::ItemFn(..) => {
                 ItemRibKind
             }
             FnKind::Method(_, sig, _, _) => {
-                self.visit_generics(&sig.generics);
                 MethodRibKind(!sig.decl.has_self())
             }
             FnKind::Closure(_) => ClosureRibKind(node_id),
@@ -1417,7 +1417,7 @@ impl<'a> Resolver<'a> {
 
         let mut definitions = Definitions::new();
         DefCollector::new(&mut definitions, Mark::root())
-            .collect_root(crate_name, &session.local_crate_disambiguator().as_str());
+            .collect_root(crate_name, session.local_crate_disambiguator());
 
         let mut invocations = FxHashMap();
         invocations.insert(Mark::root(),
@@ -1880,7 +1880,7 @@ impl<'a> Resolver<'a> {
                                 }
                                 TraitItemKind::Method(ref sig, _) => {
                                     let type_parameters =
-                                        HasTypeParameters(&sig.generics,
+                                        HasTypeParameters(&trait_item.generics,
                                                           MethodRibKind(!sig.decl.has_self()));
                                     this.with_type_parameter_rib(type_parameters, |this| {
                                         visit::walk_trait_item(this, trait_item)
@@ -2084,7 +2084,9 @@ impl<'a> Resolver<'a> {
                                                             ValueNS,
                                                             impl_item.span,
                                             |n, s| ResolutionError::ConstNotMemberOfTrait(n, s));
-                                        visit::walk_impl_item(this, impl_item);
+                                        this.with_constant_rib(|this|
+                                            visit::walk_impl_item(this, impl_item)
+                                        );
                                     }
                                     ImplItemKind::Method(ref sig, _) => {
                                         // If this is a trait impl, ensure the method
@@ -2097,7 +2099,7 @@ impl<'a> Resolver<'a> {
                                         // We also need a new scope for the method-
                                         // specific type parameters.
                                         let type_parameters =
-                                            HasTypeParameters(&sig.generics,
+                                            HasTypeParameters(&impl_item.generics,
                                                             MethodRibKind(!sig.decl.has_self()));
                                         this.with_type_parameter_rib(type_parameters, |this| {
                                             visit::walk_impl_item(this, impl_item);

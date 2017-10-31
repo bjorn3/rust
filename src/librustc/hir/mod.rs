@@ -1295,7 +1295,6 @@ pub struct MethodSig {
     pub constness: Constness,
     pub abi: Abi,
     pub decl: P<FnDecl>,
-    pub generics: Generics,
 }
 
 // The bodies for items are stored "out of line", in a separate
@@ -1316,6 +1315,7 @@ pub struct TraitItem {
     pub name: Name,
     pub hir_id: HirId,
     pub attrs: HirVec<Attribute>,
+    pub generics: Generics,
     pub node: TraitItemKind,
     pub span: Span,
 }
@@ -1360,6 +1360,7 @@ pub struct ImplItem {
     pub vis: Visibility,
     pub defaultness: Defaultness,
     pub attrs: HirVec<Attribute>,
+    pub generics: Generics,
     pub node: ImplItemKind,
     pub span: Span,
 }
@@ -1853,6 +1854,19 @@ impl Item_ {
             _ => None,
         }
     }
+
+    pub fn generics(&self) -> Option<&Generics> {
+        Some(match *self {
+            ItemFn(_, _, _, _, ref generics, _) |
+            ItemTy(_, ref generics) |
+            ItemEnum(_, ref generics) |
+            ItemStruct(_, ref generics) |
+            ItemUnion(_, ref generics) |
+            ItemTrait(_, ref generics, _, _) |
+            ItemImpl(_, _, _, ref generics, _, _, _)=> generics,
+            _ => return None
+        })
+    }
 }
 
 /// A reference from an trait to one of its associated items. This
@@ -1911,6 +1925,8 @@ pub enum ForeignItem_ {
     /// A foreign static item (`static ext: u8`), with optional mutability
     /// (the boolean is true when mutable)
     ForeignItemStatic(P<Ty>, bool),
+    /// A foreign type
+    ForeignItemType,
 }
 
 impl ForeignItem_ {
@@ -1918,6 +1934,7 @@ impl ForeignItem_ {
         match *self {
             ForeignItemFn(..) => "foreign function",
             ForeignItemStatic(..) => "foreign static item",
+            ForeignItemType => "foreign type",
         }
     }
 }

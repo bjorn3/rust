@@ -943,6 +943,7 @@ pub fn noop_fold_trait_item<T: Folder>(i: TraitItem, folder: &mut T)
         id: folder.new_id(i.id),
         ident: folder.fold_ident(i.ident),
         attrs: fold_attrs(i.attrs, folder),
+        generics: folder.fold_generics(i.generics),
         node: match i.node {
             TraitItemKind::Const(ty, default) => {
                 TraitItemKind::Const(folder.fold_ty(ty),
@@ -972,6 +973,7 @@ pub fn noop_fold_impl_item<T: Folder>(i: ImplItem, folder: &mut T)
         vis: folder.fold_vis(i.vis),
         ident: folder.fold_ident(i.ident),
         attrs: fold_attrs(i.attrs, folder),
+        generics: folder.fold_generics(i.generics),
         defaultness: i.defaultness,
         node: match i.node  {
             ast::ImplItemKind::Const(ty, expr) => {
@@ -1067,6 +1069,7 @@ pub fn noop_fold_foreign_item<T: Folder>(ni: ForeignItem, folder: &mut T) -> For
             ForeignItemKind::Static(t, m) => {
                 ForeignItemKind::Static(folder.fold_ty(t), m)
             }
+            ForeignItemKind::Ty => ForeignItemKind::Ty,
         },
         span: folder.new_span(ni.span)
     }
@@ -1074,7 +1077,6 @@ pub fn noop_fold_foreign_item<T: Folder>(ni: ForeignItem, folder: &mut T) -> For
 
 pub fn noop_fold_method_sig<T: Folder>(sig: MethodSig, folder: &mut T) -> MethodSig {
     MethodSig {
-        generics: folder.fold_generics(sig.generics),
         abi: sig.abi,
         unsafety: sig.unsafety,
         constness: sig.constness,
