@@ -67,7 +67,6 @@ pub trait WriteBackendMethods: 'static + Sized + Clone {
         cgcx: &CodegenContext<Self>,
         llmod: ModuleCodegen<Self::Module>,
         config: &ModuleConfig,
-        thin: bool,
     ) -> ModuleCodegen<Self::OptimizedModule>;
 
     unsafe fn optimize_thin(

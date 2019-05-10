@@ -207,9 +207,8 @@ impl WriteBackendMethods for LlvmCodegenBackend {
         cgcx: &CodegenContext<Self>,
         module: &ModuleCodegen<Self::Module>,
         config: &ModuleConfig,
-        thin: bool
     ) {
-        back::lto::run_pass_manager(cgcx, module, config, thin)
+        back::lto::run_pass_manager(cgcx, module, config, false)
     }
 }
 
