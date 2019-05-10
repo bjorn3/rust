@@ -10,9 +10,8 @@ pub trait WriteBackendMethods: 'static + Sized + Clone {
     type TargetMachine;
 
     type Module: Send + Sync;
-    type OptimizedModule: Send + Sync;
-
     type ModuleBuffer: ModuleBufferMethods;
+
     type ThinData: Send + Sync;
     type ThinBuffer: ThinBufferMethods;
 
@@ -20,15 +19,15 @@ pub trait WriteBackendMethods: 'static + Sized + Clone {
     unsafe fn optimize(
         cgcx: &CodegenContext<Self>,
         diag_handler: &Handler,
-        module: ModuleCodegen<Self::Module>,
+        module: &mut ModuleCodegen<Self::Module>,
         config: &ModuleConfig,
-    ) -> Result<ModuleCodegen<Self::OptimizedModule>, FatalError>;
+    ) -> Result<(), FatalError>;
 
     /// Emit an object file
     unsafe fn codegen(
         cgcx: &CodegenContext<Self>,
         diag_handler: &Handler,
-        module: ModuleCodegen<Self::OptimizedModule>,
+        module: ModuleCodegen<Self::Module>,
         config: &ModuleConfig,
     ) -> Result<CompiledModule, FatalError>;
 
@@ -39,7 +38,7 @@ pub trait WriteBackendMethods: 'static + Sized + Clone {
     ) -> (String, Self::ThinBuffer);
 
     fn serialize_module(
-        module: ModuleCodegen<Self::OptimizedModule>
+        module: ModuleCodegen<Self::Module>
     ) -> (String, Self::ModuleBuffer);
 
     // ==== cross module operations for LTO ====
@@ -61,13 +60,11 @@ pub trait WriteBackendMethods: 'static + Sized + Clone {
         cached_modules: Vec<(SerializedModule<Self::ModuleBuffer>, WorkProduct)>,
     ) -> Result<(Vec<LtoModuleCodegen<Self>>, Vec<WorkProduct>), FatalError>;
 
-    // ====
-
     fn run_lto_pass_manager(
         cgcx: &CodegenContext<Self>,
-        llmod: ModuleCodegen<Self::Module>,
+        llmod: &mut ModuleCodegen<Self::Module>,
         config: &ModuleConfig,
-    ) -> ModuleCodegen<Self::OptimizedModule>;
+    ) ;
 
     unsafe fn optimize_thin(
         cgcx: &CodegenContext<Self>,

@@ -174,7 +174,7 @@ impl WriteBackendMethods for LlvmCodegenBackend {
     unsafe fn optimize(
         cgcx: &CodegenContext<Self>,
         diag_handler: &Handler,
-        module: &ModuleCodegen<Self::Module>,
+        module: &mut ModuleCodegen<Self::Module>,
         config: &ModuleConfig,
     ) -> Result<(), FatalError> {
         back::write::optimize(cgcx, diag_handler, module, config)
@@ -205,10 +205,10 @@ impl WriteBackendMethods for LlvmCodegenBackend {
     }
     fn run_lto_pass_manager(
         cgcx: &CodegenContext<Self>,
-        module: &ModuleCodegen<Self::Module>,
+        module: &mut ModuleCodegen<Self::Module>,
         config: &ModuleConfig,
     ) {
-        back::lto::run_pass_manager(cgcx, module, config, false)
+        back::lto::run_pass_manager(cgcx, module, config, false);
     }
 }
 

@@ -302,7 +302,7 @@ unsafe extern "C" fn diagnostic_handler(info: &DiagnosticInfo, user: *mut c_void
 // Unsafe due to LLVM calls.
 pub(crate) unsafe fn optimize(cgcx: &CodegenContext<LlvmCodegenBackend>,
                    diag_handler: &Handler,
-                   module: &ModuleCodegen<ModuleLlvm>,
+                   module: &mut ModuleCodegen<ModuleLlvm>,
                    config: &ModuleConfig)
     -> Result<(), FatalError>
 {

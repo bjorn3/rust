@@ -69,10 +69,10 @@ impl<B: WriteBackendMethods> LtoModuleCodegen<B> {
     ) -> Result<ModuleCodegen<B::Module>, FatalError> {
         match *self {
             LtoModuleCodegen::Fat { ref mut module, .. } => {
-                let module = module.take().unwrap();
+                let mut module = module.take().unwrap();
                 {
                     let config = cgcx.config(module.kind);
-                    B::run_lto_pass_manager(cgcx, &module, config);
+                    B::run_lto_pass_manager(cgcx, &mut module, config);
                 }
                 Ok(module)
             }
