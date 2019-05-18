@@ -460,7 +460,7 @@ pub struct RustcDefaultCalls;
 
 // FIXME remove these and use winapi 0.3 instead
 // Duplicates: bootstrap/compile.rs, librustc_errors/emitter.rs
-#[cfg(unix)]
+#[cfg(any(unix, target_os = "wasi"))]
 fn stdout_isatty() -> bool {
     unsafe { libc::isatty(libc::STDOUT_FILENO) != 0 }
 }

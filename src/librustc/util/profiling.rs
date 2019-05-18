@@ -9,11 +9,11 @@ use crate::ty::query::QueryName;
 
 use measureme::{StringId, TimestampKind};
 
-/// MmapSerializatioSink is faster on macOS and Linux
+/// MmapSerializationSink is faster on macOS and Linux
 /// but FileSerializationSink is faster on Windows
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "wasi")))]
 type Profiler = measureme::Profiler<measureme::MmapSerializationSink>;
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "wasi"))]
 type Profiler = measureme::Profiler<measureme::FileSerializationSink>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd)]

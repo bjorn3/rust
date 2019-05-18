@@ -301,6 +301,11 @@ fn get_resident() -> Option<usize> {
     }
 }
 
+#[cfg(target_arch = "wasm")]
+fn get_resident() -> Option<usize> {
+    None
+}
+
 pub fn indent<R, F>(op: F) -> R where
     R: Debug,
     F: FnOnce() -> R,
