@@ -7,7 +7,7 @@ edition = "2018"
 [lib]
 name = "rustc_target"
 path = "lib.rs"
-crate-type = ["dylib"]
+
 
 [dependencies]
 bitflags = "1.0"

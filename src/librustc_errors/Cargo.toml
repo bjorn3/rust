@@ -7,7 +7,7 @@ edition = "2018"
 [lib]
 name = "rustc_errors"
 path = "lib.rs"
-crate-type = ["dylib"]
+
 
 [dependencies]
 log = "0.4"

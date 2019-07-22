@@ -24,13 +24,10 @@
 	url = https://github.com/rust-lang-nursery/rustfmt.git
 [submodule "src/tools/miri"]
 	path = src/tools/miri
-	url = https://github.com/rust-lang/miri.git
+	url = https://github.com/bjorn3/miri.git
 [submodule "src/doc/rust-by-example"]
 	path = src/doc/rust-by-example
 	url = https://github.com/rust-lang/rust-by-example.git
-[submodule "src/llvm-emscripten"]
-	path = src/llvm-emscripten
-	url = https://github.com/rust-lang/llvm.git
 [submodule "src/stdsimd"]
 	path = src/stdsimd
 	url = https://github.com/rust-lang-nursery/stdsimd.git
@@ -40,10 +37,6 @@
 [submodule "src/doc/edition-guide"]
 	path = src/doc/edition-guide
 	url = https://github.com/rust-lang-nursery/edition-guide.git
-[submodule "src/llvm-project"]
-	path = src/llvm-project
-	url = https://github.com/rust-lang/llvm-project.git
-	branch = rustc/8.0-2019-03-18
 [submodule "src/doc/embedded-book"]
 	path = src/doc/embedded-book
 	url = https://github.com/rust-embedded/book.git

@@ -195,13 +195,7 @@ pub fn print_time_passes_entry(do_it: bool, what: &str, dur: Duration) {
 fn print_time_passes_entry_internal(what: &str, dur: Duration) {
     let indentation = TIME_DEPTH.with(|slot| slot.get());
 
-    let mem_string = match get_resident() {
-        Some(n) => {
-            let mb = n as f64 / 1_000_000.0;
-            format!("; rss: {}MB", mb.round() as usize)
-        }
-        None => String::new(),
-    };
+    let mem_string = String::new();
     println!("{}time: {}{}\t{}",
              "  ".repeat(indentation),
              duration_to_secs_str(dur),

@@ -16,6 +16,15 @@ rustc_driver = { path = "../librustc_driver" }
 # crate is intended to be used by codegen backends, which may not be in-tree.
 rustc_codegen_ssa = { path = "../librustc_codegen_ssa" }
 
+miri = { path = "../tools/miri", default-features = false }
+rustc = { path = "../librustc" }
+rustc_interface = { path = "../librustc_interface" }
+syntax = { path = "../libsyntax" }
+
+log = "0.4"
+env_logger = "0.6"
+hex = "0.3.2"
+
 [dependencies.jemalloc-sys]
 version = '0.3.0'
 optional = true

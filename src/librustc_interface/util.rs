@@ -171,13 +171,13 @@ pub fn spawn_thread_pool<F: FnOnce() -> R + Send, R: Send>(
     stderr: &Option<Arc<Mutex<Vec<u8>>>>,
     f: F,
 ) -> R {
-    let mut cfg = thread::Builder::new().name("rustc".to_string());
+    /*let mut cfg = thread::Builder::new().name("rustc".to_string());
 
     if let Some(size) = get_stack_size() {
         cfg = cfg.stack_size(size);
     }
 
-    scoped_thread(cfg, || {
+    scoped_thread(cfg, || {*/
         syntax::with_globals( || {
             ty::tls::GCX_PTR.set(&Lock::new(0), || {
                 if let Some(stderr) = stderr {
@@ -186,7 +186,7 @@ pub fn spawn_thread_pool<F: FnOnce() -> R + Send, R: Send>(
                 ty::tls::with_thread_locals(|| f())
             })
         })
-    })
+    //})
 }
 
 #[cfg(parallel_compiler)]
@@ -272,7 +272,13 @@ pub fn get_codegen_backend(sess: &Session) -> Box<dyn CodegenBackend> {
             filename if filename.contains(".") => {
                 load_backend_from_dylib(filename.as_ref())
             }
+            "metadata_only" => || {
+                Box::new(rustc_codegen_utils::codegen_backend::MetadataOnlyCodegenBackend) as Box<dyn CodegenBackend>
+            },
+            //"cranelift" => rustc_codegen_cranelift::__rustc_codegen_backend,
+            #[cfg(not(target_os = "wasi"))]
             codegen_name => get_codegen_sysroot(codegen_name),
+            _ => panic!("unknown codegen backend {}", codegen_name),
         };
 
         unsafe {
@@ -284,6 +290,7 @@ pub fn get_codegen_backend(sess: &Session) -> Box<dyn CodegenBackend> {
     backend
 }
 
+#[cfg(not(target_os = "wasi"))]
 pub fn get_codegen_sysroot(backend_name: &str) -> fn() -> Box<dyn CodegenBackend> {
     // For now we only allow this function to be called once as it'll dlopen a
     // few things, which seems to work best if we only do that once. In

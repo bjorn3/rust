@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use crate::session::search_paths::{SearchPath, PathKind};
 use rustc_fs_util::fix_windows_verbatim_for_gcc;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum FileMatch {
     FileMatches,
     FileDoesntMatch,
@@ -18,7 +18,7 @@ pub enum FileMatch {
 
 // A module for searching for libraries
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FileSearch<'a> {
     sysroot: &'a Path,
     triple: &'a str,
@@ -127,6 +127,11 @@ pub fn get_or_default_sysroot() -> PathBuf {
                 Err(e) => bug!("failed to get realpath: {}", e),
             }
         })
+    }
+
+    #[cfg(target_os = "wasi")]
+    {
+        panic!("get_or_default_sysroot");
     }
 
     match env::current_exe() {

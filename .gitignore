@@ -63,4 +63,4 @@ version.texi
 /src/target/
 
 no_llvm_build
-
+/error_metadata

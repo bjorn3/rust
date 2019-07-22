@@ -7,7 +7,7 @@ edition = "2018"
 [lib]
 name = "rustc_codegen_llvm"
 path = "lib.rs"
-crate-type = ["dylib"]
+
 test = false
 
 [dependencies]

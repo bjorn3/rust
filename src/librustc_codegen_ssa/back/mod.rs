@@ -3,7 +3,7 @@ pub mod linker;
 pub mod lto;
 pub mod link;
 pub mod command;
-pub mod symbol_export;
+pub use rustc_codegen_utils::symbol_export;
 pub mod archive;
 pub mod rpath;
 pub mod wasm;

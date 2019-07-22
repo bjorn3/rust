@@ -95,7 +95,7 @@ impl<B: WriteBackendMethods> LtoModuleCodegen<B> {
 pub enum SerializedModule<M: ModuleBufferMethods> {
     Local(M),
     FromRlib(Vec<u8>),
-    FromUncompressedFile(memmap::Mmap),
+    FromUncompressedFile(Vec<u8>),
 }
 
 impl<M: ModuleBufferMethods> SerializedModule<M> {

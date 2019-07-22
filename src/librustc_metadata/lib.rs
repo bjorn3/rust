@@ -16,7 +16,6 @@
 #![deny(rust_2018_idioms)]
 #![deny(internal)]
 
-extern crate libc;
 #[allow(unused_extern_crates)]
 extern crate serialize as rustc_serialize; // used by deriving
 extern crate proc_macro;
