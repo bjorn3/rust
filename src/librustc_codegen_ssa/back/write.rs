@@ -29,6 +29,7 @@ use syntax::attr;
 use syntax::ext::hygiene::Mark;
 use syntax_pos::MultiSpan;
 use syntax_pos::symbol::Symbol;
+use jobserver::{Client, Acquired};
 
 use std::any::Any;
 use std::borrow::Cow;
@@ -496,6 +497,7 @@ pub fn start_async_codegen<B: ExtraBackendMethods>(
                                                   codegen_worker_send,
                                                   coordinator_receive,
                                                   total_cgus,
+                                                  sess.jobserver.clone(),
                                                   Arc::new(modules_config),
                                                   Arc::new(metadata_config),
                                                   Arc::new(allocator_config));
@@ -951,7 +953,7 @@ fn execute_lto_work_item<B: ExtraBackendMethods>(
 }
 
 pub enum Message<B: WriteBackendMethods> {
-    Token(io::Result<()>),
+    Token(io::Result<Acquired>),
     NeedsFatLTO {
         result: FatLTOInput<B>,
         worker_id: usize,
@@ -999,6 +1001,7 @@ fn start_executing_work<B: ExtraBackendMethods>(
     codegen_worker_send: Sender<Message<B>>,
     coordinator_receive: Receiver<Box<dyn Any + Send>>,
     total_cgus: usize,
+    jobserver: Client,
     modules_config: Arc<ModuleConfig>,
     metadata_config: Arc<ModuleConfig>,
     allocator_config: Arc<ModuleConfig>
@@ -1040,6 +1043,9 @@ fn start_executing_work<B: ExtraBackendMethods>(
     // get tokens on `coordinator_receive` which will
     // get managed in the main loop below.
     let coordinator_send2 = coordinator_send.clone();
+    let helper = jobserver.into_helper_thread(move |token| {
+        drop(coordinator_send2.send(Box::new(Message::Token::<B>(token))));
+    }).expect("failed to spawn helper thread");
 
     let mut each_linked_rlib_for_lto = Vec::new();
     drop(link::each_linked_rlib(sess, crate_info, &mut |cnum, path| {
@@ -1350,6 +1356,9 @@ fn start_executing_work<B: ExtraBackendMethods>(
                             .binary_search_by_key(&cost, |&(_, cost)| cost)
                             .unwrap_or_else(|e| e);
                         work_items.insert(insertion_index, (work, cost));
+                        if !cgcx.opts.debugging_opts.no_parallel_llvm {
+                            helper.request_token();
+                        }
                     }
                 }
 
@@ -1467,6 +1476,10 @@ fn start_executing_work<B: ExtraBackendMethods>(
                         Ok(idx) | Err(idx) => idx
                     };
                     work_items.insert(insertion_index, (llvm_work_item, cost));
+
+                    if !cgcx.opts.debugging_opts.no_parallel_llvm {
+                        helper.request_token();
+                    }
                     assert!(!codegen_aborted);
                     assert_eq!(main_thread_worker_state,
                                MainThreadWorkerState::Codegenning);
@@ -1926,10 +1939,15 @@ pub fn submit_pre_lto_module_to_llvm<B: ExtraBackendMethods>(
 ) {
     let filename = pre_lto_bitcode_filename(&module.name);
     let bc_path = in_incr_comp_dir_sess(tcx.sess, &filename);
-
-    let mmap = std::fs::read(filename).unwrap_or_else(|e| {
+    let file = fs::File::open(&bc_path).unwrap_or_else(|e| {
         panic!("failed to open bitcode file `{}`: {}", bc_path.display(), e)
     });
+
+    let mmap = unsafe {
+        memmap::Mmap::map(&file).unwrap_or_else(|e| {
+            panic!("failed to mmap bitcode file `{}`: {}", bc_path.display(), e)
+        })
+    };
     // Schedule the module to be loaded
     drop(tcx.tx_to_llvm_workers.lock().send(Box::new(Message::AddImportOnlyModule::<B> {
         module_data: SerializedModule::FromUncompressedFile(mmap),

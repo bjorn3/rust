@@ -65,13 +65,8 @@ impl SearchPath {
                 })
                 .collect::<Vec<_>>()
             }
-            Err(err) => {
-                println!("Couldn't read dir {:?}: {:?}", dir, err);
-                vec![]
-            }
+            Err(..) => vec![],
         };
-
-        println!("search_path files: {:?}", files);
 
         SearchPath { kind, dir, files }
     }

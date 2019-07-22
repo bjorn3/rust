@@ -7,7 +7,7 @@ edition = "2018"
 [lib]
 name = "rustc_interface"
 path = "lib.rs"
-
+crate-type = ["dylib"]
 
 [dependencies]
 log = "0.4"
@@ -36,5 +36,3 @@ rustc_plugin = { path = "../librustc_plugin" }
 rustc_privacy = { path = "../librustc_privacy" }
 rustc_resolve = { path = "../librustc_resolve" }
 tempfile = "3.0.5"
-
-#rustc_codegen_cranelift = { path = "../../../rustc_codegen_cranelift" }

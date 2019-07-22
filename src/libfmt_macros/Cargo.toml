@@ -7,3 +7,4 @@ edition = "2018"
 [lib]
 name = "fmt_macros"
 path = "lib.rs"
+crate-type = ["dylib"]

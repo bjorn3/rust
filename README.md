@@ -1,24 +1,3 @@
-Attempt to build rustc for wasm.
-
-```bash
-# Setup rust compiler
-$ rustup override set nightly
-$ rustup toolchain add wasm32-unknown-wasi
-
-# Compile rustc
-$ cd src/rustc
-$ CFG_COMPILER_HOST_TRIPLE="wasm32-unknown-wasi" RUSTC_ERROR_METADATA_DST="./error_metadata" RUSTFLAGS="-Zforce-unstable-if-unmarked" cargo +nightly build --target wasm32-wasi --release
-
-# Run it
-$ wasmtime --dir . --dir $MIRI_SYSROOT ../../target/wasm32-wasi/release/rustc_binary.wasm -- example.rs --sysroot $MIRI_SYSROOT -Zcodegen-backend=metadata_only --target x86_64-unknown-linux-gnu
-
-# Wasmer currently fails to load libstd from sysroot. (https://github.com/CraneStation/wasmtime/issues/144)
-$ wasmer run ../../target/wasm32-wasi/release/rustc_binary.wasm --backend singlepass --dir . --dir $MIRI_SYSROOT -- example.rs --sysroot $MIRI_SYSROOT -Zcodegen-backend=metadata_only --target x86_64-unknown-linux-gnu
-```
-
-> Compilation in debug mode is currently broken. See https://github.com/rust-lang/rust/issues/60540.
-
-
 # The Rust Programming Language
 
 This is the main source code repository for [Rust]. It contains the compiler,

@@ -904,7 +904,7 @@ pub fn exec_linker(sess: &Session, cmd: &mut Command, out_filename: &Path, tmpdi
     flush_linked_file(&output, out_filename)?;
     return output;
 
-    #[cfg(any(unix, target_os = "wasi"))]
+    #[cfg(unix)]
     fn flush_linked_file(_: &io::Result<Output>, _: &Path) -> io::Result<()> {
         Ok(())
     }
@@ -930,11 +930,6 @@ pub fn exec_linker(sess: &Session, cmd: &mut Command, out_filename: &Path, tmpdi
         }
 
         Ok(())
-    }
-
-    #[cfg(target_os = "wasi")]
-    fn command_line_too_big(_err: &io::Error) -> bool {
-        false
     }
 
     #[cfg(unix)]

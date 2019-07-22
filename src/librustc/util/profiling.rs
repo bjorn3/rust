@@ -11,9 +11,9 @@ use measureme::{StringId, TimestampKind};
 
 /// MmapSerializatioSink is faster on macOS and Linux
 /// but FileSerializationSink is faster on Windows
-#[cfg(not(any(windows, target_os = "wasi")))]
+#[cfg(not(windows))]
 type Profiler = measureme::Profiler<measureme::MmapSerializationSink>;
-#[cfg(any(windows, target_os = "wasi"))]
+#[cfg(windows)]
 type Profiler = measureme::Profiler<measureme::FileSerializationSink>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd)]
