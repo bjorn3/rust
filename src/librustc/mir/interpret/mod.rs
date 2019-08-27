@@ -109,7 +109,7 @@ pub use self::pointer::{Pointer, PointerArithmetic, CheckInAllocMsg};
 
 use crate::mir;
 use crate::hir::def_id::DefId;
-use crate::ty::{self, TyCtxt, Instance, subst::GenericArgKind};
+use crate::ty::{self, Ty, TyCtxt, Instance, subst::GenericArgKind};
 use crate::ty::codec::TyDecoder;
 use crate::ty::layout::{self, Size};
 use std::io;
@@ -359,6 +359,9 @@ pub struct AllocMap<'tcx> {
     // FIXME: Should we just have two separate dedup maps for statics and functions each?
     dedup: FxHashMap<GlobalAlloc<'tcx>, AllocId>,
 
+    /// Used to ensure that vtables only get one associated `AllocId`.
+    vtables: FxHashMap<(Ty<'tcx>, Option<ty::PolyExistentialTraitRef<'tcx>>), AllocId>,
+
     /// The `AllocId` to assign to the next requested ID.
     /// Always incremented; never gets smaller.
     next_id: AllocId,
@@ -369,6 +372,7 @@ impl<'tcx> AllocMap<'tcx> {
         AllocMap {
             alloc_map: Default::default(),
             dedup: Default::default(),
+            vtables: Default::default(),
             next_id: AllocId(0),
         }
     }
@@ -406,6 +410,21 @@ impl<'tcx> AllocMap<'tcx> {
         self.alloc_map.insert(id, alloc.clone());
         self.dedup.insert(alloc, id);
         id
+    }
+
+    /// Obtain an allocation ID for a vtable. Returns `Err` with the existing alloc id when a vtable
+    /// for the given type trait pair has already been reserved.
+    pub fn reserve_vtable(
+        &mut self,
+        ty: Ty<'tcx>,
+        poly_trait_ref: Option<ty::PolyExistentialTraitRef<'tcx>>,
+    ) -> Result<AllocId, AllocId> {
+        if let Some(&alloc_id) = self.vtables.get(&(ty, poly_trait_ref)) {
+            return Err(alloc_id);
+        }
+        let id = self.reserve();
+        self.vtables.insert((ty, poly_trait_ref), id);
+        Ok(id)
     }
 
     /// Generates an `AllocId` for a static or return a cached one in case this function has been

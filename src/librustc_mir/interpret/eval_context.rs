@@ -17,7 +17,6 @@ use rustc::mir::interpret::{
     GlobalId, Scalar, Pointer, FrameInfo, AllocId,
     InterpResult, truncate, sign_extend,
 };
-use rustc_data_structures::fx::FxHashMap;
 
 use super::{
     Immediate, Operand, MemPlace, MPlaceTy, Place, PlaceTy, ScalarMaybeUndef,
@@ -39,10 +38,6 @@ pub struct InterpCx<'mir, 'tcx, M: Machine<'mir, 'tcx>> {
 
     /// The virtual call stack.
     pub(crate) stack: Vec<Frame<'mir, 'tcx, M::PointerTag, M::FrameExtra>>,
-
-    /// A cache for deduplicating vtables
-    pub(super) vtables:
-        FxHashMap<(Ty<'tcx>, Option<ty::PolyExistentialTraitRef<'tcx>>), Pointer<M::PointerTag>>,
 }
 
 /// A stack frame.
@@ -207,7 +202,6 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
             param_env,
             memory: Memory::new(tcx, memory_extra),
             stack: Vec::new(),
-            vtables: FxHashMap::default(),
         }
     }
 
