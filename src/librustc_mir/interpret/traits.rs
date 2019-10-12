@@ -6,13 +6,13 @@ use syntax_pos::DUMMY_SP;
 use rustc::ty::{self, ParamEnv, Ty, TyCtxt, Instance};
 use rustc::ty::layout::{Size, Align, HasDataLayout, LayoutError};
 use rustc::mir::interpret::{ErrorHandled, Scalar, Pointer, InterpResult, PointerArithmetic};
+use rustc::ty::query::Providers;
 
 use super::{Allocation, InterpCx, Machine};
 
-fn get_vtable_inner<'tcx>(
+fn const_vtable<'tcx>(
     tcx: TyCtxt<'tcx>,
-    ty: Ty<'tcx>,
-    poly_trait_ref: Option<ty::PolyExistentialTraitRef<'tcx>>,
+    (ty, poly_trait_ref): (Ty<'tcx>, Option<ty::PolyExistentialTraitRef<'tcx>>),
 ) -> Result<Pointer, ErrorHandled> {
     let alloc_id = tcx.alloc_map.lock().reserve();
 
@@ -144,4 +144,8 @@ impl<'mir, 'tcx, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
         }
         Ok((Size::from_bytes(size), Align::from_bytes(align).unwrap()))
     }
+}
+
+pub fn provide(providers: &mut Providers<'_>) {
+    providers._const_vtable = const_vtable;
 }

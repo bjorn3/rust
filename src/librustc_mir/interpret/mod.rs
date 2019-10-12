@@ -10,7 +10,7 @@ mod operator;
 pub(crate) mod snapshot; // for const_eval
 mod step;
 mod terminator;
-mod traits;
+pub(crate) mod traits;
 mod validity;
 mod intrinsics;
 mod visitor;
