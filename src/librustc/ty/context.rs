@@ -22,7 +22,7 @@ use crate::middle::lang_items;
 use crate::middle::resolve_lifetime::{self, ObjectLifetimeDefault};
 use crate::middle::stability;
 use crate::mir::{Body, interpret, ProjectionKind, Promoted};
-use crate::mir::interpret::{ConstValue, Allocation, Scalar};
+use crate::mir::interpret::{Allocation, ConstValue, ErrorHandled, Pointer, Scalar};
 use crate::ty::subst::{GenericArg, InternalSubsts, SubstsRef, Subst};
 use crate::ty::ReprOptions;
 use crate::traits;
@@ -1616,6 +1616,24 @@ impl<'tcx> TyCtxt<'tcx> {
     /// Currently, only NVPTX* targets need it.
     pub fn has_strict_asm_symbol_naming(&self) -> bool {
         self.sess.target.target.arch.contains("nvptx")
+    }
+
+    /// Creates a dynamic vtable for the given type and vtable origin. This is used only for
+    /// objects.
+    ///
+    /// The `trait_ref` encodes the erased self type. Hence if we are
+    /// making an object `Foo<Trait>` from a value of type `Foo<T>`, then
+    /// `trait_ref` would map `T:Trait`.
+    pub fn get_vtable(
+        &self,
+        ty: Ty<'tcx>,
+        poly_trait_ref: Option<ty::PolyExistentialTraitRef<'tcx>>,
+    ) -> Result<Pointer, ErrorHandled> {
+        trace!("get_vtable(trait_ref={:?})", poly_trait_ref);
+
+        let (ty, poly_trait_ref) = self.erase_regions(&(ty, poly_trait_ref));
+
+        self._const_vtable((ty, poly_trait_ref))
     }
 }
 

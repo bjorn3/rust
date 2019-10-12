@@ -213,3 +213,13 @@ where
         DUMMY_SP
     }
 }
+
+impl<'tcx> Key for (Ty<'tcx>, Option<ty::PolyExistentialTraitRef<'tcx>>) {
+    fn query_crate(&self) -> CrateNum {
+        LOCAL_CRATE // FIXME
+    }
+
+    fn default_span(&self, _tcx: TyCtxt<'_>) -> Span {
+        DUMMY_SP
+    }
+}

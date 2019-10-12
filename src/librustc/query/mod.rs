@@ -5,7 +5,8 @@ use crate::ty::subst::SubstsRef;
 use crate::dep_graph::{RecoverKey,DepKind, DepNode, SerializedDepNodeIndex};
 use crate::hir::def_id::{CrateNum, DefId, DefIndex};
 use crate::mir;
-use crate::mir::interpret::GlobalId;
+#[allow(unused_imports)]
+use crate::mir::interpret::{ErrorHandled, GlobalId, Pointer};
 use crate::traits;
 use crate::traits::query::{
     CanonicalPredicateGoal, CanonicalProjectionGoal,
@@ -462,6 +463,17 @@ rustc_queries! {
             eval_always
             no_force
             desc { "extract field of const" }
+        }
+
+        query _const_vtable(
+            key: (Ty<'tcx>, Option<ty::PolyExistentialTraitRef<'tcx>>)
+        ) -> Result<Pointer, ErrorHandled> {
+            no_force
+            desc { |tcx|
+                "creating vtable for `<{} as {:?}>`",
+                key.0,
+                key.1
+            }
         }
     }
 

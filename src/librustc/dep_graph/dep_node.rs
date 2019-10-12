@@ -50,7 +50,8 @@
 //! fingerprint for a given set of node parameters.
 
 use crate::mir;
-use crate::mir::interpret::GlobalId;
+#[allow(unused_imports)]
+use crate::mir::interpret::{ErrorHandled, GlobalId, Pointer};
 use crate::hir::def_id::{CrateNum, DefId, DefIndex, CRATE_DEF_INDEX};
 use crate::hir::map::DefPathHash;
 use crate::hir::HirId;

@@ -1,42 +1,20 @@
-use syntax::ast::Mutability;
+use std::convert::TryFrom;
 
-use rustc::ty::{self, ParamEnv, Ty, TyCtxt, Instance, TypeFoldable};
-use rustc::ty::layout::{Size, Align, HasDataLayout};
-use rustc::mir::interpret::{Scalar, Pointer, InterpResult, PointerArithmetic};
+use syntax::ast::Mutability;
+use syntax_pos::DUMMY_SP;
+
+use rustc::ty::{self, ParamEnv, Ty, TyCtxt, Instance};
+use rustc::ty::layout::{Size, Align, HasDataLayout, LayoutError};
+use rustc::mir::interpret::{ErrorHandled, Scalar, Pointer, InterpResult, PointerArithmetic};
 
 use super::{Allocation, InterpCx, Machine};
 
-/// Creates a dynamic vtable for the given type and vtable origin. This is used only for
-/// objects.
-///
-/// The `trait_ref` encodes the erased self type. Hence if we are
-/// making an object `Foo<Trait>` from a value of type `Foo<T>`, then
-/// `trait_ref` would map `T:Trait`.
-pub fn get_vtable<'tcx>(
+fn get_vtable_inner<'tcx>(
     tcx: TyCtxt<'tcx>,
     ty: Ty<'tcx>,
     poly_trait_ref: Option<ty::PolyExistentialTraitRef<'tcx>>,
-) -> InterpResult<'tcx, Pointer<()>> {
-    trace!("get_vtable(trait_ref={:?})", poly_trait_ref);
-
-    let (ty, poly_trait_ref) = tcx.erase_regions(&(ty, poly_trait_ref));
-
-    // All vtables must be monomorphic, bail out otherwise.
-    if ty.needs_subst() || poly_trait_ref.needs_subst() {
-        throw_inval!(TooGeneric);
-    }
-
-    let alloc_id = match tcx.alloc_map.lock().reserve_vtable(ty, poly_trait_ref) {
-        Err(alloc_id) => {
-            // This means we guarantee that there are no duplicate vtables, we will
-            // always use the same vtable for the same (Type, Trait) combination.
-            // That's not what happens in rustc, but emulating per-crate deduplication
-            // does not sound like it actually makes anything any better.
-            let vtable = Pointer::new(alloc_id, Size::from_bytes(0));
-            return Ok(vtable);
-        }
-        Ok(alloc_id) => alloc_id,
-    };
+) -> Result<Pointer, ErrorHandled> {
+    let alloc_id = tcx.alloc_map.lock().reserve();
 
     let methods = if let Some(poly_trait_ref) = poly_trait_ref {
         let trait_ref = poly_trait_ref.with_self_ty(tcx, ty);
@@ -49,17 +27,18 @@ pub fn get_vtable<'tcx>(
 
     let layout = tcx
         .layout_of(ParamEnv::reveal_all().and(ty)) // FIXME is this param env correct?
-        .map_err(|layout| err_inval!(Layout(layout)))?;
+        .map_err(|e| if let LayoutError::SizeOverflow(_) = e {
+            tcx.sess.span_fatal(DUMMY_SP, &e.to_string())
+        } else {
+            bug!("failed to get layout for `{}` during vtable generation: {}", ty, e)
+        })?;
     assert!(!layout.is_unsized(), "can't create a vtable for an unsized type");
     let size = layout.size.bytes();
     let align = layout.align.abi.bytes();
 
     let ptr_size = tcx.pointer_size();
     let ptr_align = tcx.data_layout.pointer_align.abi;
-    // /////////////////////////////////////////////////////////////////////////////////////////
-    // If you touch this code, be sure to also make the corresponding changes to
-    // `get_vtable` in rust_codegen_llvm/meth.rs
-    // /////////////////////////////////////////////////////////////////////////////////////////
+
     let mut vtable_alloc = Allocation::undef(
         ptr_size * (3 + methods.len() as u64),
         ptr_align,
@@ -72,14 +51,17 @@ pub fn get_vtable<'tcx>(
     // no need to do any alignment checks on the memory accesses below, because we know the
     // allocation is correctly aligned as we created it above. Also we're only offsetting by
     // multiples of `ptr_align`, which means that it will stay aligned to `ptr_align`.
-    vtable_alloc.write_ptr_sized(&tcx, vtable, Scalar::Ptr(drop.into()).into())?;
+    vtable_alloc.write_ptr_sized(&tcx, vtable, Scalar::Ptr(drop.into()).into()).unwrap();
 
-    let size_ptr = vtable.offset(ptr_size, &tcx)?;
-    vtable_alloc.write_ptr_sized(&tcx, size_ptr, Scalar::from_uint(size, ptr_size).into())?;
-    let align_ptr = vtable.offset(ptr_size * 2, &tcx)?;
-    vtable_alloc.write_ptr_sized(&tcx, align_ptr, Scalar::from_uint(align, ptr_size).into())?;
+    let size_ptr = vtable.offset(ptr_size, &tcx).unwrap();
+    vtable_alloc.write_ptr_sized(&tcx, size_ptr, Scalar::from_uint(size, ptr_size).into()).unwrap();
+    let align_ptr = vtable.offset(ptr_size * 2, &tcx).unwrap();
+    vtable_alloc.write_ptr_sized(&tcx, align_ptr, Scalar::from_uint(align, ptr_size).into()).unwrap();
+
+    let nullptr = Scalar::Raw { data: 0, size: u8::try_from(ptr_size.bytes()).expect("pointer size > 255") };
 
     for (i, method) in methods.iter().enumerate() {
+        let method_ptr = vtable.offset(ptr_size * (3 + i as u64), &tcx).unwrap();
         if let Some((def_id, substs)) = *method {
             // resolve for vtable: insert shims where needed
             let instance = ty::Instance::resolve_for_vtable(
@@ -87,10 +69,15 @@ pub fn get_vtable<'tcx>(
                 ParamEnv::reveal_all(), // FIXME is this correct?
                 def_id,
                 substs,
-            ).ok_or_else(|| err_inval!(TooGeneric))?;
+            ).unwrap();
             let fn_ptr = tcx.alloc_map.lock().create_fn_alloc(instance);
-            let method_ptr = vtable.offset(ptr_size * (3 + i as u64), &tcx)?;
-            vtable_alloc.write_ptr_sized(&tcx, method_ptr, Scalar::Ptr(fn_ptr.into()).into())?;
+            vtable_alloc
+                .write_ptr_sized(&tcx, method_ptr, Scalar::Ptr(fn_ptr.into()).into())
+                .unwrap();
+        } else {
+            vtable_alloc
+                .write_ptr_sized(&tcx, method_ptr, nullptr.into())
+                .unwrap();
         }
     }
 
