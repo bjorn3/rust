@@ -353,6 +353,7 @@ fn test_iterator_step_by_nth() {
 }
 
 #[test]
+#[ignore]
 fn test_iterator_step_by_nth_overflow() {
     #[cfg(target_pointer_width = "8")]
     type Bigger = u16;
@@ -2318,6 +2319,7 @@ fn test_range_inclusive_folds() {
 }
 
 #[test]
+#[ignore]
 fn test_range_size_hint() {
     assert_eq!((0..0usize).size_hint(), (0, Some(0)));
     assert_eq!((0..100usize).size_hint(), (100, Some(100)));
@@ -2342,6 +2344,7 @@ fn test_range_size_hint() {
 }
 
 #[test]
+#[ignore]
 fn test_range_inclusive_size_hint() {
     assert_eq!((1..=0usize).size_hint(), (0, Some(0)));
     assert_eq!((0..=0usize).size_hint(), (1, Some(1)));
@@ -2439,6 +2442,7 @@ fn test_repeat_with_take_collect() {
 }
 
 #[test]
+#[ignore]
 fn test_successors() {
     let mut powers_of_10 = successors(Some(1_u16), |n| n.checked_mul(10));
     assert_eq!(powers_of_10.by_ref().collect::<Vec<_>>(), &[1, 10, 100, 1_000, 10_000]);

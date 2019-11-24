@@ -66,6 +66,7 @@ where
 }
 
 #[test]
+#[ignore]
 fn from_str_issue7588() {
     let u: Option<u8> = u8::from_str_radix("1000", 10).ok();
     assert_eq!(u, None);
@@ -608,11 +609,9 @@ test_impl_try_from_signed_to_unsigned_err! { test_try_i64u32, i64, u32 }
 test_impl_try_from_signed_to_unsigned_err! { test_try_i128u8, i128, u8 }
 test_impl_try_from_signed_to_unsigned_err! { test_try_i128u16, i128, u16 }
 test_impl_try_from_signed_to_unsigned_err! { test_try_i128u32, i128, u32 }
-test_impl_try_from_signed_to_unsigned_err! { test_try_i128u64, i128, u64 }
 
 assume_usize_width! {
     test_impl_try_from_signed_to_unsigned_err! { test_try_isizeu8, isize, u8 }
-    test_impl_try_from_signed_to_unsigned_err! { test_try_i128usize, i128, usize }
 
     cfg_block! {
         #[cfg(target_pointer_width = "16")] {
@@ -636,6 +635,7 @@ macro_rules! test_float {
         mod $modname {
             // FIXME(nagisa): these tests should test for sign of -0.0
             #[test]
+            #[ignore]
             fn min() {
                 assert_eq!((0.0 as $fty).min(0.0), 0.0);
                 assert_eq!((-0.0 as $fty).min(-0.0), -0.0);
@@ -658,6 +658,7 @@ macro_rules! test_float {
                 assert!(($nan as $fty).min($nan).is_nan());
             }
             #[test]
+            #[ignore]
             fn max() {
                 assert_eq!((0.0 as $fty).max(0.0), 0.0);
                 assert_eq!((-0.0 as $fty).max(-0.0), -0.0);

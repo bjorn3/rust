@@ -128,6 +128,7 @@ fn mul() {
 }
 
 #[test]
+#[ignore]
 fn checked_mul() {
     assert_eq!(Duration::new(0, 1).checked_mul(2), Some(Duration::new(0, 2)));
     assert_eq!(Duration::new(1, 1).checked_mul(3), Some(Duration::new(3, 3)));

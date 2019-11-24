@@ -2,6 +2,7 @@ use core::num::bignum::tests::Big8x3 as Big;
 
 #[test]
 #[should_panic]
+#[ignore]
 fn test_from_u64_overflow() {
     Big::from_u64(0x1000000);
 }
@@ -18,12 +19,14 @@ fn test_add() {
 
 #[test]
 #[should_panic]
+#[ignore]
 fn test_add_overflow_1() {
     Big::from_small(1).add(&Big::from_u64(0xffffff));
 }
 
 #[test]
 #[should_panic]
+#[ignore]
 fn test_add_overflow_2() {
     Big::from_u64(0xffffff).add(&Big::from_small(1));
 }
@@ -41,6 +44,7 @@ fn test_add_small() {
 
 #[test]
 #[should_panic]
+#[ignore]
 fn test_add_small_overflow() {
     Big::from_u64(0xffffff).add_small(1);
 }
@@ -75,6 +79,7 @@ fn test_mul_small() {
 
 #[test]
 #[should_panic]
+#[ignore]
 fn test_mul_small_overflow() {
     Big::from_u64(0x800000).mul_small(2);
 }
@@ -117,12 +122,14 @@ fn test_mul_pow5() {
 
 #[test]
 #[should_panic]
+#[ignore]
 fn test_mul_pow5_overflow_1() {
     Big::from_small(1).mul_pow5(12);
 }
 
 #[test]
 #[should_panic]
+#[ignore]
 fn test_mul_pow5_overflow_2() {
     Big::from_small(230).mul_pow5(8);
 }
@@ -140,12 +147,14 @@ fn test_mul_digits() {
 
 #[test]
 #[should_panic]
+#[ignore]
 fn test_mul_digits_overflow_1() {
     Big::from_u64(0x800000).mul_digits(&[2]);
 }
 
 #[test]
 #[should_panic]
+#[ignore]
 fn test_mul_digits_overflow_2() {
     Big::from_u64(0x1000).mul_digits(&[0, 0x10]);
 }
@@ -209,6 +218,7 @@ fn test_get_bit() {
 
 #[test]
 #[should_panic]
+#[ignore]
 fn test_get_bit_out_of_range() {
     Big::from_small(42).get_bit(24);
 }
