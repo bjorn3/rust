@@ -1260,6 +1260,7 @@ fn brute_force_rotate_test_1() {
     }
 }
 
+/*
 #[test]
 #[cfg(not(target_arch = "wasm32"))]
 fn sort_unstable() {
@@ -1439,6 +1440,7 @@ fn partition_at_index() {
     v.partition_at_index(0);
     assert!(v == [0xDEADBEEF]);
 }
+*/
 
 #[test]
 #[should_panic(expected = "index 0 greater than length of slice")]

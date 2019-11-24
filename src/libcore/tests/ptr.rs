@@ -257,6 +257,7 @@ fn test_unsized_nonnull() {
     assert!(ys == zs);
 }
 
+/*
 #[test]
 #[allow(warnings)]
 // Have a symbol for the test below. It doesn’t need to be an actual variadic function, match the
@@ -298,6 +299,7 @@ fn write_unaligned_drop() {
     }
     DROPS.with(|d| assert_eq!(*d.borrow(), [0]));
 }
+*/
 
 #[test]
 #[cfg_attr(miri, ignore)] // Miri does not compute a maximal `mid` for `align_offset`

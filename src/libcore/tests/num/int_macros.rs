@@ -115,6 +115,7 @@ macro_rules! int_module {
                 assert_eq!(x.trailing_ones(), 0);
             }
 
+            /*
             #[test]
             fn test_rotate() {
                 assert_eq!(A.rotate_left(6).rotate_right(2).rotate_right(4), A);
@@ -139,6 +140,7 @@ macro_rules! int_module {
                 assert_eq!(B.rotate_left(64), B);
                 assert_eq!(C.rotate_left(64), C);
             }
+            */
 
             #[test]
             fn test_swap_bytes() {
