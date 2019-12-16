@@ -99,7 +99,7 @@ mod imp {
         // On Linux-GNU, we rely on `ARGV_INIT_ARRAY` below to initialize
         // `ARGC` and `ARGV`. But in Miri that does not actually happen so we
         // still initialize here.
-        #[cfg(any(miri, not(all(target_os = "linux", target_env = "gnu"))))]
+        // `#[link_section]` is not yet supported by cg_clif
         really_init(_argc, _argv);
     }
 
