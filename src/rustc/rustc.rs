@@ -1,3 +1,9 @@
+extern crate libc;
+
+#[no_mangle]
+#[used]
+pub static mut __cg_clif_global_atomic_mutex: libc::pthread_mutex_t = libc::PTHREAD_MUTEX_INITIALIZER;
+
 fn main() {
     // Pull in jemalloc when enabled.
     //
@@ -25,6 +31,8 @@ fn main() {
         #[used]
         static _F6: unsafe extern "C" fn(*mut c_void) = jemalloc_sys::free;
     }
+
+    unsafe { libc::pthread_mutex_init(&mut __cg_clif_global_atomic_mutex, 0 as *const _); }
 
     rustc_driver::set_sigpipe_handler();
     rustc_driver::main()

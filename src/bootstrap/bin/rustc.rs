@@ -57,6 +57,8 @@ fn main() {
     let mut cmd = Command::new(rustc);
     cmd.args(&args).env(bootstrap::util::dylib_path_var(), env::join_paths(&dylib_path).unwrap());
 
+    cmd.arg("-Clink-arg=-rdynamic"); // Export __cg_clif_global_atomic_mutex from rustc executable for proc macros
+
     // Get the name of the crate we're compiling, if any.
     let crate_name =
         args.windows(2).find(|args| args[0] == "--crate-name").and_then(|args| args[1].to_str());
