@@ -34,10 +34,10 @@
 [submodule "src/doc/edition-guide"]
 	path = src/doc/edition-guide
 	url = https://github.com/rust-lang/edition-guide.git
-[submodule "src/llvm-project"]
-	path = src/llvm-project
-	url = https://github.com/rust-lang/llvm-project.git
-	branch = rustc/10.0-2020-05-05
+#[submodule "src/llvm-project"]
+#	path = src/llvm-project
+#	url = https://github.com/rust-lang/llvm-project.git
+#	branch = rustc/10.0-2020-05-05
 [submodule "src/doc/embedded-book"]
 	path = src/doc/embedded-book
 	url = https://github.com/rust-embedded/book.git

@@ -354,6 +354,7 @@ impl<'a> Builder<'a> {
             Kind::Build => describe!(
                 compile::Std,
                 compile::Rustc,
+                compile::CodegenBackend,
                 compile::StartupObjects,
                 tool::BuildManifest,
                 tool::Rustbook,
@@ -380,7 +381,7 @@ impl<'a> Builder<'a> {
                 native::Lld
             ),
             Kind::Check | Kind::Clippy | Kind::Fix | Kind::Format => {
-                describe!(check::Std, check::Rustc, check::Rustdoc, check::Clippy)
+                describe!(check::Std, check::Rustc, check::Rustdoc, check::CodegenBackend, check::Rustdoc)
             }
             Kind::Test => describe!(
                 crate::toolstate::ToolStateCheck,
@@ -643,6 +644,11 @@ impl<'a> Builder<'a> {
         self.ensure(Libdir { compiler, target })
     }
 
+    pub fn sysroot_codegen_backends(&self, compiler: Compiler) -> PathBuf {
+        self.sysroot_libdir(compiler, compiler.host)
+            .with_file_name("codegen-backends")
+    }
+
     /// Returns the compiler's libdir where it stores the dynamic libraries that
     /// it itself links against.
     ///
@@ -711,6 +717,15 @@ impl<'a> Builder<'a> {
         }
     }
 
+    /// Gets the paths to all of the compiler's codegen backends.
+    fn codegen_backends(&self, compiler: Compiler) -> impl Iterator<Item = PathBuf> {
+        fs::read_dir(self.sysroot_codegen_backends(compiler))
+            .into_iter()
+            .flatten()
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+    }
+
     pub fn rustdoc(&self, compiler: Compiler) -> PathBuf {
         self.ensure(tool::Rustdoc { compiler })
     }
@@ -768,6 +783,12 @@ impl<'a> Builder<'a> {
     ) -> Cargo {
         let mut cargo = Command::new(&self.initial_cargo);
         let out_dir = self.stage_out(compiler, mode);
+
+        // Codegen backends are not yet tracked by -Zbinary-dep-depinfo,
+        // so we need to explicitly clear out if they've been updated.
+        for backend in self.codegen_backends(compiler) {
+            self.clear_if_dirty(&out_dir, &backend);
+        }
 
         if cmd == "doc" || cmd == "rustdoc" {
             let my_out = match mode {

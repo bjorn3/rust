@@ -2,7 +2,7 @@
 
 use crate::builder::{Builder, Kind, RunConfig, ShouldRun, Step};
 use crate::cache::Interned;
-use crate::compile::{add_to_sysroot, run_cargo, rustc_cargo, std_cargo};
+use crate::compile::{add_to_sysroot, run_cargo, rustc_cargo, rustc_cargo_env, std_cargo};
 use crate::tool::{prepare_tool_cargo, SourceType};
 use crate::{Compiler, Mode};
 use std::path::PathBuf;
@@ -123,6 +123,54 @@ impl Step for Rustc {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct CodegenBackend {
+    pub target: Interned<String>,
+    pub backend: Interned<String>,
+}
+
+impl Step for CodegenBackend {
+    type Output = ();
+    const ONLY_HOSTS: bool = true;
+    const DEFAULT: bool = true;
+
+    fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
+        run.all_krates("rustc_codegen_cranelift")
+    }
+
+    fn make_run(run: RunConfig<'_>) {
+        for &backend in &run.builder.config.rust_codegen_backends {
+            if backend == "llvm" {
+                continue; // Already build as part of rustc
+            }
+            run.builder.ensure(CodegenBackend {
+                target: run.target,
+                backend,
+            });
+        }
+    }
+
+    fn run(self, builder: &Builder<'_>) {
+        let compiler = builder.compiler(0, builder.config.build);
+        let target = self.target;
+        let backend = self.backend;
+
+        builder.ensure(Rustc { target });
+
+        let mut cargo = builder.cargo(compiler, Mode::Codegen, SourceType::Submodule, target,
+            cargo_subcommand(builder.kind));
+        cargo.arg("--manifest-path").arg(builder.src.join(format!("src/librustc_codegen_{}/Cargo.toml", backend)));
+        rustc_cargo_env(builder, &mut cargo, target);
+
+        run_cargo(builder,
+                  cargo,
+                  args(builder.kind),
+                  &codegen_backend_stamp(builder, compiler, target, backend),
+                  vec![],
+                  true);
+    }
+}
+
 macro_rules! tool_check_step {
     ($name:ident, $path:expr, $source_type:expr) => {
         #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -212,4 +260,14 @@ fn libstd_stamp(builder: &Builder<'_>, compiler: Compiler, target: Interned<Stri
 /// compiler for the specified target.
 fn librustc_stamp(builder: &Builder<'_>, compiler: Compiler, target: Interned<String>) -> PathBuf {
     builder.cargo_out(compiler, Mode::Rustc, target).join(".librustc-check.stamp")
+}
+
+/// Cargo's output path for librustc_codegen_llvm in a given stage, compiled by a particular
+/// compiler for the specified target and backend.
+fn codegen_backend_stamp(builder: &Builder<'_>,
+                         compiler: Compiler,
+                         target: Interned<String>,
+                         backend: Interned<String>) -> PathBuf {
+    builder.cargo_out(compiler, Mode::Codegen, target)
+         .join(format!(".librustc_codegen_{}-check.stamp", backend))
 }
