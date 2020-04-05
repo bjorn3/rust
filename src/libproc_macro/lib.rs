@@ -73,6 +73,7 @@ pub fn is_available() -> bool {
 /// and `#[proc_macro_derive]` definitions.
 #[stable(feature = "proc_macro_lib", since = "1.15.0")]
 #[derive(Clone)]
+#[repr(transparent)]
 pub struct TokenStream(bridge::client::TokenStream);
 
 #[stable(feature = "proc_macro_lib", since = "1.15.0")]

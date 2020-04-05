@@ -9,6 +9,7 @@ use std::slice;
 struct Slice<'a, T> {
     data: &'a [T; 0],
     len: usize,
+    _a: u8, // Force ByRef passing of this struct
 }
 
 unsafe impl<'a, T: Sync> Sync for Slice<'a, T> {}
@@ -23,7 +24,7 @@ impl<T> Clone for Slice<'a, T> {
 
 impl<T> From<&'a [T]> for Slice<'a, T> {
     fn from(xs: &'a [T]) -> Self {
-        Slice { data: unsafe { &*(xs.as_ptr() as *const [T; 0]) }, len: xs.len() }
+        Slice { data: unsafe { &*(xs.as_ptr() as *const [T; 0]) }, len: xs.len(), _a: 0 }
     }
 }
 

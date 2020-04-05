@@ -44,7 +44,7 @@ macro_rules! define_handles {
         }
 
         $(
-            #[repr(C)]
+            #[repr(transparent)]
             pub(crate) struct $oty(handle::Handle);
             impl !Send for $oty {}
             impl !Sync for $oty {}
@@ -119,7 +119,7 @@ macro_rules! define_handles {
         )*
 
         $(
-            #[repr(C)]
+            #[repr(transparent)]
             #[derive(Copy, Clone, PartialEq, Eq, Hash)]
             pub(crate) struct $ity(handle::Handle);
             impl !Send for $ity {}
