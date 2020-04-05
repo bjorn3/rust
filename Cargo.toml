@@ -2,6 +2,7 @@
 members = [
   "src/bootstrap",
   "compiler/rustc",
+  "compiler/rustc_codegen_cranelift",
   "library/std",
   "library/test",
   "src/tools/cargotest",
@@ -34,6 +35,9 @@ exclude = [
   # HACK(eddyb) This hardcodes the fact that our CI uses `/checkout/obj`.
   "obj",
 ]
+
+[profile.release]
+lto = "off"
 
 [profile.release.package.compiler_builtins]
 # The compiler-builtins crate cannot reference libcore, and it's own CI will
