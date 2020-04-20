@@ -4,7 +4,6 @@
 pub struct Closure<'a, A, R> {
     call: unsafe extern "C" fn(&mut Env, A) -> R,
     env: &'a mut Env,
-    _a: u8, // Force ByRef abi
 }
 
 extern "C" {
@@ -19,7 +18,7 @@ impl<'a, A, R, F: FnMut(A) -> R> From<&'a mut F> for Closure<'a, A, R> {
         unsafe extern "C" fn call<A, R, F: FnMut(A) -> R>(env: &mut Env, arg: A) -> R {
             (*(env as *mut _ as *mut F))(arg)
         }
-        Closure { call: call::<A, R, F>, env: unsafe { &mut *(f as *mut _ as *mut Env) }, _a: 0 }
+        Closure { call: call::<A, R, F>, env: unsafe { &mut *(f as *mut _ as *mut Env) } }
     }
 }
 
