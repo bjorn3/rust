@@ -82,3 +82,11 @@ rustc-std-workspace-std = { path = 'src/tools/rustc-std-workspace-std' }
 
 [patch."https://github.com/rust-lang/rust-clippy"]
 clippy_lints = { path = "src/tools/clippy/clippy_lints" }
+
+[patch."https://github.com/bytecodealliance/wasmtime/"]
+cranelift-codegen = { path = "../wasmtime/cranelift/codegen" }
+cranelift-frontend = { path = "../wasmtime/cranelift/frontend" }
+cranelift-module = { path = "../wasmtime/cranelift/module" }
+cranelift-simplejit = { path = "../wasmtime/cranelift/simplejit" }
+cranelift-object = { path = "../wasmtime/cranelift/object" }
+
