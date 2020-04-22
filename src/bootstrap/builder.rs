@@ -835,15 +835,8 @@ impl<'a> Builder<'a> {
             }
         }
 
-        let stage = if compiler.stage == 0 && self.local_rebuild {
-            // Assume the local-rebuild rustc already has stage1 features.
-            1
-        } else {
-            compiler.stage
-        };
-
         let mut rustflags = Rustflags::new(&target);
-        if stage != 0 {
+        if compiler.stage != 0 {
             if let Ok(s) = env::var("CARGOFLAGS_NOT_BOOTSTRAP") {
                 cargo.args(s.split_whitespace());
             }
@@ -855,6 +848,13 @@ impl<'a> Builder<'a> {
             rustflags.env("RUSTFLAGS_BOOTSTRAP");
             rustflags.arg("--cfg=bootstrap");
         }
+
+        let stage = if compiler.stage == 0 && self.local_rebuild {
+            // Assume the local-rebuild rustc already has stage1 features.
+            1
+        } else {
+            compiler.stage
+        };
 
         // FIXME: It might be better to use the same value for both `RUSTFLAGS` and `RUSTDOCFLAGS`,
         // but this breaks CI. At the very least, stage0 `rustdoc` needs `--cfg bootstrap`. See
