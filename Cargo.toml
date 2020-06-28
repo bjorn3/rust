@@ -64,6 +64,9 @@ codegen-units = 10000
 [patch."https://github.com/rust-lang/cargo"]
 cargo = { path = "src/tools/cargo" }
 
+[profile.release]
+lto = "off"
+
 [patch.crates-io]
 # Similar to Cargo above we want the RLS to use a vendored version of `rustfmt`
 # that we're shipping as well (to ensure that the rustfmt in RLS and the
