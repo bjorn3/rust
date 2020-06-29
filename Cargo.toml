@@ -83,6 +83,8 @@ rustc-std-workspace-core = { path = 'src/tools/rustc-std-workspace-core' }
 rustc-std-workspace-alloc = { path = 'src/tools/rustc-std-workspace-alloc' }
 rustc-std-workspace-std = { path = 'src/tools/rustc-std-workspace-std' }
 
+ppv-lite86 = { path = "../cg_clif/cryptocorrosion/utils-simd/ppv-lite86"}
+
 [patch."https://github.com/rust-lang/rust-clippy"]
 clippy_lints = { path = "src/tools/clippy/clippy_lints" }
 
