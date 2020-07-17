@@ -72,8 +72,7 @@ checksum = "85bb70cc08ec97ca5450e6eba421deeea5f172c0fc61f78b5357b2a8e8be195f"
 [[package]]
 name = "ar"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "450575f58f7bee32816abbff470cbc47797397c2a81e0eaced4b98436daf52e1"
+source = "git+https://github.com/bjorn3/rust-ar.git?branch=do_not_remove_cg_clif_ranlib#de9ab0e56bf3a208381d342aa5b60f9ff2891648"
 
 [[package]]
 name = "arc-swap"
@@ -682,14 +681,16 @@ checksum = "9a21fa21941700a3cd8fcb4091f361a6a712fac632f85d9f487cc892045d55c6"
 
 [[package]]
 name = "cranelift-bforest"
-version = "0.65.0"
+version = "0.66.0"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#c3ff0754d4f2a28a7438a90319b062fa407ce143"
 dependencies = [
  "cranelift-entity",
 ]
 
 [[package]]
 name = "cranelift-codegen"
-version = "0.65.0"
+version = "0.66.0"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#c3ff0754d4f2a28a7438a90319b062fa407ce143"
 dependencies = [
  "byteorder",
  "cranelift-bforest",
@@ -706,7 +707,8 @@ dependencies = [
 
 [[package]]
 name = "cranelift-codegen-meta"
-version = "0.65.0"
+version = "0.66.0"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#c3ff0754d4f2a28a7438a90319b062fa407ce143"
 dependencies = [
  "cranelift-codegen-shared",
  "cranelift-entity",
@@ -714,15 +716,18 @@ dependencies = [
 
 [[package]]
 name = "cranelift-codegen-shared"
-version = "0.65.0"
+version = "0.66.0"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#c3ff0754d4f2a28a7438a90319b062fa407ce143"
 
 [[package]]
 name = "cranelift-entity"
-version = "0.65.0"
+version = "0.66.0"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#c3ff0754d4f2a28a7438a90319b062fa407ce143"
 
 [[package]]
 name = "cranelift-frontend"
-version = "0.65.0"
+version = "0.66.0"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#c3ff0754d4f2a28a7438a90319b062fa407ce143"
 dependencies = [
  "cranelift-codegen",
  "log",
@@ -732,7 +737,8 @@ dependencies = [
 
 [[package]]
 name = "cranelift-module"
-version = "0.65.0"
+version = "0.66.0"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#c3ff0754d4f2a28a7438a90319b062fa407ce143"
 dependencies = [
  "anyhow",
  "cranelift-codegen",
@@ -743,7 +749,8 @@ dependencies = [
 
 [[package]]
 name = "cranelift-native"
-version = "0.65.0"
+version = "0.66.0"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#c3ff0754d4f2a28a7438a90319b062fa407ce143"
 dependencies = [
  "cranelift-codegen",
  "raw-cpuid",
@@ -752,7 +759,8 @@ dependencies = [
 
 [[package]]
 name = "cranelift-object"
-version = "0.65.0"
+version = "0.66.0"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#c3ff0754d4f2a28a7438a90319b062fa407ce143"
 dependencies = [
  "anyhow",
  "cranelift-codegen",
@@ -763,7 +771,8 @@ dependencies = [
 
 [[package]]
 name = "cranelift-simplejit"
-version = "0.65.0"
+version = "0.66.0"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#c3ff0754d4f2a28a7438a90319b062fa407ce143"
 dependencies = [
  "cranelift-codegen",
  "cranelift-module",
@@ -2115,9 +2124,9 @@ dependencies = [
 
 [[package]]
 name = "object"
-version = "0.19.0"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9cbca9424c482ee628fa549d9c812e2cd22f1180b9222c9200fdfa6eb31aecb2"
+checksum = "1ab52be62400ca80aa00285d25253d7f7c437b7375c4de678f5405d3afe82ca5"
 dependencies = [
  "crc32fast",
  "indexmap",
@@ -2812,9 +2821,9 @@ dependencies = [
 
 [[package]]
 name = "regalloc"
-version = "0.0.26"
+version = "0.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c03092d79e0fd610932d89ed53895a38c0dd3bcd317a0046e69940de32f1d95"
+checksum = "3598bed0895fe0f72a9e0b00ef9e3a3c8af978a8401b2f2046dec5927de6364a"
 dependencies = [
  "log",
  "rustc-hash",
@@ -5362,9 +5371,9 @@ dependencies = [
 
 [[package]]
 name = "wasmparser"
-version = "0.54.0"
+version = "0.57.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "747467da102640806cf6643e032a70174e7768839bcac7e71a0a9aaa54761d59"
+checksum = "32fddd575d477c6e9702484139cf9f23dcd554b06d185ed0f56c857dd3a47aa6"
 
 [[package]]
 name = "winapi"
