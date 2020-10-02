@@ -642,8 +642,8 @@ impl Step for RustcLink {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct CodegenBackend {
-    pub target_compiler: Compiler,
     pub target: TargetSelection,
+    pub compiler: Compiler,
     pub backend: Interned<String>,
 }
 
@@ -662,21 +662,21 @@ impl Step for CodegenBackend {
                 continue; // Already build as part of rustc
             }
             run.builder.ensure(CodegenBackend {
-                target_compiler: run.builder.compiler(run.builder.top_stage, run.build_triple()),
                 target: run.target,
+                compiler: run.builder.compiler(run.builder.top_stage, run.build_triple()),
                 backend,
             });
         }
     }
 
     fn run(self, builder: &Builder<'_>) {
-        let target_compiler = self.target_compiler;
+        let compiler = self.compiler;
         let target = self.target;
         let backend = self.backend;
 
-        builder.ensure(Rustc { compiler: target_compiler, target });
+        builder.ensure(Rustc { compiler, target });
 
-        if builder.config.keep_stage.contains(&target_compiler.stage) {
+        if builder.config.keep_stage.contains(&compiler.stage) {
             builder.info(
                 "Warning: Using a potentially old codegen backend. \
                 This may not behave well.",
@@ -687,16 +687,16 @@ impl Step for CodegenBackend {
         }
 
         let compiler_to_use =
-            builder.compiler_for(target_compiler.stage, target_compiler.host, target);
-        if compiler_to_use != target_compiler {
-            builder.ensure(CodegenBackend { target_compiler: compiler_to_use, target, backend });
+            builder.compiler_for(compiler.stage, compiler.host, target);
+        if compiler_to_use != compiler {
+            builder.ensure(CodegenBackend { compiler: compiler_to_use, target, backend });
             return;
         }
 
-        let out_dir = builder.cargo_out(target_compiler, Mode::Codegen, target);
+        let out_dir = builder.cargo_out(compiler, Mode::Codegen, target);
 
         let mut cargo =
-            builder.cargo(target_compiler, Mode::Codegen, SourceType::Submodule, target, "build");
+            builder.cargo(compiler, Mode::Codegen, SourceType::Submodule, target, "build");
         cargo
             .arg("--manifest-path")
             .arg(builder.src.join(format!("compiler/rustc_codegen_{}/Cargo.toml", backend)));
@@ -723,7 +723,7 @@ impl Step for CodegenBackend {
                 f.display()
             );
         }
-        let stamp = codegen_backend_stamp(builder, target_compiler, target, backend);
+        let stamp = codegen_backend_stamp(builder, compiler, target, backend);
         let codegen_backend = codegen_backend.to_str().unwrap();
         t!(fs::write(&stamp, &codegen_backend));
     }
@@ -929,7 +929,7 @@ impl Step for Assemble {
 
         for &backend in builder.config.rust_codegen_backends.iter() {
             builder.ensure(CodegenBackend {
-                target_compiler: build_compiler,
+                compiler: build_compiler,
                 target: target_compiler.host,
                 backend,
             });

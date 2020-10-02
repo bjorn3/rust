@@ -56,6 +56,10 @@ fn main() {
     let mut cmd = Command::new(rustc);
     cmd.args(&args).env(bootstrap::util::dylib_path_var(), env::join_paths(&dylib_path).unwrap());
 
+    if !args.iter().any(|arg| &*arg == "--cfg=bootstrap") && !args.iter().any(|arg| &*arg == "--print=sysroot") {
+        cmd.arg("-Ztrim-diagnostic-paths=no");
+    }
+
     // Get the name of the crate we're compiling, if any.
     let crate_name =
         args.windows(2).find(|args| args[0] == "--crate-name").and_then(|args| args[1].to_str());
