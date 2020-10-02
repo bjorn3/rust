@@ -302,7 +302,7 @@ pub enum Mode {
     /// Build librustc, and compiler libraries, placing output in the "stageN-rustc" directory.
     Rustc,
 
-    /// Build a codegen backend for rustc, placing the output in the "stageN-rustc" directory.
+    /// Build a codegen backend for rustc, placing the output in the "stageN-codegen" directory.
     Codegen,
 
     /// Build a tool, placing output in the "stage0-bootstrap-tools"
@@ -591,7 +591,8 @@ impl Build {
     fn stage_out(&self, compiler: Compiler, mode: Mode) -> PathBuf {
         let suffix = match mode {
             Mode::Std => "-std",
-            Mode::Rustc | Mode::Codegen => "-rustc",
+            Mode::Rustc => "-rustc",
+            Mode::Codegen => "-codegen",
             Mode::ToolBootstrap => "-bootstrap-tools",
             Mode::ToolStd | Mode::ToolRustc => "-tools",
         };

@@ -695,7 +695,7 @@ checksum = "9a21fa21941700a3cd8fcb4091f361a6a712fac632f85d9f487cc892045d55c6"
 [[package]]
 name = "cranelift-bforest"
 version = "0.66.0"
-source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#ac6539abd7f7f033332a5d3e479c968fa0ffdedd"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#1fabb051b0436a38f794ca395601dcdcc31d3c18"
 dependencies = [
  "cranelift-entity",
 ]
@@ -703,7 +703,7 @@ dependencies = [
 [[package]]
 name = "cranelift-codegen"
 version = "0.66.0"
-source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#ac6539abd7f7f033332a5d3e479c968fa0ffdedd"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#1fabb051b0436a38f794ca395601dcdcc31d3c18"
 dependencies = [
  "byteorder",
  "cranelift-bforest",
@@ -714,14 +714,14 @@ dependencies = [
  "log",
  "regalloc",
  "smallvec 1.4.2",
- "target-lexicon 0.10.0",
+ "target-lexicon",
  "thiserror",
 ]
 
 [[package]]
 name = "cranelift-codegen-meta"
 version = "0.66.0"
-source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#ac6539abd7f7f033332a5d3e479c968fa0ffdedd"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#1fabb051b0436a38f794ca395601dcdcc31d3c18"
 dependencies = [
  "cranelift-codegen-shared",
  "cranelift-entity",
@@ -730,28 +730,28 @@ dependencies = [
 [[package]]
 name = "cranelift-codegen-shared"
 version = "0.66.0"
-source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#ac6539abd7f7f033332a5d3e479c968fa0ffdedd"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#1fabb051b0436a38f794ca395601dcdcc31d3c18"
 
 [[package]]
 name = "cranelift-entity"
 version = "0.66.0"
-source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#ac6539abd7f7f033332a5d3e479c968fa0ffdedd"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#1fabb051b0436a38f794ca395601dcdcc31d3c18"
 
 [[package]]
 name = "cranelift-frontend"
 version = "0.66.0"
-source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#ac6539abd7f7f033332a5d3e479c968fa0ffdedd"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#1fabb051b0436a38f794ca395601dcdcc31d3c18"
 dependencies = [
  "cranelift-codegen",
  "log",
  "smallvec 1.4.2",
- "target-lexicon 0.10.0",
+ "target-lexicon",
 ]
 
 [[package]]
 name = "cranelift-module"
 version = "0.66.0"
-source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#ac6539abd7f7f033332a5d3e479c968fa0ffdedd"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#1fabb051b0436a38f794ca395601dcdcc31d3c18"
 dependencies = [
  "anyhow",
  "cranelift-codegen",
@@ -763,29 +763,29 @@ dependencies = [
 [[package]]
 name = "cranelift-native"
 version = "0.66.0"
-source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#ac6539abd7f7f033332a5d3e479c968fa0ffdedd"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#1fabb051b0436a38f794ca395601dcdcc31d3c18"
 dependencies = [
  "cranelift-codegen",
  "raw-cpuid",
- "target-lexicon 0.10.0",
+ "target-lexicon",
 ]
 
 [[package]]
 name = "cranelift-object"
 version = "0.66.0"
-source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#ac6539abd7f7f033332a5d3e479c968fa0ffdedd"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#1fabb051b0436a38f794ca395601dcdcc31d3c18"
 dependencies = [
  "anyhow",
  "cranelift-codegen",
  "cranelift-module",
- "object 0.20.0",
- "target-lexicon 0.10.0",
+ "object 0.21.1",
+ "target-lexicon",
 ]
 
 [[package]]
 name = "cranelift-simplejit"
 version = "0.66.0"
-source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#ac6539abd7f7f033332a5d3e479c968fa0ffdedd"
+source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#1fabb051b0436a38f794ca395601dcdcc31d3c18"
 dependencies = [
  "cranelift-codegen",
  "cranelift-module",
@@ -793,7 +793,7 @@ dependencies = [
  "errno",
  "libc",
  "region",
- "target-lexicon 0.10.0",
+ "target-lexicon",
  "winapi 0.3.9",
 ]
 
@@ -2254,8 +2254,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ab52be62400ca80aa00285d25253d7f7c437b7375c4de678f5405d3afe82ca5"
 dependencies = [
  "compiler_builtins",
- "crc32fast",
- "indexmap",
  "rustc-std-workspace-alloc",
  "rustc-std-workspace-core",
 ]
@@ -2913,9 +2911,9 @@ dependencies = [
 
 [[package]]
 name = "regalloc"
-version = "0.0.29"
+version = "0.0.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c178c51068338acd359c6e1ed356fcffe6b6cb3c162f68f70e251ca29bfe0eba"
+checksum = "2041c2d34f6ff346d6f428974f03d8bf12679b0c816bb640dc5eb1d48848d8d1"
 dependencies = [
  "log",
  "rustc-hash",
@@ -3630,7 +3628,7 @@ dependencies = [
  "indexmap",
  "libloading",
  "object 0.21.1",
- "target-lexicon 0.11.0",
+ "target-lexicon",
 ]
 
 [[package]]
@@ -4850,12 +4848,6 @@ dependencies = [
  "redox_syscall",
  "xattr",
 ]
-
-[[package]]
-name = "target-lexicon"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab0e7238dcc7b40a7be719a25365910f6807bd864f4cce6b2e6b873658e2b19d"
 
 [[package]]
 name = "target-lexicon"
