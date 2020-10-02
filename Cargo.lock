@@ -714,7 +714,7 @@ dependencies = [
  "log",
  "regalloc",
  "smallvec 1.4.2",
- "target-lexicon",
+ "target-lexicon 0.10.0",
  "thiserror",
 ]
 
@@ -745,7 +745,7 @@ dependencies = [
  "cranelift-codegen",
  "log",
  "smallvec 1.4.2",
- "target-lexicon",
+ "target-lexicon 0.10.0",
 ]
 
 [[package]]
@@ -767,7 +767,7 @@ source = "git+https://github.com/bytecodealliance/wasmtime/?branch=main#ac6539ab
 dependencies = [
  "cranelift-codegen",
  "raw-cpuid",
- "target-lexicon",
+ "target-lexicon 0.10.0",
 ]
 
 [[package]]
@@ -779,7 +779,7 @@ dependencies = [
  "cranelift-codegen",
  "cranelift-module",
  "object 0.20.0",
- "target-lexicon",
+ "target-lexicon 0.10.0",
 ]
 
 [[package]]
@@ -793,7 +793,7 @@ dependencies = [
  "errno",
  "libc",
  "region",
- "target-lexicon",
+ "target-lexicon 0.10.0",
  "winapi 0.3.9",
 ]
 
@@ -2268,7 +2268,6 @@ checksum = "37fd5004feb2ce328a52b0b3d01dbf4ffff72583493900ed15f22d4111c51693"
 dependencies = [
  "crc32fast",
  "indexmap",
- "wasmparser",
 ]
 
 [[package]]
@@ -3622,8 +3621,6 @@ name = "rustc_codegen_cranelift"
 version = "0.1.0"
 dependencies = [
  "ar",
- "byteorder",
- "cfg-if",
  "cranelift-codegen",
  "cranelift-frontend",
  "cranelift-module",
@@ -3633,7 +3630,7 @@ dependencies = [
  "indexmap",
  "libloading",
  "object 0.21.1",
- "target-lexicon",
+ "target-lexicon 0.11.0",
 ]
 
 [[package]]
@@ -4861,6 +4858,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab0e7238dcc7b40a7be719a25365910f6807bd864f4cce6b2e6b873658e2b19d"
 
 [[package]]
+name = "target-lexicon"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe2635952a442a01fd4cb53d98858b5e4bb461b02c0d111f22f31772e3e7a8b2"
+
+[[package]]
 name = "tempfile"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5566,12 +5569,6 @@ dependencies = [
  "rustc-std-workspace-alloc",
  "rustc-std-workspace-core",
 ]
-
-[[package]]
-name = "wasmparser"
-version = "0.57.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32fddd575d477c6e9702484139cf9f23dcd554b06d185ed0f56c857dd3a47aa6"
 
 [[package]]
 name = "winapi"
