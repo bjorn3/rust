@@ -57,7 +57,7 @@ fn main() {
     cmd.args(&args).env(bootstrap::util::dylib_path_var(), env::join_paths(&dylib_path).unwrap());
 
     if !args.iter().any(|arg| &*arg == "--cfg=bootstrap") && !args.iter().any(|arg| &*arg == "--print=sysroot") {
-        cmd.arg("-Ztrim-diagnostic-paths=no");
+        //cmd.arg("-Ztrim-diagnostic-paths=no");
     }
 
     // Get the name of the crate we're compiling, if any.
