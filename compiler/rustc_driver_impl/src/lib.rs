@@ -154,31 +154,31 @@ pub const DEFAULT_BUG_REPORT_URL: &str = "https://github.com/rust-lang/rust/issu
 
 pub trait Callbacks {
     /// Called before creating the compiler instance
-    fn config(&mut self, _config: &mut interface::Config) {}
+    fn config(&mut self, _config: &mut interface::Config<'_>) {}
     /// Called after parsing the crate root. Submodules are not yet parsed when
     /// this callback is called. Return value instructs the compiler whether to
     /// continue the compilation afterwards (defaults to `Compilation::Continue`)
-    fn after_crate_root_parsing(
+    fn after_crate_root_parsing<'a>(
         &mut self,
-        _compiler: &interface::Compiler,
+        _compiler: &interface::Compiler<'a>,
         _queries: &ast::Crate,
     ) -> Compilation {
         Compilation::Continue
     }
     /// Called after expansion. Return value instructs the compiler whether to
     /// continue the compilation afterwards (defaults to `Compilation::Continue`)
-    fn after_expansion<'tcx>(
+    fn after_expansion<'a, 'tcx>(
         &mut self,
-        _compiler: &interface::Compiler,
+        _compiler: &interface::Compiler<'a>,
         _tcx: TyCtxt<'tcx>,
     ) -> Compilation {
         Compilation::Continue
     }
     /// Called after analysis. Return value instructs the compiler whether to
     /// continue the compilation afterwards (defaults to `Compilation::Continue`)
-    fn after_analysis<'tcx>(
+    fn after_analysis<'a, 'tcx>(
         &mut self,
-        _compiler: &interface::Compiler,
+        _compiler: &interface::Compiler<'a>,
         _tcx: TyCtxt<'tcx>,
     ) -> Compilation {
         Compilation::Continue
@@ -193,7 +193,7 @@ pub struct TimePassesCallbacks {
 impl Callbacks for TimePassesCallbacks {
     // JUSTIFICATION: the session doesn't exist at this point.
     #[allow(rustc::bad_opt_access)]
-    fn config(&mut self, config: &mut interface::Config) {
+    fn config(&mut self, config: &mut interface::Config<'_>) {
         // If a --print=... option has been given, we don't print the "total"
         // time because it will mess up the --print output. See #64339.
         //
@@ -213,7 +213,7 @@ pub struct RunCompiler<'a> {
     callbacks: &'a mut (dyn Callbacks + Send),
     file_loader: Option<Box<dyn FileLoader + Send + Sync>>,
     make_codegen_backend:
-        Option<Box<dyn FnOnce(&config::Options) -> Box<dyn CodegenBackend> + Send>>,
+        Option<Box<dyn FnOnce(&config::Options) -> Box<dyn CodegenBackend> + Send + 'a>>,
     using_internal_features: Arc<std::sync::atomic::AtomicBool>,
 }
 
@@ -237,7 +237,7 @@ impl<'a> RunCompiler<'a> {
     pub fn set_make_codegen_backend(
         &mut self,
         make_codegen_backend: Option<
-            Box<dyn FnOnce(&config::Options) -> Box<dyn CodegenBackend> + Send>,
+            Box<dyn FnOnce(&config::Options) -> Box<dyn CodegenBackend> + Send + 'a>,
         >,
     ) -> &mut Self {
         self.make_codegen_backend = make_codegen_backend;
@@ -277,12 +277,12 @@ impl<'a> RunCompiler<'a> {
     }
 }
 
-fn run_compiler(
+fn run_compiler<'a>(
     at_args: &[String],
     callbacks: &mut (dyn Callbacks + Send),
     file_loader: Option<Box<dyn FileLoader + Send + Sync>>,
     make_codegen_backend: Option<
-        Box<dyn FnOnce(&config::Options) -> Box<dyn CodegenBackend> + Send>,
+        Box<dyn FnOnce(&config::Options) -> Box<dyn CodegenBackend> + Send + 'a>,
     >,
     using_internal_features: Arc<std::sync::atomic::AtomicBool>,
 ) {
@@ -625,7 +625,7 @@ fn show_md_content_with_pager(content: &str, color: ColorConfig) {
     safe_print!("{content}");
 }
 
-fn process_rlink(sess: &Session, compiler: &interface::Compiler) {
+fn process_rlink(sess: &Session, compiler: &interface::Compiler<'_>) {
     assert!(sess.opts.unstable_opts.link_only);
     let dcx = sess.dcx();
     if let Input::File(file) = &sess.io.input {
