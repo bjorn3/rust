@@ -36,9 +36,9 @@ pub type Result<T> = result::Result<T, ErrorGuaranteed>;
 ///
 /// Can be used to run `rustc_interface` queries.
 /// Created by passing [`Config`] to [`run_compiler`].
-pub struct Compiler {
+pub struct Compiler<'a> {
     pub sess: Session,
-    pub codegen_backend: Box<dyn CodegenBackend>,
+    pub codegen_backend: Box<dyn CodegenBackend + 'a>,
     pub(crate) override_queries: Option<fn(&Session, &mut Providers)>,
     pub(crate) current_gcx: CurrentGcx,
 }
@@ -296,7 +296,7 @@ pub(crate) fn parse_check_cfg(dcx: DiagCtxtHandle<'_>, specs: Vec<String>) -> Ch
 }
 
 /// The compiler configuration
-pub struct Config {
+pub struct Config<'a> {
     /// Command line options
     pub opts: config::Options,
 
@@ -347,7 +347,7 @@ pub struct Config {
     /// custom driver where the custom codegen backend has arbitrary data."
     /// (See #102759.)
     pub make_codegen_backend:
-        Option<Box<dyn FnOnce(&config::Options) -> Box<dyn CodegenBackend> + Send>>,
+        Option<Box<dyn FnOnce(&config::Options) -> Box<dyn CodegenBackend> + Send + 'a>>,
 
     /// Registry of diagnostics codes.
     pub registry: Registry,
@@ -378,7 +378,7 @@ pub(crate) fn initialize_checked_jobserver(early_dcx: &EarlyDiagCtxt) {
 
 // JUSTIFICATION: before session exists, only config
 #[allow(rustc::bad_opt_access)]
-pub fn run_compiler<R: Send>(config: Config, f: impl FnOnce(&Compiler) -> R + Send) -> R {
+pub fn run_compiler<R: Send>(config: Config<'_>, f: impl for<'a> FnOnce(&Compiler<'a>) -> R + Send) -> R {
     trace!("run_compiler");
 
     // Set parallel mode before thread pool creation, which will create `Lock`s.
