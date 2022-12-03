@@ -66,13 +66,7 @@ impl<'gcc, 'tcx> StaticCodegenMethods for CodegenCx<'gcc, 'tcx> {
             return;
         };
         let alloc = alloc.inner();
-
-        // boolean SSA values are i1, but they have to be stored in i8 slots,
-        // otherwise some LLVM optimization passes don't work as expected
         let val_llty = self.val_ty(value);
-        if val_llty == self.type_i1() {
-            unimplemented!();
-        };
 
         let is_thread_local = attrs.flags.contains(CodegenFnAttrFlags::THREAD_LOCAL);
         let global = self.get_static_inner(def_id, val_llty);

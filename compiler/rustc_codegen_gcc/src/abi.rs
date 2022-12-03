@@ -123,7 +123,7 @@ impl<'gcc, 'tcx> FnAbiGccExt<'gcc, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
 
         let return_type = match self.ret.mode {
             PassMode::Ignore => cx.type_void(),
-            PassMode::Direct(_) | PassMode::Pair(..) => self.ret.layout.immediate_gcc_type(cx),
+            PassMode::Direct(_) | PassMode::Pair(..) => self.ret.layout.gcc_type(cx),
             PassMode::Cast { ref cast, .. } => cast.gcc_type(cx),
             PassMode::Indirect { .. } => {
                 argument_tys.push(cx.type_ptr_to(self.ret.layout.gcc_type(cx)));
@@ -180,7 +180,7 @@ impl<'gcc, 'tcx> FnAbiGccExt<'gcc, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                     arg.layout.gcc_type(cx)
                 }
                 PassMode::Direct(attrs) => {
-                    apply_attrs(arg.layout.immediate_gcc_type(cx), &attrs, argument_tys.len())
+                    apply_attrs(arg.layout.gcc_type(cx), &attrs, argument_tys.len())
                 }
                 PassMode::Indirect { attrs, meta_attrs: None, on_stack: false } => {
                     apply_attrs(cx.type_ptr_to(arg.layout.gcc_type(cx)), &attrs, argument_tys.len())

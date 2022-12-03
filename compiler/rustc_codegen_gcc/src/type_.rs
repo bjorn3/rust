@@ -97,10 +97,6 @@ impl<'gcc, 'tcx> CodegenCx<'gcc, 'tcx> {
         }
     }
 
-    pub fn type_i1(&self) -> Type<'gcc> {
-        self.bool_type
-    }
-
     pub fn type_struct(&self, fields: &[Type<'gcc>], packed: bool) -> Type<'gcc> {
         let types = fields.to_vec();
         if let Some(typ) = self.struct_types.borrow().get(fields) {

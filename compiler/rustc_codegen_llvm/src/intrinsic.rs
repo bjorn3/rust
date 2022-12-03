@@ -222,11 +222,11 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                 if let OperandValue::Immediate(imm) = args[0].val {
                     self.call_intrinsic(
                         "llvm.is.constant",
-                        &[args[0].layout.immediate_llvm_type(self.cx)],
+                        &[args[0].layout.llvm_type(self.cx)],
                         &[imm],
                     )
                 } else {
-                    self.const_bool(false)
+                    self.const_u8(0)
                 }
             }
             sym::select_unpredictable => {
@@ -418,8 +418,9 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                 let llty = self.type_ix(width);
                 match name {
                     sym::ctlz | sym::ctlz_nonzero | sym::cttz | sym::cttz_nonzero => {
-                        let y =
-                            self.const_bool(name == sym::ctlz_nonzero || name == sym::cttz_nonzero);
+                        let y = self.const_u8(
+                            (name == sym::ctlz_nonzero || name == sym::cttz_nonzero) as u8,
+                        );
                         let llvm_name = if name == sym::ctlz || name == sym::ctlz_nonzero {
                             "llvm.ctlz"
                         } else {
@@ -498,7 +499,7 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                 let a = args[0].immediate();
                 let b = args[1].immediate();
                 if layout.size().bytes() == 0 {
-                    self.const_bool(true)
+                    self.const_u8(1)
                 } else if use_integer_compare {
                     let integer_ty = self.type_ix(layout.size().bits());
                     let a_val = self.load(integer_ty, a, layout.align().abi);
@@ -629,10 +630,7 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
             }
         };
 
-        if result.layout.ty.is_bool() {
-            let val = self.from_immediate(llval);
-            self.store_to_place(val, result.val);
-        } else if !result.layout.ty.is_unit() {
+        if !result.layout.ty.is_unit() {
             self.store_to_place(llval, result.val);
         }
         Ok(())
@@ -702,8 +700,6 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                         if scalar.is_bool() {
                             self.range_metadata(llval, WrappingRange { start: 0, end: 1 });
                         }
-                        // We store bools as `i8` so we need to truncate to `i1`.
-                        llval = self.to_immediate_scalar(llval, scalar);
                     }
                     llargs.push(llval);
                 }
@@ -746,7 +742,7 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
             self.call_intrinsic(
                 "llvm.expect",
                 &[self.type_i1()],
-                &[cond, self.const_bool(expected)],
+                &[cond, self.const_u8(expected as u8)],
             )
         } else {
             cond

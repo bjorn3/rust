@@ -418,7 +418,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                     _ => bug!(),
                 }
             } else {
-                let switch_llty = bx.immediate_backend_type(bx.layout_of(switch_ty));
+                let switch_llty = bx.backend_type(bx.layout_of(switch_ty));
                 let llval = bx.const_uint_big(switch_llty, test_value);
                 let cmp = bx.icmp(IntPredicate::IntEQ, discr_value, llval);
                 bx.cond_br_with_expect(cmp, lltarget, llotherwise, expect);
@@ -452,7 +452,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             let cond = if switch_ty == bool_ty {
                 discr_value
             } else {
-                let bool_llty = bx.immediate_backend_type(bx.layout_of(bool_ty));
+                let bool_llty = bx.backend_type(bx.layout_of(bool_ty));
                 bx.unchecked_utrunc(discr_value, bool_llty)
             };
             bx.cond_br_with_expect(cond, true_ll, false_ll, expected_cond_value);
@@ -476,7 +476,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             let (_test_value2, target2) = target_iter.next().unwrap();
             let ll1 = helper.llbb_with_cleanup(self, target1);
             let ll2 = helper.llbb_with_cleanup(self, target2);
-            let switch_llty = bx.immediate_backend_type(bx.layout_of(switch_ty));
+            let switch_llty = bx.backend_type(bx.layout_of(switch_ty));
             let llval = bx.const_uint_big(switch_llty, test_value1);
             let cmp = bx.icmp(IntPredicate::IntEQ, discr_value, llval);
             bx.cond_br(cmp, ll1, ll2);
@@ -1709,8 +1709,6 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                     if scalar.is_bool() {
                         bx.range_metadata(llval, WrappingRange { start: 0, end: 1 });
                     }
-                    // We store bools as `i8` so we need to truncate to `i1`.
-                    llval = bx.to_immediate_scalar(llval, scalar);
                 }
             }
         }

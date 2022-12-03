@@ -1,7 +1,7 @@
 use std::assert_matches::assert_matches;
 use std::ops::Deref;
 
-use rustc_abi::{Align, Scalar, Size, WrappingRange};
+use rustc_abi::{Align, Size, WrappingRange};
 use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrs;
 use rustc_middle::mir;
 use rustc_middle::ty::layout::{FnAbiOf, LayoutOf, TyAndLayout};
@@ -142,7 +142,7 @@ pub trait BuilderMethods<'a, 'tcx>:
         // This is the preferred LLVM incantation for this per
         // https://llvm.org/docs/Frontend/PerformanceTips.html#other-things-to-consider
         // Other backends may override if they have a better way.
-        let const_true = self.cx().const_bool(true);
+        let const_true = self.cx().const_u8(1);
         let poison_ptr = self.const_poison(self.cx().type_ptr());
         self.store(const_true, poison_ptr, Align::ONE);
     }
@@ -230,9 +230,6 @@ pub trait BuilderMethods<'a, 'tcx>:
         lhs: Self::Value,
         rhs: Self::Value,
     ) -> (Self::Value, Self::Value);
-
-    fn from_immediate(&mut self, val: Self::Value) -> Self::Value;
-    fn to_immediate_scalar(&mut self, val: Self::Value, scalar: Scalar) -> Self::Value;
 
     fn alloca(&mut self, size: Size, align: Align) -> Self::Value;
     fn scalable_alloca(&mut self, elt: u64, align: Align, element_ty: Ty<'_>) -> Self::Value;

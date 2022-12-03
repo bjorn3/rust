@@ -172,14 +172,9 @@ pub(crate) trait LayoutLlvmExt<'tcx> {
     fn is_llvm_immediate(&self) -> bool;
     fn is_llvm_scalar_pair(&self) -> bool;
     fn llvm_type<'a>(&self, cx: &CodegenCx<'a, 'tcx>) -> &'a Type;
-    fn immediate_llvm_type<'a>(&self, cx: &CodegenCx<'a, 'tcx>) -> &'a Type;
     fn scalar_llvm_type_at<'a>(&self, cx: &CodegenCx<'a, 'tcx>, scalar: Scalar) -> &'a Type;
-    fn scalar_pair_element_llvm_type<'a>(
-        &self,
-        cx: &CodegenCx<'a, 'tcx>,
-        index: usize,
-        immediate: bool,
-    ) -> &'a Type;
+    fn scalar_pair_element_llvm_type<'a>(&self, cx: &CodegenCx<'a, 'tcx>, index: usize)
+    -> &'a Type;
 }
 
 impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
@@ -266,29 +261,6 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
         llty
     }
 
-    fn immediate_llvm_type<'a>(&self, cx: &CodegenCx<'a, 'tcx>) -> &'a Type {
-        match self.backend_repr {
-            BackendRepr::Scalar(scalar) => {
-                if scalar.is_bool() {
-                    return cx.type_i1();
-                }
-            }
-            BackendRepr::ScalarPair(..) => {
-                // An immediate pair always contains just the two elements, without any padding
-                // filler, as it should never be stored to memory.
-                return cx.type_struct(
-                    &[
-                        self.scalar_pair_element_llvm_type(cx, 0, true),
-                        self.scalar_pair_element_llvm_type(cx, 1, true),
-                    ],
-                    false,
-                );
-            }
-            _ => {}
-        };
-        self.llvm_type(cx)
-    }
-
     fn scalar_llvm_type_at<'a>(&self, cx: &CodegenCx<'a, 'tcx>, scalar: Scalar) -> &'a Type {
         match scalar.primitive() {
             Int(i, _) => cx.type_from_integer(i),
@@ -301,7 +273,6 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
         &self,
         cx: &CodegenCx<'a, 'tcx>,
         index: usize,
-        immediate: bool,
     ) -> &'a Type {
         // This must produce the same result for `repr(transparent)` wrappers as for the inner type!
         // In other words, this should generally not look at the type at all, but only at the
@@ -310,16 +281,6 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
             bug!("TyAndLayout::scalar_pair_element_llty({:?}): not applicable", self);
         };
         let scalar = [a, b][index];
-
-        // Make sure to return the same type `immediate_llvm_type` would when
-        // dealing with an immediate pair. This means that `(bool, bool)` is
-        // effectively represented as `{i8, i8}` in memory and two `i1`s as an
-        // immediate, just like `bool` is typically `i8` in memory and only `i1`
-        // when immediate. We need to load/store `bool` as `i8` to avoid
-        // crippling LLVM optimizations or triggering other LLVM bugs with `i1`.
-        if immediate && scalar.is_bool() {
-            return cx.type_i1();
-        }
 
         self.scalar_llvm_type_at(cx, scalar)
     }

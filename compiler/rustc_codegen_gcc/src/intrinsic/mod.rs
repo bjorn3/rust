@@ -400,13 +400,7 @@ impl<'a, 'gcc, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'gcc, 'tc
 
             sym::volatile_load | sym::unaligned_volatile_load => {
                 let ptr = args[0].immediate();
-                let load = self.volatile_load(result.layout.gcc_type(self), ptr);
-                // TODO(antoyo): set alignment.
-                if let BackendRepr::Scalar(scalar) = result.layout.backend_repr {
-                    self.to_immediate_scalar(load, scalar)
-                } else {
-                    load
-                }
+                self.volatile_load(result.layout.gcc_type(self), ptr)
             }
             sym::volatile_store => {
                 let dst = args[0].deref(self.cx());
@@ -512,7 +506,7 @@ impl<'a, 'gcc, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'gcc, 'tc
                 let a = args[0].immediate();
                 let b = args[1].immediate();
                 if layout.size().bytes() == 0 {
-                    self.const_bool(true)
+                    self.const_u8(1)
                 }
                 /*else if use_integer_compare {
                     let integer_ty = self.type_ix(layout.size.bits()); // FIXME(antoyo): LLVM creates an integer of 96 bits for [i32; 3], but gcc doesn't support this, so it creates an integer of 128 bits.
@@ -596,10 +590,7 @@ impl<'a, 'gcc, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'gcc, 'tc
             _ => return Err(Instance::new_raw(instance.def_id(), instance.args)),
         };
 
-        if result.layout.ty.is_bool() {
-            let val = self.from_immediate(value);
-            self.store_to_place(val, result.val);
-        } else if !result.layout.ty.is_unit() {
+        if !result.layout.ty.is_unit() {
             self.store_to_place(value, result.val);
         }
         Ok(())
@@ -676,8 +667,6 @@ impl<'a, 'gcc, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'gcc, 'tc
                         if scalar.is_bool() {
                             self.range_metadata(llval, WrappingRange { start: 0, end: 1 });
                         }
-                        // We store bools as `i8` so we need to truncate to `i1`.
-                        llval = self.to_immediate_scalar(llval, scalar);
                     }
                     llargs.push(llval);
                 }

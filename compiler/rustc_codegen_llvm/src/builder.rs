@@ -586,21 +586,6 @@ impl<'a, 'll, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         (self.extract_value(res, 0), self.extract_value(res, 1))
     }
 
-    fn from_immediate(&mut self, val: Self::Value) -> Self::Value {
-        if self.cx().val_ty(val) == self.cx().type_i1() {
-            self.zext(val, self.cx().type_i8())
-        } else {
-            val
-        }
-    }
-
-    fn to_immediate_scalar(&mut self, val: Self::Value, scalar: abi::Scalar) -> Self::Value {
-        if scalar.is_bool() {
-            return self.unchecked_utrunc(val, self.cx().type_i1());
-        }
-        val
-    }
-
     fn alloca(&mut self, size: Size, align: Align) -> &'ll Value {
         let mut bx = Builder::with_cx(self.cx);
         bx.position_at_start(unsafe { llvm::LLVMGetFirstBasicBlock(self.llfn()) });
@@ -741,7 +726,7 @@ impl<'a, 'll, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
                 let load = self.load(llty, place.val.llval, place.val.align);
                 if let abi::BackendRepr::Scalar(scalar) = place.layout.backend_repr {
                     scalar_load_metadata(self, load, scalar, place.layout, Size::ZERO);
-                    self.to_immediate_scalar(load, scalar)
+                    load
                 } else {
                     load
                 }
@@ -756,10 +741,10 @@ impl<'a, 'll, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
                 } else {
                     self.inbounds_ptradd(place.val.llval, self.const_usize(b_offset.bytes()))
                 };
-                let llty = place.layout.scalar_pair_element_llvm_type(self, i, false);
+                let llty = place.layout.scalar_pair_element_llvm_type(self, i);
                 let load = self.load(llty, llptr, align);
                 scalar_load_metadata(self, load, scalar, layout, offset);
-                self.to_immediate_scalar(load, scalar)
+                load
             };
 
             OperandValue::Pair(

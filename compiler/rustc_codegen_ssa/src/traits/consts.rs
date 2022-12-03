@@ -15,8 +15,6 @@ pub trait ConstCodegenMethods: BackendTypes {
     /// poison value.
     fn const_poison(&self, t: Self::Type) -> Self::Value;
 
-    fn const_bool(&self, val: bool) -> Self::Value;
-
     fn const_i8(&self, i: i8) -> Self::Value;
     fn const_i16(&self, i: i16) -> Self::Value;
     fn const_i32(&self, i: i32) -> Self::Value;

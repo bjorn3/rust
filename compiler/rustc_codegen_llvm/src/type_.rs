@@ -132,6 +132,10 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         assert_eq!(size % unit_size, 0);
         self.type_array(self.type_from_integer(unit), size / unit_size)
     }
+
+    pub(crate) fn type_i1(&self) -> &'ll Type {
+        unsafe { llvm::LLVMInt1TypeInContext(self.llcx()) }
+    }
 }
 
 impl<'ll, CX: Borrow<SCx<'ll>>> GenericCx<'ll, CX> {
@@ -149,10 +153,6 @@ impl<'ll, CX: Borrow<SCx<'ll>>> GenericCx<'ll, CX> {
 
     pub(crate) fn type_variadic_func(&self, args: &[&'ll Type], ret: &'ll Type) -> &'ll Type {
         unsafe { llvm::LLVMFunctionType(ret, args.as_ptr(), args.len() as c_uint, TRUE) }
-    }
-
-    pub(crate) fn type_i1(&self) -> &'ll Type {
-        unsafe { llvm::LLVMInt1TypeInContext(self.llcx()) }
     }
 
     pub(crate) fn type_struct(&self, els: &[&'ll Type], packed: bool) -> &'ll Type {
@@ -275,9 +275,6 @@ impl<'ll, 'tcx> LayoutTypeCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     fn backend_type(&self, layout: TyAndLayout<'tcx>) -> &'ll Type {
         layout.llvm_type(self)
     }
-    fn immediate_backend_type(&self, layout: TyAndLayout<'tcx>) -> &'ll Type {
-        layout.immediate_llvm_type(self)
-    }
     fn is_backend_immediate(&self, layout: TyAndLayout<'tcx>) -> bool {
         layout.is_llvm_immediate()
     }
@@ -288,9 +285,8 @@ impl<'ll, 'tcx> LayoutTypeCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         &self,
         layout: TyAndLayout<'tcx>,
         index: usize,
-        immediate: bool,
     ) -> &'ll Type {
-        layout.scalar_pair_element_llvm_type(self, index, immediate)
+        layout.scalar_pair_element_llvm_type(self, index)
     }
     fn cast_backend_type(&self, ty: &CastTarget) -> &'ll Type {
         ty.llvm_type(self)

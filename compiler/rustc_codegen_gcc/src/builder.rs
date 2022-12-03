@@ -1054,7 +1054,7 @@ impl<'a, 'gcc, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'gcc, 'tcx> {
             OperandValue::Immediate(
                 if let abi::BackendRepr::Scalar(ref scalar) = place.layout.backend_repr {
                     scalar_load_metadata(self, load, scalar);
-                    self.to_immediate_scalar(load, *scalar)
+                    load
                 } else {
                     load
                 },
@@ -1071,7 +1071,7 @@ impl<'a, 'gcc, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'gcc, 'tcx> {
                 let llty = place.layout.scalar_pair_element_gcc_type(self, i);
                 let load = self.load(llty, ptr, align);
                 scalar_load_metadata(self, load, scalar);
-                if scalar.is_bool() { self.trunc(load, self.type_i1()) } else { load }
+                load
             };
 
             OperandValue::Pair(
@@ -1792,7 +1792,6 @@ impl<'a, 'gcc, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'gcc, 'tcx> {
     }
 
     fn zext(&mut self, value: RValue<'gcc>, dest_typ: Type<'gcc>) -> RValue<'gcc> {
-        // FIXME(antoyo): this does not zero-extend.
         self.gcc_int_cast(value, dest_typ)
     }
 
@@ -1805,21 +1804,6 @@ impl<'a, 'gcc, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'gcc, 'tcx> {
     }
 
     fn set_span(&mut self, _span: Span) {}
-
-    fn from_immediate(&mut self, val: Self::Value) -> Self::Value {
-        if self.cx().val_ty(val) == self.cx().type_i1() {
-            self.zext(val, self.cx().type_i8())
-        } else {
-            val
-        }
-    }
-
-    fn to_immediate_scalar(&mut self, val: Self::Value, scalar: abi::Scalar) -> Self::Value {
-        if scalar.is_bool() {
-            return self.unchecked_utrunc(val, self.cx().type_i1());
-        }
-        val
-    }
 
     fn fptoui_sat(&mut self, val: RValue<'gcc>, dest_ty: Type<'gcc>) -> RValue<'gcc> {
         self.fptoint_sat(false, val, dest_ty)

@@ -413,8 +413,6 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                     parse_atomic_ordering(fail_ordering),
                     weak,
                 );
-                let val = bx.from_immediate(val);
-                let success = bx.from_immediate(success);
 
                 let dest = result.project_field(bx, 0);
                 bx.store_to_place(val, dest.val);
@@ -587,10 +585,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             }
         };
 
-        if result.layout.ty.is_bool() {
-            let val = bx.from_immediate(llval);
-            bx.store_to_place(val, result.val);
-        } else if !result.layout.ty.is_unit() {
+        if !result.layout.ty.is_unit() {
             bx.store_to_place(llval, result.val);
         }
         Ok(())

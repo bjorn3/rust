@@ -44,7 +44,7 @@ pub enum OperandValue<V> {
     /// An `OperandValue` *must* be this variant for any type for which
     /// [`LayoutTypeCodegenMethods::is_backend_immediate`] returns `true`.
     /// The backend value in this variant must be the *immediate* backend type,
-    /// as returned by [`LayoutTypeCodegenMethods::immediate_backend_type`].
+    /// as returned by [`LayoutTypeCodegenMethods::backend_type`].
     Immediate(V),
     /// A pair of immediate LLVM values. Used by wide pointers too.
     ///
@@ -162,7 +162,7 @@ impl<'a, 'tcx, V: CodegenObject> OperandRef<'tcx, V> {
                 let BackendRepr::Scalar(scalar) = layout.backend_repr else {
                     bug!("from_const: invalid ByVal layout: {:#?}", layout);
                 };
-                let llval = bx.scalar_to_backend(x, scalar, bx.immediate_backend_type(layout));
+                let llval = bx.scalar_to_backend(x, scalar, bx.backend_type(layout));
                 OperandValue::Immediate(llval)
             }
             ConstValue::ZeroSized => return OperandRef::zero_sized(layout),
@@ -174,7 +174,7 @@ impl<'a, 'tcx, V: CodegenObject> OperandRef<'tcx, V> {
                 let a_llval = bx.scalar_to_backend(
                     a,
                     a_scalar,
-                    bx.scalar_pair_element_backend_type(layout, 0, true),
+                    bx.scalar_pair_element_backend_type(layout, 0),
                 );
                 let b_llval = bx.const_usize(meta);
                 OperandValue::Pair(a_llval, b_llval)
@@ -218,7 +218,7 @@ impl<'a, 'tcx, V: CodegenObject> OperandRef<'tcx, V> {
             BackendRepr::Scalar(s @ abi::Scalar::Initialized { .. }) => {
                 let size = s.size(bx);
                 assert_eq!(size, layout.size, "abi::Scalar size does not match layout size");
-                let val = read_scalar(offset, size, s, bx.immediate_backend_type(layout));
+                let val = read_scalar(offset, size, s, bx.backend_type(layout));
                 OperandRef { val: OperandValue::Immediate(val), layout, move_annotation: None }
             }
             BackendRepr::ScalarPair(
@@ -228,17 +228,13 @@ impl<'a, 'tcx, V: CodegenObject> OperandRef<'tcx, V> {
                 let (a_size, b_size) = (a.size(bx), b.size(bx));
                 let b_offset = (offset + a_size).align_to(b.align(bx).abi);
                 assert!(b_offset.bytes() > 0);
-                let a_val = read_scalar(
-                    offset,
-                    a_size,
-                    a,
-                    bx.scalar_pair_element_backend_type(layout, 0, true),
-                );
+                let a_val =
+                    read_scalar(offset, a_size, a, bx.scalar_pair_element_backend_type(layout, 0));
                 let b_val = read_scalar(
                     b_offset,
                     b_size,
                     b,
-                    bx.scalar_pair_element_backend_type(layout, 1, true),
+                    bx.scalar_pair_element_backend_type(layout, 1),
                 );
                 OperandRef { val: OperandValue::Pair(a_val, b_val), layout, move_annotation: None }
             }
@@ -313,7 +309,7 @@ impl<'a, 'tcx, V: CodegenObject> OperandRef<'tcx, V> {
         bx: &mut Bx,
     ) -> V {
         if let OperandValue::Pair(a, b) = self.val {
-            let llty = bx.cx().immediate_backend_type(self.layout);
+            let llty = bx.cx().backend_type(self.layout);
             debug!("Operand::immediate_or_packed_pair: packing {:?} into {:?}", self, llty);
             // Reconstruct the immediate aggregate.
             let mut llpair = bx.cx().const_poison(llty);
@@ -367,16 +363,16 @@ impl<'a, 'tcx, V: CodegenObject> OperandRef<'tcx, V> {
             assert_eq!(offset.bytes(), 0);
             fx.codegen_transmute_operand(bx, *self, field)
         } else {
-            let (in_scalar, imm) = match (self.val, self.layout.backend_repr) {
+            let imm = match (self.val, self.layout.backend_repr) {
                 // Extract a scalar component from a pair.
                 (OperandValue::Pair(a_llval, b_llval), BackendRepr::ScalarPair(a, b)) => {
                     if offset.bytes() == 0 {
                         assert_eq!(field.size, a.size(bx.cx()));
-                        (Some(a), a_llval)
+                        a_llval
                     } else {
                         assert_eq!(offset, a.size(bx.cx()).align_to(b.align(bx.cx()).abi));
                         assert_eq!(field.size, b.size(bx.cx()));
-                        (Some(b), b_llval)
+                        b_llval
                     }
                 }
 
@@ -385,26 +381,7 @@ impl<'a, 'tcx, V: CodegenObject> OperandRef<'tcx, V> {
                 }
             };
             OperandValue::Immediate(match field.backend_repr {
-                BackendRepr::SimdVector { .. } => imm,
-                BackendRepr::Scalar(out_scalar) => {
-                    let Some(in_scalar) = in_scalar else {
-                        span_bug!(
-                            fx.mir.span,
-                            "OperandRef::extract_field({:?}): missing input scalar for output scalar",
-                            self
-                        )
-                    };
-                    if in_scalar != out_scalar {
-                        // If the backend and backend_immediate types might differ,
-                        // flip back to the backend type then to the new immediate.
-                        // This avoids nop truncations, but still handles things like
-                        // Bools in union fields needs to be truncated.
-                        let backend = bx.from_immediate(imm);
-                        bx.to_immediate_scalar(backend, out_scalar)
-                    } else {
-                        imm
-                    }
-                }
+                BackendRepr::SimdVector { .. } | BackendRepr::Scalar(_) => imm,
                 BackendRepr::ScalarPair(_, _)
                 | BackendRepr::Memory { .. }
                 | BackendRepr::ScalableVector { .. } => bug!(),
@@ -424,7 +401,7 @@ impl<'a, 'tcx, V: CodegenObject> OperandRef<'tcx, V> {
     ) -> V {
         let dl = &bx.tcx().data_layout;
         let cast_to_layout = bx.cx().layout_of(cast_to);
-        let cast_to = bx.cx().immediate_backend_type(cast_to_layout);
+        let cast_to = bx.cx().backend_type(cast_to_layout);
 
         // We check uninhabitedness separately because a type like
         // `enum Foo { Bar(i32, !) }` is still reported as `Variants::Single`,
@@ -490,7 +467,7 @@ impl<'a, 'tcx, V: CodegenObject> OperandRef<'tcx, V> {
                         let tag = bx.ptrtoint(tag_imm, t);
                         (tag, t)
                     }
-                    _ => (tag_imm, bx.cx().immediate_backend_type(tag_op.layout)),
+                    _ => (tag_imm, bx.cx().backend_type(tag_op.layout)),
                 };
 
                 // `layout_sanity_check` ensures that we only get here for cases where the discriminant
@@ -781,7 +758,7 @@ impl<'a, 'tcx, V: CodegenObject> OperandRefBuilder<'tcx, V> {
             }
             (OperandValue::Ref(place), BackendRepr::Memory { .. }) => match &mut self.val {
                 OperandValueBuilder::Vector(val @ Either::Right(())) => {
-                    let ibty = bx.cx().immediate_backend_type(self.layout);
+                    let ibty = bx.cx().backend_type(self.layout);
                     let simd = bx.load_from_place(ibty, place);
                     *val = Either::Left(simd);
                 }
@@ -845,7 +822,7 @@ impl<'a, 'tcx, V: CodegenObject> OperandRefBuilder<'tcx, V> {
                     if let BackendRepr::SimdVector { element, .. } = layout.backend_repr
                         && element.is_uninit_valid() =>
                 {
-                    let bty = cx.immediate_backend_type(layout);
+                    let bty = cx.backend_type(layout);
                     OperandValue::Immediate(cx.const_undef(bty))
                 }
                 Either::Right(()) => {
@@ -877,11 +854,11 @@ impl<'a, 'tcx, V: CodegenObject> OperandValue<V> {
         if layout.is_zst() {
             OperandValue::ZeroSized
         } else if bx.cx().is_backend_immediate(layout) {
-            let ibty = bx.cx().immediate_backend_type(layout);
+            let ibty = bx.cx().backend_type(layout);
             OperandValue::Immediate(bx.const_poison(ibty))
         } else if bx.cx().is_backend_scalar_pair(layout) {
-            let ibty0 = bx.cx().scalar_pair_element_backend_type(layout, 0, true);
-            let ibty1 = bx.cx().scalar_pair_element_backend_type(layout, 1, true);
+            let ibty0 = bx.cx().scalar_pair_element_backend_type(layout, 0);
+            let ibty1 = bx.cx().scalar_pair_element_backend_type(layout, 1);
             OperandValue::Pair(bx.const_poison(ibty0), bx.const_poison(ibty1))
         } else {
             let ptr = bx.cx().type_ptr();
@@ -941,8 +918,7 @@ impl<'a, 'tcx, V: CodegenObject> OperandValue<V> {
                 bx.typed_place_copy_with_flags(dest.val, val, dest.layout, flags);
             }
             OperandValue::Immediate(s) => {
-                let val = bx.from_immediate(s);
-                bx.store_with_flags(val, dest.val.llval, dest.val.align, flags);
+                bx.store_with_flags(s, dest.val.llval, dest.val.align, flags);
             }
             OperandValue::Pair(a, b) => {
                 let BackendRepr::ScalarPair(a_scalar, b_scalar) = dest.layout.backend_repr else {
@@ -950,14 +926,12 @@ impl<'a, 'tcx, V: CodegenObject> OperandValue<V> {
                 };
                 let b_offset = a_scalar.size(bx).align_to(b_scalar.align(bx).abi);
 
-                let val = bx.from_immediate(a);
                 let align = dest.val.align;
-                bx.store_with_flags(val, dest.val.llval, align, flags);
+                bx.store_with_flags(a, dest.val.llval, align, flags);
 
                 let llptr = bx.inbounds_ptradd(dest.val.llval, bx.const_usize(b_offset.bytes()));
-                let val = bx.from_immediate(b);
                 let align = dest.val.align.restrict_for_offset(b_offset);
-                bx.store_with_flags(val, llptr, align, flags);
+                bx.store_with_flags(b, llptr, align, flags);
             }
         }
     }
@@ -1062,7 +1036,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                     bug!("from_const: invalid ByVal layout: {:#?}", layout);
                 };
                 let x = Scalar::from_bool(checks.value(bx.tcx().sess));
-                let llval = bx.scalar_to_backend(x, scalar, bx.immediate_backend_type(layout));
+                let llval = bx.scalar_to_backend(x, scalar, bx.backend_type(layout));
                 let val = OperandValue::Immediate(llval);
                 OperandRef { val, layout, move_annotation: None }
             }

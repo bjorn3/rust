@@ -157,7 +157,6 @@ pub trait LayoutGccExt<'tcx> {
     fn is_gcc_immediate(&self) -> bool;
     fn is_gcc_scalar_pair(&self) -> bool;
     fn gcc_type<'gcc>(&self, cx: &CodegenCx<'gcc, 'tcx>) -> Type<'gcc>;
-    fn immediate_gcc_type<'gcc>(&self, cx: &CodegenCx<'gcc, 'tcx>) -> Type<'gcc>;
     fn scalar_gcc_type_at<'gcc>(
         &self,
         cx: &CodegenCx<'gcc, 'tcx>,
@@ -267,15 +266,6 @@ impl<'tcx> LayoutGccExt<'tcx> for TyAndLayout<'tcx> {
         ty
     }
 
-    fn immediate_gcc_type<'gcc>(&self, cx: &CodegenCx<'gcc, 'tcx>) -> Type<'gcc> {
-        if let BackendRepr::Scalar(ref scalar) = self.backend_repr
-            && scalar.is_bool()
-        {
-            return cx.type_i1();
-        }
-        self.gcc_type(cx)
-    }
-
     fn scalar_gcc_type_at<'gcc>(
         &self,
         cx: &CodegenCx<'gcc, 'tcx>,
@@ -312,17 +302,6 @@ impl<'tcx> LayoutGccExt<'tcx> for TyAndLayout<'tcx> {
         };
         let scalar = [a, b][index];
 
-        // Make sure to return the same type `immediate_gcc_type` would when
-        // dealing with an immediate pair.  This means that `(bool, bool)` is
-        // effectively represented as `{i8, i8}` in memory and two `i1`s as an
-        // immediate, just like `bool` is typically `i8` in memory and only `i1`
-        // when immediate.  We need to load/store `bool` as `i8` to avoid
-        // crippling LLVM optimizations or triggering other LLVM bugs with `i1`.
-        // TODO(antoyo): this bugs certainly don't happen in this case since the bool type is used instead of i1.
-        if scalar.is_bool() {
-            return cx.type_i1();
-        }
-
         let offset = if index == 0 { Size::ZERO } else { a.size(cx).align_to(b.align(cx).abi) };
         self.scalar_gcc_type_at(cx, scalar, offset)
     }
@@ -344,10 +323,6 @@ impl<'gcc, 'tcx> LayoutTypeCodegenMethods<'tcx> for CodegenCx<'gcc, 'tcx> {
         layout.gcc_type(self)
     }
 
-    fn immediate_backend_type(&self, layout: TyAndLayout<'tcx>) -> Type<'gcc> {
-        layout.immediate_gcc_type(self)
-    }
-
     fn is_backend_immediate(&self, layout: TyAndLayout<'tcx>) -> bool {
         layout.is_gcc_immediate()
     }
@@ -360,7 +335,6 @@ impl<'gcc, 'tcx> LayoutTypeCodegenMethods<'tcx> for CodegenCx<'gcc, 'tcx> {
         &self,
         layout: TyAndLayout<'tcx>,
         index: usize,
-        _immediate: bool,
     ) -> Type<'gcc> {
         layout.scalar_pair_element_gcc_type(self, index)
     }

@@ -484,7 +484,7 @@ pub(super) fn codegen_tag_value<'tcx, V>(
             let discr = layout.ty.discriminant_for_variant(cx.tcx(), variant_index);
             let to = discr.unwrap().val;
             let tag_layout = layout.field(cx, tag_field.as_usize());
-            let tag_llty = cx.immediate_backend_type(tag_layout);
+            let tag_llty = cx.backend_type(tag_layout);
             let imm = cx.const_uint_big(tag_llty, to);
             Some((tag_field, imm))
         }
@@ -495,7 +495,7 @@ pub(super) fn codegen_tag_value<'tcx, V>(
         } => {
             if variant_index != untagged_variant {
                 let niche_layout = layout.field(cx, tag_field.as_usize());
-                let niche_llty = cx.immediate_backend_type(niche_layout);
+                let niche_llty = cx.backend_type(niche_layout);
                 let BackendRepr::Scalar(scalar) = niche_layout.backend_repr else {
                     bug!("expected a scalar placeref for the niche");
                 };

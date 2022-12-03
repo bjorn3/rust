@@ -141,7 +141,6 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                     }
 
                     // Use llvm.memset.p0i8.* to initialize byte arrays
-                    let v = bx.from_immediate(v);
                     if bx.cx().val_ty(v) == bx.cx().type_i8() {
                         bx.memset(start, v, size, dest.val.align, MemFlags::empty());
                         return true;
@@ -299,7 +298,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 abi::BackendRepr::SimdVector { element: from_scalar, .. },
                 abi::BackendRepr::SimdVector { element: to_scalar, .. },
             ) if vector_can_bitcast(from_scalar) && vector_can_bitcast(to_scalar) => {
-                let to_backend_ty = bx.cx().immediate_backend_type(cast);
+                let to_backend_ty = bx.cx().backend_type(cast);
                 OperandValue::Immediate(bx.bitcast(imm, to_backend_ty))
             }
             (
@@ -401,7 +400,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                     mir::CastKind::PointerExposeProvenance => {
                         assert!(bx.cx().is_backend_immediate(cast));
                         let llptr = operand.immediate();
-                        let llcast_ty = bx.cx().immediate_backend_type(cast);
+                        let llcast_ty = bx.cx().backend_type(cast);
                         let lladdr = bx.ptrtoint(llptr, llcast_ty);
                         OperandValue::Immediate(lladdr)
                     }
@@ -478,10 +477,10 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                         let abi::BackendRepr::Scalar(from_scalar) = operand.layout.backend_repr else {
                             bug!("Found non-scalar for operand {operand:?}");
                         };
-                        let from_backend_ty = bx.cx().immediate_backend_type(operand.layout);
+                        let from_backend_ty = bx.cx().backend_type(operand.layout);
 
                         assert!(bx.cx().is_backend_immediate(cast));
-                        let to_backend_ty = bx.cx().immediate_backend_type(cast);
+                        let to_backend_ty = bx.cx().backend_type(cast);
                         if operand.layout.is_uninhabited() {
                             let val = OperandValue::Immediate(bx.cx().const_poison(to_backend_ty));
                             return OperandRef { val, layout: cast, move_annotation: None };
@@ -963,7 +962,6 @@ pub(super) fn transmute_scalar<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
     }
 
     use abi::Primitive::*;
-    imm = bx.from_immediate(imm);
 
     let from_backend_ty = bx.cx().type_from_scalar(from_scalar);
     debug_assert_eq!(bx.cx().val_ty(imm), from_backend_ty);
@@ -1008,7 +1006,6 @@ pub(super) fn transmute_scalar<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
     // constraint that the `transmute` introduced is to `assume` it.
     assume_scalar_range(bx, imm, to_scalar, to_backend_ty, Some(&from_scalar));
 
-    imm = bx.to_immediate_scalar(imm, to_scalar);
     imm
 }
 

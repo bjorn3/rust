@@ -338,7 +338,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
 
         let llreturn_ty = match &self.ret.mode {
             PassMode::Ignore => cx.type_void(),
-            PassMode::Direct(_) | PassMode::Pair(..) => self.ret.layout.immediate_llvm_type(cx),
+            PassMode::Direct(_) | PassMode::Pair(..) => self.ret.layout.llvm_type(cx),
             PassMode::Cast { cast, pad_i32: _ } => cast.llvm_type(cx),
             PassMode::Indirect { .. } => {
                 llargument_tys.push(cx.type_ptr());
@@ -356,14 +356,14 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                     // ABI-compatible Rust types have the same `layout.abi` (up to validity ranges),
                     // and for Scalar ABIs the LLVM type is fully determined by `layout.abi`,
                     // guaranteeing that we generate ABI-compatible LLVM IR.
-                    arg.layout.immediate_llvm_type(cx)
+                    arg.layout.llvm_type(cx)
                 }
                 PassMode::Pair(..) => {
                     // ABI-compatible Rust types have the same `layout.abi` (up to validity ranges),
                     // so for ScalarPair we can easily be sure that we are generating ABI-compatible
                     // LLVM IR.
-                    llargument_tys.push(arg.layout.scalar_pair_element_llvm_type(cx, 0, true));
-                    llargument_tys.push(arg.layout.scalar_pair_element_llvm_type(cx, 1, true));
+                    llargument_tys.push(arg.layout.scalar_pair_element_llvm_type(cx, 0));
+                    llargument_tys.push(arg.layout.scalar_pair_element_llvm_type(cx, 1));
                     continue;
                 }
                 PassMode::Indirect { attrs: _, meta_attrs: Some(_), on_stack: _ } => {
@@ -373,8 +373,8 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                     // alignment, so this respects ABI compatibility.
                     let ptr_ty = Ty::new_mut_ptr(cx.tcx, arg.layout.ty);
                     let ptr_layout = cx.layout_of(ptr_ty);
-                    llargument_tys.push(ptr_layout.scalar_pair_element_llvm_type(cx, 0, true));
-                    llargument_tys.push(ptr_layout.scalar_pair_element_llvm_type(cx, 1, true));
+                    llargument_tys.push(ptr_layout.scalar_pair_element_llvm_type(cx, 0));
+                    llargument_tys.push(ptr_layout.scalar_pair_element_llvm_type(cx, 1));
                     continue;
                 }
                 PassMode::Indirect { attrs: _, meta_attrs: None, on_stack: _ } => cx.type_ptr(),

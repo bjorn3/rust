@@ -235,8 +235,7 @@ fn emit_aapcs_va_arg<'ll, 'tcx>(
     bx.br(end);
 
     bx.switch_to_block(end);
-    let val =
-        bx.phi(layout.immediate_llvm_type(bx), &[reg_value, stack_value], &[in_reg, on_stack]);
+    let val = bx.phi(layout.llvm_type(bx), &[reg_value, stack_value], &[in_reg, on_stack]);
 
     val
 }
@@ -574,7 +573,7 @@ fn emit_x86_64_sysv64_va_arg<'ll, 'tcx>(
     let gp_offset_v = bx.load(bx.type_i32(), gp_offset_ptr, Align::from_bytes(8).unwrap());
     let fp_offset_v = bx.load(bx.type_i32(), fp_offset_ptr, Align::from_bytes(4).unwrap());
 
-    let mut use_regs = bx.const_bool(false);
+    let mut use_regs = bx.const_u8(0);
 
     if num_gp_registers > 0 {
         let max_offset_val = 48u32 - num_gp_registers * 8;
@@ -623,8 +622,8 @@ fn emit_x86_64_sysv64_va_arg<'ll, 'tcx>(
             Primitive::Float(_) => bx.inbounds_ptradd(reg_save_area_v, fp_offset_v),
         },
         BackendRepr::ScalarPair(scalar1, scalar2) => {
-            let ty_lo = bx.cx().scalar_pair_element_backend_type(layout, 0, false);
-            let ty_hi = bx.cx().scalar_pair_element_backend_type(layout, 1, false);
+            let ty_lo = bx.cx().scalar_pair_element_backend_type(layout, 0);
+            let ty_hi = bx.cx().scalar_pair_element_backend_type(layout, 1);
 
             let align_lo = layout.field(bx.cx, 0).layout.align().abi;
             let align_hi = layout.field(bx.cx, 1).layout.align().abi;

@@ -117,23 +117,12 @@ pub trait LayoutTypeCodegenMethods<'tcx>: BackendTypes {
     fn fn_decl_backend_type(&self, fn_abi: &FnAbi<'tcx, Ty<'tcx>>) -> Self::Type;
     fn fn_ptr_backend_type(&self, fn_abi: &FnAbi<'tcx, Ty<'tcx>>) -> Self::Type;
     fn reg_backend_type(&self, ty: &Reg) -> Self::Type;
-    /// The backend type used for a rust type when it's in an SSA register.
-    ///
-    /// For nearly all types this is the same as the [`Self::backend_type`], however
-    /// `bool` (and other `0`-or-`1` values) are kept as `i1` in registers but as
-    /// [`BaseTypeCodegenMethods::type_i8`] in memory.
-    ///
-    /// Converting values between the two different backend types is done using
-    /// [`from_immediate`](super::BuilderMethods::from_immediate) and
-    /// [`to_immediate_scalar`](super::BuilderMethods::to_immediate_scalar).
-    fn immediate_backend_type(&self, layout: TyAndLayout<'tcx>) -> Self::Type;
     fn is_backend_immediate(&self, layout: TyAndLayout<'tcx>) -> bool;
     fn is_backend_scalar_pair(&self, layout: TyAndLayout<'tcx>) -> bool;
     fn scalar_pair_element_backend_type(
         &self,
         layout: TyAndLayout<'tcx>,
         index: usize,
-        immediate: bool,
     ) -> Self::Type;
 
     /// A type that produces an [`OperandValue::Ref`] when loaded.

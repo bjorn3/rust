@@ -124,10 +124,6 @@ impl<'gcc, 'tcx> ConstCodegenMethods for CodegenCx<'gcc, 'tcx> {
         self.const_undef(typ)
     }
 
-    fn const_bool(&self, val: bool) -> RValue<'gcc> {
-        self.const_uint(self.type_i1(), val as u64)
-    }
-
     fn const_i8(&self, i: i8) -> RValue<'gcc> {
         self.const_int(self.type_i8(), i as i64)
     }

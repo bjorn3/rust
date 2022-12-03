@@ -139,10 +139,6 @@ impl<'ll, 'tcx> ConstCodegenMethods for CodegenCx<'ll, 'tcx> {
         unsafe { llvm::LLVMGetPoison(t) }
     }
 
-    fn const_bool(&self, val: bool) -> &'ll Value {
-        self.const_uint(self.type_i1(), val as u64)
-    }
-
     fn const_i8(&self, i: i8) -> &'ll Value {
         self.const_int(self.type_i8(), i as i64)
     }
