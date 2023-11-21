@@ -58,7 +58,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
 
             debug!("creating temp {:?} with block_context: {:?}", local_decl, this.block_context);
             let local_info = match expr.kind {
-                ExprKind::StaticRef { def_id, .. } => {
+                ExprKind::Constant(ConstantExpr::StaticRef { def_id, .. }) => {
                     assert!(!this.tcx.is_thread_local_static(def_id));
                     LocalInfo::StaticRef { def_id, is_thread_local: false }
                 }
@@ -66,7 +66,8 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     assert!(this.tcx.is_thread_local_static(def_id));
                     LocalInfo::StaticRef { def_id, is_thread_local: true }
                 }
-                ExprKind::NamedConst { def_id, .. } | ExprKind::ConstParam { def_id, .. } => {
+                ExprKind::Constant(ConstantExpr::NamedConst { def_id, .. })
+                | ExprKind::Constant(ConstantExpr::ConstParam { def_id, .. }) => {
                     LocalInfo::ConstRef { def_id }
                 }
                 // Find out whether this temp is being created within the

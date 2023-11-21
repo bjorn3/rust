@@ -425,7 +425,7 @@ impl<'a, 'tcx> ThirPrinter<'a, 'tcx> {
                 self.print_expr(*value, depth_lvl + 2);
                 print_indented!(self, "}", depth_lvl);
             }
-            ConstBlock { did, args } => {
+            Constant(ConstantExpr::ConstBlock { did, args }) => {
                 print_indented!(self, "ConstBlock {", depth_lvl);
                 print_indented!(self, format!("did: {:?}", did), depth_lvl + 1);
                 print_indented!(self, format!("args: {:?}", args), depth_lvl + 1);
@@ -501,36 +501,36 @@ impl<'a, 'tcx> ThirPrinter<'a, 'tcx> {
                 self.print_closure_expr(&**closure_expr, depth_lvl + 2);
                 print_indented!(self, "}", depth_lvl);
             }
-            Literal { lit, neg } => {
+            Constant(ConstantExpr::Literal { lit, neg }) => {
                 print_indented!(
                     self,
                     format!("Literal( lit: {:?}, neg: {:?})\n", lit, neg),
                     depth_lvl
                 );
             }
-            NonHirLiteral { lit, user_ty } => {
+            Constant(ConstantExpr::NonHirLiteral { lit, user_ty }) => {
                 print_indented!(self, "NonHirLiteral {", depth_lvl);
                 print_indented!(self, format!("lit: {:?}", lit), depth_lvl + 1);
                 print_indented!(self, format!("user_ty: {:?}", user_ty), depth_lvl + 1);
                 print_indented!(self, "}", depth_lvl);
             }
-            ZstLiteral { user_ty } => {
+            Constant(ConstantExpr::ZstLiteral { user_ty }) => {
                 print_indented!(self, format!("ZstLiteral(user_ty: {:?})", user_ty), depth_lvl);
             }
-            NamedConst { def_id, args, user_ty } => {
+            Constant(ConstantExpr::NamedConst { def_id, args, user_ty }) => {
                 print_indented!(self, "NamedConst {", depth_lvl);
                 print_indented!(self, format!("def_id: {:?}", def_id), depth_lvl + 1);
                 print_indented!(self, format!("user_ty: {:?}", user_ty), depth_lvl + 1);
                 print_indented!(self, format!("args: {:?}", args), depth_lvl + 1);
                 print_indented!(self, "}", depth_lvl);
             }
-            ConstParam { param, def_id } => {
+            Constant(ConstantExpr::ConstParam { param, def_id }) => {
                 print_indented!(self, "ConstParam {", depth_lvl);
                 print_indented!(self, format!("def_id: {:?}", def_id), depth_lvl + 1);
                 print_indented!(self, format!("param: {:?}", param), depth_lvl + 1);
                 print_indented!(self, "}", depth_lvl);
             }
-            StaticRef { alloc_id, ty, def_id } => {
+            Constant(ConstantExpr::StaticRef { alloc_id, ty, def_id }) => {
                 print_indented!(self, "StaticRef {", depth_lvl);
                 print_indented!(self, format!("def_id: {:?}", def_id), depth_lvl + 1);
                 print_indented!(self, format!("ty: {:?}", ty), depth_lvl + 1);

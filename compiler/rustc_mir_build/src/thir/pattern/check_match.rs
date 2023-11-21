@@ -346,24 +346,18 @@ impl<'p, 'tcx> MatchVisitor<'p, 'tcx> {
             | Box { .. }
             | Call { .. }
             | Closure { .. }
-            | ConstBlock { .. }
-            | ConstParam { .. }
+            | Constant(_)
             | If { .. }
-            | Literal { .. }
             | LogicalOp { .. }
             | Loop { .. }
             | Match { .. }
-            | NamedConst { .. }
-            | NonHirLiteral { .. }
             | OffsetOf { .. }
             | Repeat { .. }
-            | StaticRef { .. }
             | ThreadLocalRef { .. }
             | Tuple { .. }
             | Unary { .. }
             | UpvarRef { .. }
             | VarRef { .. }
-            | ZstLiteral { .. }
             | Yield { .. } => true,
         }
     }

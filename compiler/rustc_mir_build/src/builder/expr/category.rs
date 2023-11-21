@@ -73,13 +73,7 @@ impl Category {
             | ExprKind::OffsetOf { .. }
             | ExprKind::WrapUnsafeBinder { .. } => Some(Category::Rvalue(RvalueFunc::AsRvalue)),
 
-            ExprKind::ConstBlock { .. }
-            | ExprKind::Literal { .. }
-            | ExprKind::NonHirLiteral { .. }
-            | ExprKind::ZstLiteral { .. }
-            | ExprKind::ConstParam { .. }
-            | ExprKind::StaticRef { .. }
-            | ExprKind::NamedConst { .. } => Some(Category::Constant),
+            ExprKind::Constant(_) => Some(Category::Constant),
 
             ExprKind::Loop { .. }
             | ExprKind::Block { .. }

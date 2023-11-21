@@ -570,13 +570,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
             | ExprKind::Continue { .. }
             | ExprKind::Return { .. }
             | ExprKind::Become { .. }
-            | ExprKind::Literal { .. }
-            | ExprKind::NamedConst { .. }
-            | ExprKind::NonHirLiteral { .. }
-            | ExprKind::ZstLiteral { .. }
-            | ExprKind::ConstParam { .. }
-            | ExprKind::ConstBlock { .. }
-            | ExprKind::StaticRef { .. }
+            | ExprKind::Constant(_)
             | ExprKind::InlineAsm { .. }
             | ExprKind::OffsetOf { .. }
             | ExprKind::Yield { .. }

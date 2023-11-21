@@ -611,14 +611,8 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
             | ExprKind::Array { .. }
             | ExprKind::Tuple { .. }
             | ExprKind::Closure { .. }
-            | ExprKind::ConstBlock { .. }
-            | ExprKind::Literal { .. }
-            | ExprKind::NamedConst { .. }
-            | ExprKind::NonHirLiteral { .. }
-            | ExprKind::ZstLiteral { .. }
-            | ExprKind::ConstParam { .. }
+            | ExprKind::Constant(_)
             | ExprKind::ThreadLocalRef(_)
-            | ExprKind::StaticRef { .. }
             | ExprKind::OffsetOf { .. }
             | ExprKind::WrapUnsafeBinder { .. } => {
                 debug_assert!(match Category::of(&expr.kind).unwrap() {

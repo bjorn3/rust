@@ -504,13 +504,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 block.and(Rvalue::NullaryOp(NullOp::OffsetOf(fields), container))
             }
 
-            ExprKind::Literal { .. }
-            | ExprKind::NamedConst { .. }
-            | ExprKind::NonHirLiteral { .. }
-            | ExprKind::ZstLiteral { .. }
-            | ExprKind::ConstParam { .. }
-            | ExprKind::ConstBlock { .. }
-            | ExprKind::StaticRef { .. } => {
+            ExprKind::Constant(_) => {
                 let constant = this.as_constant(expr);
                 block.and(Rvalue::Use(Operand::Constant(Box::new(constant))))
             }
@@ -737,7 +731,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         let this = self;
         let value_expr = &this.thir[value];
         let elem_ty = value_expr.ty;
-        if let Some(Category::Constant) = Category::of(&value_expr.kind) {
+        if let ExprKind::Constant(_) = value_expr.kind {
             // Repeating a const does nothing
         } else {
             // For a non-const, we may need to generate an appropriate `Drop`

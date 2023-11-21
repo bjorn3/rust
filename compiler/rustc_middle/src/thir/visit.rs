@@ -107,7 +107,6 @@ pub fn walk_expr<'thir, 'tcx: 'thir, V: Visitor<'thir, 'tcx>>(
             }
         }
         Become { value } => visitor.visit_expr(&visitor.thir()[value]),
-        ConstBlock { did: _, args: _ } => {}
         Repeat { value, count: _ } => {
             visitor.visit_expr(&visitor.thir()[value]);
         }
@@ -145,12 +144,7 @@ pub fn walk_expr<'thir, 'tcx: 'thir, V: Visitor<'thir, 'tcx>>(
             movability: _,
             fake_reads: _,
         }) => {}
-        Literal { lit: _, neg: _ } => {}
-        NonHirLiteral { lit: _, user_ty: _ } => {}
-        ZstLiteral { user_ty: _ } => {}
-        NamedConst { def_id: _, args: _, user_ty: _ } => {}
-        ConstParam { param: _, def_id: _ } => {}
-        StaticRef { alloc_id: _, ty: _, def_id: _ } => {}
+        Constant(_) => {}
         InlineAsm(box InlineAsmExpr {
             asm_macro: _,
             ref operands,
