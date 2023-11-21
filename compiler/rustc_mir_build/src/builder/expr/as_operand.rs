@@ -176,7 +176,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
 
                 // As described above, detect the case where we are passing a value of unsized
                 // type, and that value is coming from the deref of a box.
-                if let ExprKind::Deref { arg } = expr.kind {
+                if let ExprKind::Place(PlaceExpr::Deref { arg }) = expr.kind {
                     // Generate let tmp0 = arg0
                     let operand = unpack!(block = this.as_temp(block, scope, arg, Mutability::Mut));
 

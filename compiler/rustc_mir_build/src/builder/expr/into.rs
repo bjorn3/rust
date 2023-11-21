@@ -556,12 +556,12 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
             }
 
             // Avoid creating a temporary
-            ExprKind::VarRef { .. }
-            | ExprKind::UpvarRef { .. }
-            | ExprKind::PlaceTypeAscription { .. }
-            | ExprKind::ValueTypeAscription { .. }
-            | ExprKind::PlaceUnwrapUnsafeBinder { .. }
-            | ExprKind::ValueUnwrapUnsafeBinder { .. } => {
+            ExprKind::Place(PlaceExpr::VarRef { .. })
+            | ExprKind::Place(PlaceExpr::UpvarRef { .. })
+            | ExprKind::Place(PlaceExpr::PlaceTypeAscription { .. })
+            | ExprKind::Place(PlaceExpr::ValueTypeAscription { .. })
+            | ExprKind::Place(PlaceExpr::PlaceUnwrapUnsafeBinder { .. })
+            | ExprKind::Place(PlaceExpr::ValueUnwrapUnsafeBinder { .. }) => {
                 debug_assert!(Category::of(&expr.kind) == Some(Category::Place));
 
                 let place = unpack!(block = this.as_place(block, expr_id));
@@ -569,9 +569,9 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 this.cfg.push_assign(block, source_info, destination, rvalue);
                 block.unit()
             }
-            ExprKind::Index { .. } | ExprKind::Deref { .. } | ExprKind::Field { .. } => {
-                debug_assert_eq!(Category::of(&expr.kind), Some(Category::Place));
-
+            ExprKind::Place(PlaceExpr::Index { .. })
+            | ExprKind::Place(PlaceExpr::Deref { .. })
+            | ExprKind::Place(PlaceExpr::Field { .. }) => {
                 // Create a "fake" temporary variable so that we check that the
                 // value is Sized. Usually, this is caught in type checking, but
                 // in the case of box expr there is no such check.
@@ -621,7 +621,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
 
                     // must be handled above or else we get an
                     // infinite loop in the builder; see
-                    // e.g., `ExprKind::VarRef` above
+                    // e.g., `ExprKind::Place(PlaceExpr::VarRef)` above
                     Category::Place => false,
 
                     _ => true,

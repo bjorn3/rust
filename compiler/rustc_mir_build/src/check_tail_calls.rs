@@ -5,7 +5,7 @@ use rustc_hir::LangItem;
 use rustc_hir::def::DefKind;
 use rustc_middle::span_bug;
 use rustc_middle::thir::visit::{self, Visitor};
-use rustc_middle::thir::{BodyTy, Expr, ExprId, ExprKind, Thir};
+use rustc_middle::thir::{BodyTy, Expr, ExprId, ExprKind, PlaceExpr, Thir};
 use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_span::def_id::{DefId, LocalDefId};
 use rustc_span::{DUMMY_SP, ErrorGuaranteed, Span};
@@ -74,7 +74,7 @@ impl<'tcx> TailCallCkVisitor<'_, 'tcx> {
             ExprKind::Binary { .. }
                 | ExprKind::Unary { .. }
                 | ExprKind::AssignOp { .. }
-                | ExprKind::Index { .. }
+                | ExprKind::Place(PlaceExpr::Index { .. })
         ) {
             self.report_builtin_op(call, expr);
             return;

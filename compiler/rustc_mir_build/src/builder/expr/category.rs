@@ -35,15 +35,7 @@ impl Category {
         match *ek {
             ExprKind::Scope { .. } => None,
 
-            ExprKind::Field { .. }
-            | ExprKind::Deref { .. }
-            | ExprKind::Index { .. }
-            | ExprKind::UpvarRef { .. }
-            | ExprKind::VarRef { .. }
-            | ExprKind::PlaceTypeAscription { .. }
-            | ExprKind::ValueTypeAscription { .. }
-            | ExprKind::PlaceUnwrapUnsafeBinder { .. }
-            | ExprKind::ValueUnwrapUnsafeBinder { .. } => Some(Category::Place),
+            ExprKind::Place(_) => Some(Category::Place),
 
             ExprKind::LogicalOp { .. }
             | ExprKind::Match { .. }

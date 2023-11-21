@@ -329,14 +329,14 @@ impl<'a, 'tcx> ParseCtxt<'a, 'tcx> {
                     VariantIdx::from_u32(self.parse_integer_literal(args[1])? as u32)
                 ))
             },
-            ExprKind::Deref { arg } => {
+            ExprKind::Place(PlaceExpr::Deref { arg }) => {
                 parse_by_kind!(self, *arg, _, "does not matter",
                     @call(mir_make_place, args) => return self.parse_place_inner(args[0]),
                     _ => (*arg, PlaceElem::Deref),
                 )
             },
-            ExprKind::Index { lhs, index } => (*lhs, PlaceElem::Index(self.parse_local(*index)?)),
-            ExprKind::Field { lhs, name: field, .. } => (*lhs, PlaceElem::Field(*field, expr.ty)),
+            ExprKind::Place(PlaceExpr::Index { lhs, index }) => (*lhs, PlaceElem::Index(self.parse_local(*index)?)),
+            ExprKind::Place(PlaceExpr::Field { lhs, name: field, .. }) => (*lhs, PlaceElem::Field(*field, expr.ty)),
             _ => {
                 let place = self.parse_local(expr_id).map(Place::from)?;
                 return Ok((place, PlaceTy::from_ty(expr.ty)))
@@ -350,19 +350,19 @@ impl<'a, 'tcx> ParseCtxt<'a, 'tcx> {
 
     fn parse_local(&self, expr_id: ExprId) -> PResult<Local> {
         parse_by_kind!(self, expr_id, _, "local",
-            ExprKind::VarRef { id } => Ok(self.local_map[id]),
+            ExprKind::Place(PlaceExpr::VarRef { id }) => Ok(self.local_map[id]),
         )
     }
 
     fn parse_block(&self, expr_id: ExprId) -> PResult<BasicBlock> {
         parse_by_kind!(self, expr_id, _, "basic block",
-            ExprKind::VarRef { id } => Ok(self.block_map[id]),
+            ExprKind::Place(PlaceExpr::VarRef { id }) => Ok(self.block_map[id]),
         )
     }
 
     fn parse_static(&self, expr_id: ExprId) -> PResult<Operand<'tcx>> {
         let expr_id = parse_by_kind!(self, expr_id, _, "static",
-            ExprKind::Deref { arg } => *arg,
+            ExprKind::Place(PlaceExpr::Deref { arg }) => *arg,
         );
 
         parse_by_kind!(self, expr_id, expr, "static",

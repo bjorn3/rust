@@ -312,10 +312,6 @@ pub enum ExprKind<'tcx> {
         /// (e.g. `foo(a, b)` in `x.foo(a, b)`).
         fn_span: Span,
     },
-    /// A *non-overloaded* dereference.
-    Deref {
-        arg: ExprId,
-    },
     /// A *non-overloaded* binary operation.
     Binary {
         op: BinOp,
@@ -395,31 +391,7 @@ pub enum ExprKind<'tcx> {
         lhs: ExprId,
         rhs: ExprId,
     },
-    /// Access to a field of a struct, a tuple, an union, or an enum.
-    Field {
-        lhs: ExprId,
-        /// Variant containing the field.
-        variant_index: VariantIdx,
-        /// This can be a named (`.foo`) or unnamed (`.0`) field.
-        name: FieldIdx,
-    },
-    /// A *non-overloaded* indexing operation.
-    Index {
-        lhs: ExprId,
-        index: ExprId,
-    },
-    /// A local variable.
-    VarRef {
-        id: LocalVarId,
-    },
-    /// Used to represent upvars mentioned in a closure/coroutine
-    UpvarRef {
-        /// DefId of the closure/coroutine
-        closure_def_id: DefId,
-
-        /// HirId of the root variable
-        var_hir_id: LocalVarId,
-    },
+    Place(PlaceExpr<'tcx>),
     /// A borrow, e.g. `&arg`.
     Borrow {
         borrow_kind: BorrowKind,
@@ -463,29 +435,6 @@ pub enum ExprKind<'tcx> {
     },
     /// An ADT constructor, e.g. `Foo {x: 1, y: 2}`.
     Adt(Box<AdtExpr<'tcx>>),
-    /// A type ascription on a place.
-    PlaceTypeAscription {
-        source: ExprId,
-        /// Type that the user gave to this expression
-        user_ty: UserTy<'tcx>,
-        user_ty_span: Span,
-    },
-    /// A type ascription on a value, e.g. `type_ascribe!(42, i32)` or `42 as i32`.
-    ValueTypeAscription {
-        source: ExprId,
-        /// Type that the user gave to this expression
-        user_ty: UserTy<'tcx>,
-        user_ty_span: Span,
-    },
-    /// An unsafe binder cast on a place, e.g. `unwrap_binder!(*ptr)`.
-    PlaceUnwrapUnsafeBinder {
-        source: ExprId,
-    },
-    /// An unsafe binder cast on a value, e.g. `unwrap_binder!(rvalue())`,
-    /// which makes a temporary.
-    ValueUnwrapUnsafeBinder {
-        source: ExprId,
-    },
     /// Construct an unsafe binder, e.g. `wrap_binder(&ref)`.
     WrapUnsafeBinder {
         source: ExprId,
@@ -514,6 +463,51 @@ pub enum ExprKind<'tcx> {
 pub struct FieldExpr {
     pub name: FieldIdx,
     pub expr: ExprId,
+}
+
+#[derive(Clone, Debug, HashStable)]
+pub enum PlaceExpr<'tcx> {
+    /// A *non-overloaded* dereference.
+    Deref { arg: ExprId },
+    /// Access to a field of a struct, a tuple, an union, or an enum.
+    Field {
+        lhs: ExprId,
+        /// Variant containing the field.
+        variant_index: VariantIdx,
+        /// This can be a named (`.foo`) or unnamed (`.0`) field.
+        name: FieldIdx,
+    },
+    /// A *non-overloaded* indexing operation.
+    Index { lhs: ExprId, index: ExprId },
+    /// A local variable.
+    VarRef { id: LocalVarId },
+    /// Used to represent upvars mentioned in a closure/coroutine
+    UpvarRef {
+        /// DefId of the closure/coroutine
+        closure_def_id: DefId,
+
+        /// HirId of the root variable
+        var_hir_id: LocalVarId,
+    },
+    /// A type ascription on a place.
+    PlaceTypeAscription {
+        source: ExprId,
+        /// Type that the user gave to this expression
+        user_ty: UserTy<'tcx>,
+        user_ty_span: Span,
+    },
+    /// A type ascription on a value, e.g. `type_ascribe!(42, i32)` or `42 as i32`.
+    ValueTypeAscription {
+        source: ExprId,
+        /// Type that the user gave to this expression
+        user_ty: UserTy<'tcx>,
+        user_ty_span: Span,
+    },
+    /// An unsafe binder cast on a place, e.g. `unwrap_binder!(*ptr)`.
+    PlaceUnwrapUnsafeBinder { source: ExprId },
+    /// An unsafe binder cast on a value, e.g. `unwrap_binder!(rvalue())`,
+    /// which makes a temporary.
+    ValueUnwrapUnsafeBinder { source: ExprId },
 }
 
 #[derive(Clone, Debug, HashStable)]

@@ -301,9 +301,9 @@ impl<'p, 'tcx> MatchVisitor<'p, 'tcx> {
         match &scrutinee.kind {
             // Pointers can validly point to a place with invalid data. It is undecided whether
             // references can too, so we conservatively assume they can.
-            Deref { .. } => false,
+            Place(PlaceExpr::Deref { .. }) => false,
             // Inherit validity of the parent place, unless the parent is an union.
-            Field { lhs, .. } => {
+            Place(PlaceExpr::Field { lhs, .. }) => {
                 let lhs = &self.thir()[*lhs];
                 match lhs.ty.kind() {
                     ty::Adt(def, _) if def.is_union() => false,
@@ -311,7 +311,7 @@ impl<'p, 'tcx> MatchVisitor<'p, 'tcx> {
                 }
             }
             // Essentially a field access.
-            Index { lhs, .. } => {
+            Place(PlaceExpr::Index { lhs, .. }) => {
                 let lhs = &self.thir()[*lhs];
                 self.is_known_valid_scrutinee(lhs)
             }
@@ -324,10 +324,10 @@ impl<'p, 'tcx> MatchVisitor<'p, 'tcx> {
             | Cast { source }
             | Use { source }
             | PointerCoercion { source, .. }
-            | PlaceTypeAscription { source, .. }
-            | ValueTypeAscription { source, .. }
-            | PlaceUnwrapUnsafeBinder { source }
-            | ValueUnwrapUnsafeBinder { source }
+            | Place(PlaceExpr::PlaceTypeAscription { source, .. })
+            | Place(PlaceExpr::ValueTypeAscription { source, .. })
+            | Place(PlaceExpr::PlaceUnwrapUnsafeBinder { source })
+            | Place(PlaceExpr::ValueUnwrapUnsafeBinder { source })
             | WrapUnsafeBinder { source } => self.is_known_valid_scrutinee(&self.thir()[*source]),
 
             // These diverge.
@@ -356,8 +356,8 @@ impl<'p, 'tcx> MatchVisitor<'p, 'tcx> {
             | ThreadLocalRef { .. }
             | Tuple { .. }
             | Unary { .. }
-            | UpvarRef { .. }
-            | VarRef { .. }
+            | Place(PlaceExpr::UpvarRef { .. })
+            | Place(PlaceExpr::VarRef { .. })
             | Yield { .. } => true,
         }
     }

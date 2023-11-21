@@ -19,7 +19,6 @@ use rustc_session::lint::builtin::{DEPRECATED_SAFE_2024, UNSAFE_OP_IN_UNSAFE_FN,
 use rustc_span::def_id::{DefId, LocalDefId};
 use rustc_span::{Span, Symbol, sym};
 
-use crate::builder::ExprCategory;
 use crate::errors::*;
 
 struct UnsafetyVisitor<'a, 'tcx> {
@@ -253,7 +252,7 @@ impl<'a, 'tcx> Visitor<'a, 'tcx> for LayoutConstrainedPlaceVisitor<'a, 'tcx> {
 
     fn visit_expr(&mut self, expr: &'a Expr<'tcx>) {
         match expr.kind {
-            ExprKind::Field { lhs, .. } => {
+            ExprKind::Place(PlaceExpr::Field { lhs, .. }) => {
                 if let ty::Adt(adt_def, _) = self.thir[lhs].ty.kind() {
                     if (Bound::Unbounded, Bound::Unbounded)
                         != self.tcx.layout_scalar_valid_range(adt_def.did())
@@ -267,8 +266,8 @@ impl<'a, 'tcx> Visitor<'a, 'tcx> for LayoutConstrainedPlaceVisitor<'a, 'tcx> {
             // Keep walking through the expression as long as we stay in the same
             // place, i.e. the expression is a place expression and not a dereference
             // (since dereferencing something leads us to a different place).
-            ExprKind::Deref { .. } => {}
-            ref kind if ExprCategory::of(kind).is_none_or(|cat| cat == ExprCategory::Place) => {
+            ExprKind::Place(PlaceExpr::Deref { .. }) => {}
+            ref kind if matches!(kind, ExprKind::Scope { .. } | ExprKind::Place(_)) => {
                 visit::walk_expr(self, expr);
             }
 
@@ -418,9 +417,9 @@ impl<'a, 'tcx> Visitor<'a, 'tcx> for UnsafetyVisitor<'a, 'tcx> {
     fn visit_expr(&mut self, expr: &'a Expr<'tcx>) {
         // could we be in the LHS of an assignment to a field?
         match expr.kind {
-            ExprKind::Field { .. }
-            | ExprKind::VarRef { .. }
-            | ExprKind::UpvarRef { .. }
+            ExprKind::Place(PlaceExpr::Field { .. })
+            | ExprKind::Place(PlaceExpr::VarRef { .. })
+            | ExprKind::Place(PlaceExpr::UpvarRef { .. })
             | ExprKind::Scope { .. }
             | ExprKind::Cast { .. } => {}
 
@@ -431,13 +430,13 @@ impl<'a, 'tcx> Visitor<'a, 'tcx> for UnsafetyVisitor<'a, 'tcx> {
             | ExprKind::Block { .. }
             | ExprKind::Borrow { .. }
             | ExprKind::Constant(_)
-            | ExprKind::Deref { .. }
-            | ExprKind::Index { .. }
+            | ExprKind::Place(PlaceExpr::Deref { .. })
+            | ExprKind::Place(PlaceExpr::Index { .. })
             | ExprKind::NeverToAny { .. }
-            | ExprKind::PlaceTypeAscription { .. }
-            | ExprKind::ValueTypeAscription { .. }
-            | ExprKind::PlaceUnwrapUnsafeBinder { .. }
-            | ExprKind::ValueUnwrapUnsafeBinder { .. }
+            | ExprKind::Place(PlaceExpr::PlaceTypeAscription { .. })
+            | ExprKind::Place(PlaceExpr::ValueTypeAscription { .. })
+            | ExprKind::Place(PlaceExpr::PlaceUnwrapUnsafeBinder { .. })
+            | ExprKind::Place(PlaceExpr::ValueUnwrapUnsafeBinder { .. })
             | ExprKind::WrapUnsafeBinder { .. }
             | ExprKind::PointerCoercion { .. }
             | ExprKind::Repeat { .. }
@@ -529,7 +528,7 @@ impl<'a, 'tcx> Visitor<'a, 'tcx> for UnsafetyVisitor<'a, 'tcx> {
             }
             ExprKind::RawBorrow { arg, .. } => {
                 if let ExprKind::Scope { value: arg, .. } = self.thir[arg].kind
-                    && let ExprKind::Deref { arg } = self.thir[arg].kind
+                    && let ExprKind::Place(PlaceExpr::Deref { arg }) = self.thir[arg].kind
                 {
                     // Taking a raw ref to a deref place expr is always safe.
                     // Make sure the expression we're deref'ing is safe, though.
@@ -537,7 +536,7 @@ impl<'a, 'tcx> Visitor<'a, 'tcx> for UnsafetyVisitor<'a, 'tcx> {
                     return;
                 }
             }
-            ExprKind::Deref { arg } => {
+            ExprKind::Place(PlaceExpr::Deref { arg }) => {
                 if let ExprKind::Constant(ConstantExpr::StaticRef { def_id, .. })
                 | ExprKind::ThreadLocalRef(def_id) = self.thir[arg].kind
                 {
@@ -622,7 +621,7 @@ impl<'a, 'tcx> Visitor<'a, 'tcx> for UnsafetyVisitor<'a, 'tcx> {
                 let def_id = did.expect_local();
                 self.visit_inner_body(def_id);
             }
-            ExprKind::Field { lhs, variant_index, name } => {
+            ExprKind::Place(PlaceExpr::Field { lhs, variant_index, name }) => {
                 let lhs = &self.thir[lhs];
                 if let ty::Adt(adt_def, _) = lhs.ty.kind() {
                     if adt_def.variant(variant_index).fields[name].safety.is_unsafe() {
@@ -680,8 +679,8 @@ impl<'a, 'tcx> Visitor<'a, 'tcx> for UnsafetyVisitor<'a, 'tcx> {
                     }
                 }
             }
-            ExprKind::PlaceUnwrapUnsafeBinder { .. }
-            | ExprKind::ValueUnwrapUnsafeBinder { .. }
+            ExprKind::Place(PlaceExpr::PlaceUnwrapUnsafeBinder { .. })
+            | ExprKind::Place(PlaceExpr::ValueUnwrapUnsafeBinder { .. })
             | ExprKind::WrapUnsafeBinder { .. } => {
                 self.requires_unsafe(expr.span, UnsafeBinderCast);
             }

@@ -246,7 +246,7 @@ impl<'a, 'tcx> ThirPrinter<'a, 'tcx> {
 
                 print_indented!(self, "}", depth_lvl);
             }
-            Deref { arg } => {
+            Place(PlaceExpr::Deref { arg }) => {
                 print_indented!(self, "Deref {", depth_lvl);
                 self.print_expr(*arg, depth_lvl + 1);
                 print_indented!(self, "}", depth_lvl);
@@ -349,7 +349,7 @@ impl<'a, 'tcx> ThirPrinter<'a, 'tcx> {
                 self.print_expr(*rhs, depth_lvl + 2);
                 print_indented!(self, "}", depth_lvl);
             }
-            Field { lhs, variant_index, name } => {
+            Place(PlaceExpr::Field { lhs, variant_index, name }) => {
                 print_indented!(self, "Field {", depth_lvl);
                 print_indented!(self, format!("variant_index: {:?}", variant_index), depth_lvl + 1);
                 print_indented!(self, format!("name: {:?}", name), depth_lvl + 1);
@@ -357,19 +357,19 @@ impl<'a, 'tcx> ThirPrinter<'a, 'tcx> {
                 self.print_expr(*lhs, depth_lvl + 2);
                 print_indented!(self, "}", depth_lvl);
             }
-            Index { lhs, index } => {
+            Place(PlaceExpr::Index { lhs, index }) => {
                 print_indented!(self, "Index {", depth_lvl);
                 print_indented!(self, format!("index: {:?}", index), depth_lvl + 1);
                 print_indented!(self, "lhs:", depth_lvl + 1);
                 self.print_expr(*lhs, depth_lvl + 2);
                 print_indented!(self, "}", depth_lvl);
             }
-            VarRef { id } => {
+            Place(PlaceExpr::VarRef { id }) => {
                 print_indented!(self, "VarRef {", depth_lvl);
                 print_indented!(self, format!("id: {:?}", id), depth_lvl + 1);
                 print_indented!(self, "}", depth_lvl);
             }
-            UpvarRef { closure_def_id, var_hir_id } => {
+            Place(PlaceExpr::UpvarRef { closure_def_id, var_hir_id }) => {
                 print_indented!(self, "UpvarRef {", depth_lvl);
                 print_indented!(
                     self,
@@ -461,7 +461,7 @@ impl<'a, 'tcx> ThirPrinter<'a, 'tcx> {
                 self.print_adt_expr(&**adt_expr, depth_lvl + 1);
                 print_indented!(self, "}", depth_lvl);
             }
-            PlaceTypeAscription { source, user_ty, user_ty_span } => {
+            Place(PlaceExpr::PlaceTypeAscription { source, user_ty, user_ty_span }) => {
                 print_indented!(self, "PlaceTypeAscription {", depth_lvl);
                 print_indented!(self, format!("user_ty: {:?}", user_ty), depth_lvl + 1);
                 print_indented!(self, format!("user_ty_span: {:?}", user_ty_span), depth_lvl + 1);
@@ -469,7 +469,7 @@ impl<'a, 'tcx> ThirPrinter<'a, 'tcx> {
                 self.print_expr(*source, depth_lvl + 2);
                 print_indented!(self, "}", depth_lvl);
             }
-            ValueTypeAscription { source, user_ty, user_ty_span } => {
+            Place(PlaceExpr::ValueTypeAscription { source, user_ty, user_ty_span }) => {
                 print_indented!(self, "ValueTypeAscription {", depth_lvl);
                 print_indented!(self, format!("user_ty: {:?}", user_ty), depth_lvl + 1);
                 print_indented!(self, format!("user_ty_span: {:?}", user_ty_span), depth_lvl + 1);
@@ -477,13 +477,13 @@ impl<'a, 'tcx> ThirPrinter<'a, 'tcx> {
                 self.print_expr(*source, depth_lvl + 2);
                 print_indented!(self, "}", depth_lvl);
             }
-            PlaceUnwrapUnsafeBinder { source } => {
+            Place(PlaceExpr::PlaceUnwrapUnsafeBinder { source }) => {
                 print_indented!(self, "PlaceUnwrapUnsafeBinder {", depth_lvl);
                 print_indented!(self, "source:", depth_lvl + 1);
                 self.print_expr(*source, depth_lvl + 2);
                 print_indented!(self, "}", depth_lvl);
             }
-            ValueUnwrapUnsafeBinder { source } => {
+            Place(PlaceExpr::ValueUnwrapUnsafeBinder { source }) => {
                 print_indented!(self, "ValueUnwrapUnsafeBinder {", depth_lvl);
                 print_indented!(self, "source:", depth_lvl + 1);
                 self.print_expr(*source, depth_lvl + 2);
