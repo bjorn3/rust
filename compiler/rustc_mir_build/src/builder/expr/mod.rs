@@ -31,13 +31,11 @@
 //! ### Implementation notes
 //!
 //! For any given kind of expression, there is generally one way that
-//! can be lowered most naturally. This is specified by the
-//! `Category::of` function in the `category` module. For example, a
-//! struct expression (or other expression that creates a new value)
-//! is typically easiest to write in terms of `as_rvalue` or `into`,
-//! whereas a reference to a field is easiest to write in terms of
-//! `as_place`. (The exception to this is scope and paren
-//! expressions, which have no category.)
+//! can be lowered most naturally. For example, a struct expression
+//! (or other expression that creates a new value) is typically easiest
+//! to write in terms of `as_rvalue` or `into`, whereas a reference to
+//! a field is easiest to write in terms of `as_place`. (The exception
+//! to this is scope expressions, which have no category.)
 //!
 //! Therefore, the various functions above make use of one another in
 //! a descending fashion. For any given expression, you should pick
@@ -65,6 +63,5 @@ mod as_operand;
 pub(crate) mod as_place;
 mod as_rvalue;
 mod as_temp;
-pub(crate) mod category;
 mod into;
 mod stmt;

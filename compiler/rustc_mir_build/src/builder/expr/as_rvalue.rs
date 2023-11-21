@@ -17,7 +17,6 @@ use rustc_span::{DUMMY_SP, Span};
 use tracing::debug;
 
 use crate::builder::expr::as_place::PlaceBase;
-use crate::builder::expr::category::{Category, RvalueFunc};
 use crate::builder::{BlockAnd, BlockAndExtension, Builder, NeedsTemporary};
 
 impl<'a, 'tcx> Builder<'a, 'tcx> {
@@ -551,10 +550,6 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
             | ExprKind::Place(PlaceExpr::ValueUnwrapUnsafeBinder { .. }) => {
                 // these do not have corresponding `Rvalue` variants,
                 // so make an operand and then return that
-                debug_assert!(!matches!(
-                    Category::of(&expr.kind),
-                    Some(Category::Rvalue(RvalueFunc::AsRvalue) | Category::Constant)
-                ));
                 let operand = unpack!(
                     block = this.as_operand(
                         block,

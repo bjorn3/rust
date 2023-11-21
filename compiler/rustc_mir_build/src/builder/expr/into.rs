@@ -11,7 +11,6 @@ use rustc_middle::ty::CanonicalUserTypeAnnotation;
 use rustc_span::source_map::Spanned;
 use tracing::{debug, instrument};
 
-use crate::builder::expr::category::{Category, RvalueFunc};
 use crate::builder::matches::DeclareLetBindings;
 use crate::builder::{BlockAnd, BlockAndExtension, BlockFrame, Builder, NeedsTemporary};
 
@@ -562,8 +561,6 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
             | ExprKind::Place(PlaceExpr::ValueTypeAscription { .. })
             | ExprKind::Place(PlaceExpr::PlaceUnwrapUnsafeBinder { .. })
             | ExprKind::Place(PlaceExpr::ValueUnwrapUnsafeBinder { .. }) => {
-                debug_assert!(Category::of(&expr.kind) == Some(Category::Place));
-
                 let place = unpack!(block = this.as_place(block, expr_id));
                 let rvalue = Rvalue::Use(this.consume_by_copy_or_move(place));
                 this.cfg.push_assign(block, source_info, destination, rvalue);
@@ -615,18 +612,6 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
             | ExprKind::ThreadLocalRef(_)
             | ExprKind::OffsetOf { .. }
             | ExprKind::WrapUnsafeBinder { .. } => {
-                debug_assert!(match Category::of(&expr.kind).unwrap() {
-                    // should be handled above
-                    Category::Rvalue(RvalueFunc::Into) => false,
-
-                    // must be handled above or else we get an
-                    // infinite loop in the builder; see
-                    // e.g., `ExprKind::Place(PlaceExpr::VarRef)` above
-                    Category::Place => false,
-
-                    _ => true,
-                });
-
                 let rvalue = unpack!(block = this.as_local_rvalue(block, expr_id));
                 this.cfg.push_assign(block, source_info, destination, rvalue);
                 block.unit()
