@@ -151,7 +151,15 @@ fn current_dll_path() -> Result<PathBuf, String> {
     Ok(OsString::from_wide(&filename).into())
 }
 
+#[cfg(not(any(unix, windows)))]
+fn current_dll_path() -> Result<PathBuf, String> {
+    Err(format!("current_dll_path not supported"))
+}
+
 pub fn sysroot_candidates() -> SmallVec<[PathBuf; 2]> {
+    #[cfg(not(any(unix, windows)))]
+    return smallvec![];
+
     let target = crate::config::host_triple();
     let mut sysroot_candidates: SmallVec<[PathBuf; 2]> =
         smallvec![get_or_default_sysroot().expect("Failed finding sysroot")];

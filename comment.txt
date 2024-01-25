@@ -1,0 +1,18 @@
+Got a new version up. This time all logic to handle using different codegen backends for the different stages, so you don't need to do a multi stage process.
+
+* Make sure you are running on Linux.
+* Clone https://github.com/bjorn3/rust
+* Checkout the `compile_rustc_for_wasm16` branch
+* Download and extract https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz into the rust checkout.
+* Run `./x.py install` to build the compiler and install it into the dist dir.
+* Use `wasmtime run --dir tmp::/ --dir dist dist/bin/rustc.wasm --sysroot dist --target x86_64-unknown-linux-gnu` to run rustc.
+
+Note that linking is not supported as wasi doesn't allow spawning executables. You can use something like the following to compile using the wasm32-wasi rustc and then link using native gcc:
+
+```
+$ mkdir tmp
+$ echo 'fn main() { println!("Hello World!"); }' | wasmtime run -Sthreads=y -Spreview2=n --dir tmp::/ --dir dist --env RUST_MIN_STACK=16777216 dist/bin/rustc.wasm - --sysroot dist --target x86_64-unknown-linux-gnu -Csave-temps
+$ gcc -fuse-ld=lld tmp/rmeta*/lib.rmeta tmp/rust_out.* dist/lib/rustlib/x86_64-unknown-linux-gnu/lib/lib*.rlib -o rust_out
+$ ./rust_out
+Hello World!
+```

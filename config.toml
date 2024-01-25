@@ -1,0 +1,37 @@
+# Includes one of the default files in src/bootstrap/defaults
+profile = "compiler"
+change-id = 9999999
+
+[llvm]
+download-ci-llvm = true
+
+[rust]
+codegen-backends = ["llvm"]
+deny-warnings = false
+llvm-bitcode-linker = false
+debug = false
+debuginfo-level = 0
+
+[build]
+docs = false
+extended = false
+tools = []
+host = ["wasm32-wasip1"]
+target = ["x86_64-unknown-linux-gnu"]
+
+[install]
+prefix = "dist"
+sysconfdir = "etc"
+
+[target.'wasm32-wasip1']
+wasi-root = "wasi-sdk-24.0-x86_64-linux/share/wasi-sysroot"
+linker = "wasi-sdk-24.0-x86_64-linux/bin/clang"
+codegen-backends = ["cranelift"]
+
+[target.'wasm32-wasip1-threads']
+wasi-root = "wasi-sdk-24.0-x86_64-linux/share/wasi-sysroot"
+linker = "wasi-sdk-24.0-x86_64-linux/bin/clang"
+codegen-backends = ["cranelift"]
+
+[target.'x86_64-unknown-linux-gnu']
+cc = "gcc"
