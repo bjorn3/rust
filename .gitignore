@@ -96,3 +96,8 @@ flake.lock
 default.nix
 
 # Before adding new lines, see the comment at the top.
+
+/wasi-sdk-*
+/wabt-*
+/tmp
+/rust_out

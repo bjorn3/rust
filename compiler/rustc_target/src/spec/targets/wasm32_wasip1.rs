@@ -23,7 +23,7 @@ pub(crate) fn target() -> Target {
     options.post_link_objects_self_contained = crt_objects::post_wasi_self_contained();
 
     // FIXME: Figure out cases in which WASM needs to link with a native toolchain.
-    options.link_self_contained = LinkSelfContainedDefault::True;
+    options.link_self_contained = LinkSelfContainedDefault::False;
 
     // Right now this is a bit of a workaround but we're currently saying that
     // the target by default has a static crt which we're taking as a signal

@@ -27,6 +27,7 @@ features = ['unprefixed_malloc_on_supported_platforms']
 
 [features]
 # tidy-alphabetical-start
+cranelift = ['rustc_driver_impl/cranelift']
 jemalloc = ['dep:jemalloc-sys']
 llvm = ['rustc_driver_impl/llvm']
 max_level_info = ['rustc_driver_impl/max_level_info']
