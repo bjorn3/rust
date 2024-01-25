@@ -24,7 +24,7 @@ use rustc_session::Session;
 use rustc_session::config::{OutputFilenames, OutputType};
 
 use crate::base::CodegenedFunction;
-use crate::concurrency_limiter::{ConcurrencyLimiter, ConcurrencyLimiterToken};
+//use crate::concurrency_limiter::{ConcurrencyLimiter, ConcurrencyLimiterToken};
 use crate::debuginfo::TypeDebugContext;
 use crate::global_asm::{GlobalAsmConfig, GlobalAsmContext};
 use crate::prelude::*;
@@ -54,7 +54,7 @@ impl<Hcx> HashStable<Hcx> for OngoingModuleCodegen {
 pub(crate) struct OngoingCodegen {
     modules: Vec<OngoingModuleCodegen>,
     allocator_module: Option<CompiledModule>,
-    concurrency_limiter: ConcurrencyLimiter,
+    //concurrency_limiter: ConcurrencyLimiter,
 }
 
 impl OngoingCodegen {
@@ -117,7 +117,7 @@ impl OngoingCodegen {
             }
         }
 
-        self.concurrency_limiter.finished();
+        //self.concurrency_limiter.finished();
 
         sess.dcx().abort_if_errors();
 
@@ -380,10 +380,10 @@ fn codegen_cgu_content(
 
 fn module_codegen(
     tcx: TyCtxt<'_>,
-    (global_asm_config, cgu_name, token): (
+    (global_asm_config, cgu_name /*, token*/): (
         Arc<GlobalAsmConfig>,
         rustc_span::Symbol,
-        ConcurrencyLimiterToken,
+        //ConcurrencyLimiterToken,
     ),
 ) -> OngoingModuleCodegen {
     let mut module = make_module(tcx.sess, cgu_name.as_str().to_string());
@@ -400,7 +400,7 @@ fn module_codegen(
     let output_filenames = tcx.output_filenames(()).clone();
     let should_write_ir = crate::pretty_clif::should_write_ir(tcx.sess);
 
-    OngoingModuleCodegen::Async(std::thread::spawn(move || {
+    OngoingModuleCodegen::Sync((|| {
         profiler.clone().generic_activity_with_arg("compile functions", &*cgu_name).run(|| {
             cranelift_codegen::timing::set_thread_profiler(Box::new(super::MeasuremeProfiler(
                 profiler.clone(),
@@ -444,9 +444,9 @@ fn module_codegen(
                     &producer,
                 )
             });
-        std::mem::drop(token);
+        //std::mem::drop(token);
         codegen_result
-    }))
+    })())
 }
 
 fn emit_allocator_module(tcx: TyCtxt<'_>) -> Option<CompiledModule> {
@@ -504,7 +504,7 @@ pub(crate) fn run_aot(tcx: TyCtxt<'_>) -> Box<OngoingCodegen> {
             CguReuse::PreLto | CguReuse::PostLto => false,
         });
 
-    let concurrency_limiter = IntoDynSyncSend(ConcurrencyLimiter::new(todo_cgus.len()));
+    //let concurrency_limiter = IntoDynSyncSend(ConcurrencyLimiter::new(todo_cgus.len()));
 
     let modules: Vec<_> =
         tcx.sess.time("codegen mono items", || {
@@ -513,7 +513,10 @@ pub(crate) fn run_aot(tcx: TyCtxt<'_>) -> Box<OngoingCodegen> {
                 let (module, _) = tcx.dep_graph.with_task(
                     dep_node,
                     tcx,
-                    (global_asm_config.clone(), cgu.name(), concurrency_limiter.acquire(tcx.dcx())),
+                    (
+                        global_asm_config.clone(),
+                        cgu.name(), /*, concurrency_limiter.acquire(tcx.dcx())*/
+                    ),
                     module_codegen,
                     Some(rustc_middle::dep_graph::hash_result),
                 );
@@ -533,6 +536,6 @@ pub(crate) fn run_aot(tcx: TyCtxt<'_>) -> Box<OngoingCodegen> {
     Box::new(OngoingCodegen {
         modules,
         allocator_module,
-        concurrency_limiter: concurrency_limiter.0,
+        //concurrency_limiter: concurrency_limiter.0,
     })
 }

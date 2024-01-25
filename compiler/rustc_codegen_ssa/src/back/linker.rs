@@ -131,7 +131,9 @@ pub(crate) fn get_linker<'a>(
     if !msvc_changed_path && let Some(path) = env::var_os("PATH") {
         new_path.extend(env::split_paths(&path));
     }
-    cmd.env("PATH", env::join_paths(new_path).unwrap());
+    if cfg!(not(target_family = "wasm")) {
+        cmd.env("PATH", env::join_paths(new_path).unwrap());
+    }
 
     // FIXME: Move `/LIBPATH` addition for uwp targets from the linker construction
     // to the linker args construction.

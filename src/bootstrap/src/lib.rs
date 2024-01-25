@@ -875,6 +875,11 @@ impl Build {
         if self.config.llvm_offload {
             features.push("llvm_offload");
         }
+        if self.config.enabled_codegen_backends(target).contains(&CodegenBackendKind::Cranelift)
+            || kind == Kind::Check
+        {
+            features.push("cranelift");
+        }
         // keep in sync with `bootstrap/compile.rs:rustc_cargo_env`
         if self.config.rust_randomize_layout && check("rustc_randomized_layouts") {
             features.push("rustc_randomized_layouts");

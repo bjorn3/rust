@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [lib]
-crate-type = ["dylib"]
+crate-type = ["lib", "dylib"]
 
 [dependencies]
 # These have to be in sync with each other
@@ -22,7 +22,24 @@ indexmap = "2.0.0"
 libloading = { version = "0.9.0", optional = true }
 smallvec = "1.8.1"
 
-[patch.crates-io]
+rustc_middle = { path = "../rustc_middle" }
+rustc_abi = { path = "../rustc_abi" }
+rustc_ast = { path = "../rustc_ast" }
+rustc_codegen_ssa = { path = "../rustc_codegen_ssa" }
+rustc_const_eval = { path = "../rustc_const_eval" }
+rustc_data_structures = { path = "../rustc_data_structures" }
+rustc_errors = { path = "../rustc_errors" }
+rustc_fs_util = { path = "../rustc_fs_util" }
+rustc_hir = { path = "../rustc_hir" }
+rustc_incremental = { path = "../rustc_incremental" }
+rustc_index = { path = "../rustc_index" }
+rustc_log = { path = "../rustc_log" }
+rustc_session = { path = "../rustc_session" }
+rustc_span = { path = "../rustc_span" }
+rustc_symbol_mangling = { path = "../rustc_symbol_mangling" }
+rustc_target = { path = "../rustc_target" }
+
+#[patch.crates-io]
 # Uncomment to use an unreleased version of cranelift
 #cranelift-codegen = { git = "https://github.com/bytecodealliance/wasmtime.git", branch = "release-43.0.0" }
 #cranelift-frontend = { git = "https://github.com/bytecodealliance/wasmtime.git", branch = "release-43.0.0" }

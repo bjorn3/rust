@@ -102,7 +102,7 @@ pub fn link_binary(
 
         sess.time("link_binary_check_files_are_writeable", || {
             for obj in compiled_modules.modules.iter().filter_map(|m| m.object.as_ref()) {
-                check_file_is_writeable(obj, sess);
+                //check_file_is_writeable(obj, sess);
             }
         });
 

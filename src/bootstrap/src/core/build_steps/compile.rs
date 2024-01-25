@@ -2411,11 +2411,6 @@ impl Step for Assemble {
                 };
 
                 match backend {
-                    CodegenBackendKind::Cranelift => {
-                        let stamp = builder
-                            .ensure(CraneliftCodegenBackend { compilers: prepare_compilers() });
-                        copy_codegen_backends_to_sysroot(builder, stamp, target_compiler);
-                    }
                     CodegenBackendKind::Gcc => {
                         // We need to build cg_gcc for the host target of the compiler which we
                         // build here, which is `target_compiler`.
@@ -2485,7 +2480,9 @@ impl Step for Assemble {
                         // library sysroots, so that they are available for cg_gcc.
                         dylib_set.install_to(builder, target_compiler);
                     }
-                    CodegenBackendKind::Llvm | CodegenBackendKind::Custom(_) => continue,
+                    CodegenBackendKind::Cranelift
+                    | CodegenBackendKind::Llvm
+                    | CodegenBackendKind::Custom(_) => continue,
                 }
             }
         }

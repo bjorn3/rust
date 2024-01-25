@@ -35,6 +35,7 @@ features = ['override_allocator_on_supported_platforms']
 [features]
 # tidy-alphabetical-start
 check_only = ['rustc_driver_impl/check_only']
+cranelift = ['rustc_driver_impl/cranelift']
 jemalloc = ['dep:tikv-jemalloc-sys']
 llvm = ['rustc_driver_impl/llvm']
 llvm_enzyme = ['rustc_driver_impl/llvm_enzyme']

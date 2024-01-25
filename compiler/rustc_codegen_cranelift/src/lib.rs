@@ -12,25 +12,10 @@
 
 #[macro_use]
 extern crate rustc_middle;
-extern crate rustc_abi;
-extern crate rustc_ast;
-extern crate rustc_codegen_ssa;
-extern crate rustc_const_eval;
-extern crate rustc_data_structures;
-extern crate rustc_errors;
-extern crate rustc_fs_util;
-extern crate rustc_hir;
-extern crate rustc_incremental;
-extern crate rustc_index;
-extern crate rustc_log;
-extern crate rustc_session;
-extern crate rustc_span;
-extern crate rustc_symbol_mangling;
-extern crate rustc_target;
 
 // This prevents duplicating functions and statics that are already part of the host rustc process.
-#[allow(unused_extern_crates)]
-extern crate rustc_driver;
+//#[allow(unused_extern_crates)]
+//extern crate rustc_driver;
 
 use std::any::Any;
 use std::cell::OnceCell;
@@ -155,6 +140,7 @@ impl CodegenBackend for CraneliftCodegenBackend {
     fn target_config(&self, sess: &Session) -> TargetConfig {
         // FIXME return the actually used target features. this is necessary for #[cfg(target_feature)]
         let target_features = match sess.target.arch {
+            #[allow(rustc::symbol_intern_string_literal)]
             Arch::X86_64 if sess.target.os != Os::None => {
                 // x86_64 mandates SSE2 support and rustc requires the x87 feature to be enabled
                 vec![sym::fxsr, sym::sse, sym::sse2, Symbol::intern("x87")]
@@ -358,7 +344,7 @@ fn build_isa(sess: &Session, jit: bool) -> Arc<dyn TargetIsa + 'static> {
 }
 
 /// This is the entrypoint for a hot plugged rustc_codegen_cranelift
-#[unsafe(no_mangle)]
+//#[unsafe(no_mangle)]
 pub fn __rustc_codegen_backend() -> Box<dyn CodegenBackend> {
     Box::new(CraneliftCodegenBackend { config: OnceCell::new() })
 }
