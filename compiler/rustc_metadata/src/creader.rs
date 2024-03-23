@@ -24,8 +24,7 @@ use rustc_index::IndexVec;
 use rustc_middle::bug;
 use rustc_middle::ty::{TyCtxt, TyCtxtFeed};
 use rustc_session::config::{
-    self, CrateType, ExtendedTargetModifierInfo, ExternLocation, OptionsTargetModifiers,
-    TargetModifier,
+    CrateType, ExtendedTargetModifierInfo, ExternLocation, OptionsTargetModifiers, TargetModifier,
 };
 use rustc_session::cstore::{CrateDepKind, CrateSource, ExternCrate, ExternCrateSource};
 use rustc_session::lint::{self, BuiltinLintDiag};
@@ -33,7 +32,7 @@ use rustc_session::output::validate_crate_name;
 use rustc_session::search_paths::PathKind;
 use rustc_span::edition::Edition;
 use rustc_span::{DUMMY_SP, Ident, STDLIB_STABLE_CRATES, Span, Symbol, sym};
-use rustc_target::spec::{PanicStrategy, Target, TargetTuple};
+use rustc_target::spec::{PanicStrategy, Target};
 use tracing::{debug, info, trace};
 
 use crate::errors;
@@ -615,7 +614,7 @@ impl<'a, 'tcx> CrateLoader<'a, 'tcx> {
             let mut proc_macro_locator = locator.clone();
 
             // Try to load a proc macro
-            proc_macro_locator.is_proc_macro = true;
+            proc_macro_locator.for_target_proc_macro(self.sess, path_kind);
 
             // Load the proc macro crate for the target
             let target_result =
@@ -627,17 +626,12 @@ impl<'a, 'tcx> CrateLoader<'a, 'tcx> {
                     None => return Ok(None),
                 };
 
-            // Load the proc macro crate for the host
-
             // Use the existing crate_rejections as we want the error message to be affected by
             // loading the host proc macro.
             *crate_rejections = CrateRejections::default();
-            // FIXME use a separate CrateLocator for the host rather than mutating the target CrateLocator
-            locator.is_proc_macro = true;
-            locator.target = &self.sess.host;
-            locator.tuple = TargetTuple::from_tuple(config::host_tuple());
-            locator.filesearch = self.sess.host_filesearch();
-            locator.path_kind = path_kind;
+
+            // Load the proc macro crate for the host
+            locator.for_proc_macro(self.sess, path_kind);
 
             locator.hash = host_hash;
 
@@ -657,16 +651,8 @@ impl<'a, 'tcx> CrateLoader<'a, 'tcx> {
             // affect the error message we emit
             let mut proc_macro_locator = locator.clone();
 
-            // Try to load a proc macro
-            proc_macro_locator.is_proc_macro = true;
-
             // Load the proc macro crate for the host
-
-            // FIXME use a separate CrateLocator for the host rather than mutating the target CrateLocator
-            proc_macro_locator.target = &self.sess.host;
-            proc_macro_locator.tuple = TargetTuple::from_tuple(config::host_tuple());
-            proc_macro_locator.filesearch = self.sess.host_filesearch();
-            proc_macro_locator.path_kind = path_kind;
+            proc_macro_locator.for_proc_macro(self.sess, path_kind);
 
             let Some(host_result) =
                 self.load(&mut proc_macro_locator, &mut CrateRejections::default())?
@@ -799,7 +785,7 @@ impl<'a, 'tcx> CrateLoader<'a, 'tcx> {
         // FIXME: why is this condition necessary? It was adding in #33625 but I
         // don't know why and the original author doesn't remember ...
         let can_reuse_cratenum =
-            locator.tuple == self.sess.opts.target_triple || locator.is_proc_macro;
+            *locator.tuple() == self.sess.opts.target_triple || locator.is_proc_macro();
         Ok(Some(if can_reuse_cratenum {
             let mut result = LoadResult::Loaded(library);
             for (cnum, data) in self.cstore.iter_crate_data() {
