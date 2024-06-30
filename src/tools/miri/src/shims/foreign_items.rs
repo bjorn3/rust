@@ -9,11 +9,11 @@ use rustc_ast::expand::allocator::alloc_error_handler_name;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::CrateNum;
 use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
-use rustc_middle::{mir, ty};
 use rustc_middle::ty::Ty;
+use rustc_middle::{mir, ty};
 use rustc_span::Symbol;
+use rustc_symbol_mangling::mangle_internal_symbol;
 use rustc_target::callconv::{Conv, FnAbi};
-
 
 use self::helpers::{ToHost, ToSoft};
 use super::alloc::EvalContextExt as _;
@@ -52,7 +52,7 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
 
         // Some shims forward to other MIR bodies.
         match link_name.as_str() {
-            "__rust_alloc_error_handler" => {
+            name if name == mangle_internal_symbol(*this.tcx, "__rust_alloc_error_handler") => {
                 // Forward to the right symbol that implements this function.
                 let Some(handler_kind) = this.tcx.alloc_error_handler_kind(()) else {
                     // in real code, this symbol does not exist without an allocator
@@ -60,9 +60,10 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
                         "`__rust_alloc_error_handler` cannot be called when no alloc error handler is set"
                     );
                 };
-                let name = alloc_error_handler_name(handler_kind);
+                let name =
+                    mangle_internal_symbol(*this.tcx, alloc_error_handler_name(handler_kind));
                 let handler = this
-                    .lookup_exported_symbol(Symbol::intern(name))?
+                    .lookup_exported_symbol(Symbol::intern(&name))?
                     .expect("missing alloc error handler symbol");
                 return interp_ok(Some(handler));
             }
@@ -137,15 +138,29 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 // Find it if it was not cached.
                 let mut instance_and_crate: Option<(ty::Instance<'_>, CrateNum)> = None;
                 helpers::iter_exported_symbols(tcx, |cnum, def_id| {
+                    if tcx.is_foreign_item(def_id) {
+                        // Skip over imports of items
+                        return interp_ok(());
+                    }
+
                     let attrs = tcx.codegen_fn_attrs(def_id);
+                    // FIXME use tcx.symbol_name(instance) instead
                     let symbol_name = if let Some(export_name) = attrs.export_name {
                         export_name
-                    } else if attrs.flags.contains(CodegenFnAttrFlags::NO_MANGLE) {
+                    } else if attrs.flags.contains(CodegenFnAttrFlags::NO_MANGLE)
+                        || attrs.flags.contains(CodegenFnAttrFlags::RUSTC_STD_INTERNAL_SYMBOL)
+                    {
                         tcx.item_name(def_id)
                     } else {
                         // Skip over items without an explicitly defined symbol name.
                         return interp_ok(());
                     };
+                    let symbol_name =
+                        if attrs.flags.contains(CodegenFnAttrFlags::RUSTC_STD_INTERNAL_SYMBOL) {
+                            Symbol::intern(&mangle_internal_symbol(tcx, symbol_name.as_str()))
+                        } else {
+                            symbol_name
+                        };
                     if symbol_name == link_name {
                         if let Some((original_instance, original_cnum)) = instance_and_crate {
                             // Make sure we are consistent wrt what is 'first' and 'second'.
@@ -279,7 +294,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
         match link_name.as_str() {
             // Miri-specific extern functions
             "miri_start_unwind" => {
-                let [payload] = this.check_shim(abi,  Conv::Rust, link_name, args)?;
+                let [payload] = this.check_shim(abi, Conv::Rust, link_name, args)?;
                 this.handle_miri_start_unwind(payload)?;
                 return interp_ok(EmulateItemResult::NeedsUnwind);
             }
@@ -288,7 +303,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 this.run_provenance_gc();
             }
             "miri_get_alloc_id" => {
-                let [ptr] = this.check_shim(abi,  Conv::Rust, link_name, args)?;
+                let [ptr] = this.check_shim(abi, Conv::Rust, link_name, args)?;
                 let ptr = this.read_pointer(ptr)?;
                 let (alloc_id, _, _) = this.ptr_get_alloc_id(ptr, 0).map_err_kind(|_e| {
                     err_machine_stop!(TerminationInfo::Abort(format!(
@@ -298,7 +313,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 this.write_scalar(Scalar::from_u64(alloc_id.0.get()), dest)?;
             }
             "miri_print_borrow_state" => {
-                let [id, show_unnamed] = this.check_shim(abi,   Conv::Rust, link_name, args)?;
+                let [id, show_unnamed] = this.check_shim(abi, Conv::Rust, link_name, args)?;
                 let id = this.read_scalar(id)?.to_u64()?;
                 let show_unnamed = this.read_scalar(show_unnamed)?.to_bool()?;
                 if let Some(id) = std::num::NonZero::new(id).map(AllocId)
@@ -312,8 +327,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
             "miri_pointer_name" => {
                 // This associates a name to a tag. Very useful for debugging, and also makes
                 // tests more strict.
-                let [ptr, nth_parent, name] =
-                    this.check_shim(abi, Conv::Rust, link_name, args)?;
+                let [ptr, nth_parent, name] = this.check_shim(abi, Conv::Rust, link_name, args)?;
                 let ptr = this.read_pointer(ptr)?;
                 let nth_parent = this.read_scalar(nth_parent)?.to_u8()?;
                 let name = this.read_immediate(name)?;
@@ -337,8 +351,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 this.machine.static_roots.push(alloc_id);
             }
             "miri_host_to_target_path" => {
-                let [ptr, out, out_size] =
-                    this.check_shim(abi, Conv::Rust, link_name, args)?;
+                let [ptr, out, out_size] = this.check_shim(abi, Conv::Rust, link_name, args)?;
                 let ptr = this.read_pointer(ptr)?;
                 let out = this.read_pointer(out)?;
                 let out_size = this.read_scalar(out_size)?.to_target_usize(this)?;
@@ -429,13 +442,12 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
 
             // Aborting the process.
             "exit" => {
-                let [code] =
-                    this.check_shim(abi, Conv::C , link_name, args)?;
+                let [code] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let code = this.read_scalar(code)?.to_i32()?;
                 throw_machine_stop!(TerminationInfo::Exit { code: code.into(), leak_check: false });
             }
             "abort" => {
-                let [] = this.check_shim(abi, Conv::C , link_name, args)?;
+                let [] = this.check_shim(abi, Conv::C, link_name, args)?;
                 throw_machine_stop!(TerminationInfo::Abort(
                     "the program aborted execution".to_owned()
                 ))
@@ -443,8 +455,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
 
             // Standard C allocation
             "malloc" => {
-                let [size] =
-                    this.check_shim(abi, Conv::C , link_name, args)?;
+                let [size] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let size = this.read_target_usize(size)?;
                 if size <= this.max_size_of_val().bytes() {
                     let res = this.malloc(size, /*zero_init:*/ false)?;
@@ -458,8 +469,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 }
             }
             "calloc" => {
-                let [items, elem_size] =
-                    this.check_shim(abi, Conv::C , link_name, args)?;
+                let [items, elem_size] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let items = this.read_target_usize(items)?;
                 let elem_size = this.read_target_usize(elem_size)?;
                 if let Some(size) = this.compute_size_in_bytes(Size::from_bytes(elem_size), items) {
@@ -474,14 +484,12 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 }
             }
             "free" => {
-                let [ptr] =
-                    this.check_shim(abi, Conv::C , link_name, args)?;
+                let [ptr] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let ptr = this.read_pointer(ptr)?;
                 this.free(ptr)?;
             }
             "realloc" => {
-                let [old_ptr, new_size] =
-                    this.check_shim(abi, Conv::C , link_name, args)?;
+                let [old_ptr, new_size] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let old_ptr = this.read_pointer(old_ptr)?;
                 let new_size = this.read_target_usize(new_size)?;
                 if new_size <= this.max_size_of_val().bytes() {
@@ -497,7 +505,9 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
             }
 
             // Rust allocation
-            "__rust_alloc" | "miri_alloc" => {
+            name if name == mangle_internal_symbol(*this.tcx, "__rust_alloc")
+                || name == "miri_alloc" =>
+            {
                 let default = |ecx: &mut MiriInterpCx<'tcx>| {
                     // Only call `check_shim` when `#[global_allocator]` isn't used. When that
                     // macro is used, we act like no shim exists, so that the exported function can run.
@@ -508,9 +518,8 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                     ecx.check_rustc_alloc_request(size, align)?;
 
                     let memory_kind = match link_name.as_str() {
-                        "__rust_alloc" => MiriMemoryKind::Rust,
                         "miri_alloc" => MiriMemoryKind::Miri,
-                        _ => unreachable!(),
+                        _ => MiriMemoryKind::Rust,
                     };
 
                     let ptr = ecx.allocate_ptr(
@@ -523,15 +532,14 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 };
 
                 match link_name.as_str() {
-                    "__rust_alloc" => return this.emulate_allocator(default),
                     "miri_alloc" => {
                         default(this)?;
                         return interp_ok(EmulateItemResult::NeedsReturn);
                     }
-                    _ => unreachable!(),
+                    _ => return this.emulate_allocator(default),
                 }
             }
-            "__rust_alloc_zeroed" => {
+            name if name == mangle_internal_symbol(*this.tcx, "__rust_alloc_zeroed") => {
                 return this.emulate_allocator(|this| {
                     // See the comment for `__rust_alloc` why `check_shim` is only called in the
                     // default case.
@@ -556,7 +564,9 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                     this.write_pointer(ptr, dest)
                 });
             }
-            "__rust_dealloc" | "miri_dealloc" => {
+            name if name == mangle_internal_symbol(*this.tcx, "__rust_dealloc")
+                || name == "miri_dealloc" =>
+            {
                 let default = |ecx: &mut MiriInterpCx<'tcx>| {
                     // See the comment for `__rust_alloc` why `check_shim` is only called in the
                     // default case.
@@ -567,9 +577,8 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                     let align = ecx.read_target_usize(align)?;
 
                     let memory_kind = match link_name.as_str() {
-                        "__rust_dealloc" => MiriMemoryKind::Rust,
                         "miri_dealloc" => MiriMemoryKind::Miri,
-                        _ => unreachable!(),
+                        _ => MiriMemoryKind::Rust,
                     };
 
                     // No need to check old_size/align; we anyway check that they match the allocation.
@@ -581,17 +590,14 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 };
 
                 match link_name.as_str() {
-                    "__rust_dealloc" => {
-                        return this.emulate_allocator(default);
-                    }
                     "miri_dealloc" => {
                         default(this)?;
                         return interp_ok(EmulateItemResult::NeedsReturn);
                     }
-                    _ => unreachable!(),
+                    _ => return this.emulate_allocator(default),
                 }
             }
-            "__rust_realloc" => {
+            name if name == mangle_internal_symbol(*this.tcx, "__rust_realloc") => {
                 return this.emulate_allocator(|this| {
                     // See the comment for `__rust_alloc` why `check_shim` is only called in the
                     // default case.
@@ -619,8 +625,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
 
             // C memory handling functions
             "memcmp" => {
-                let [left, right, n] =
-                    this.check_shim(abi, Conv::C , link_name, args)?;
+                let [left, right, n] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let left = this.read_pointer(left)?;
                 let right = this.read_pointer(right)?;
                 let n = Size::from_bytes(this.read_target_usize(n)?);
@@ -644,8 +649,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 this.write_scalar(Scalar::from_i32(result), dest)?;
             }
             "memrchr" => {
-                let [ptr, val, num] =
-                    this.check_shim(abi, Conv::C , link_name, args)?;
+                let [ptr, val, num] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let ptr = this.read_pointer(ptr)?;
                 let val = this.read_scalar(val)?.to_i32()?;
                 let num = this.read_target_usize(num)?;
@@ -671,8 +675,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 }
             }
             "memchr" => {
-                let [ptr, val, num] =
-                    this.check_shim(abi, Conv::C , link_name, args)?;
+                let [ptr, val, num] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let ptr = this.read_pointer(ptr)?;
                 let val = this.read_scalar(val)?.to_i32()?;
                 let num = this.read_target_usize(num)?;
@@ -695,8 +698,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 }
             }
             "strlen" => {
-                let [ptr] =
-                    this.check_shim(abi, Conv::C , link_name, args)?;
+                let [ptr] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let ptr = this.read_pointer(ptr)?;
                 // This reads at least 1 byte, so we are already enforcing that this is a valid pointer.
                 let n = this.read_c_str(ptr)?.len();
@@ -706,8 +708,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 )?;
             }
             "wcslen" => {
-                let [ptr] =
-                    this.check_shim(abi, Conv::C , link_name, args)?;
+                let [ptr] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let ptr = this.read_pointer(ptr)?;
                 // This reads at least 1 byte, so we are already enforcing that this is a valid pointer.
                 let n = this.read_wchar_t_str(ptr)?.len();
@@ -717,8 +718,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 )?;
             }
             "memcpy" => {
-                let [ptr_dest, ptr_src, n] =
-                    this.check_shim(abi, Conv::C , link_name, args)?;
+                let [ptr_dest, ptr_src, n] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let ptr_dest = this.read_pointer(ptr_dest)?;
                 let ptr_src = this.read_pointer(ptr_src)?;
                 let n = this.read_target_usize(n)?;
@@ -732,8 +732,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 this.write_pointer(ptr_dest, dest)?;
             }
             "strcpy" => {
-                let [ptr_dest, ptr_src] =
-                    this.check_shim(abi, Conv::C , link_name, args)?;
+                let [ptr_dest, ptr_src] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let ptr_dest = this.read_pointer(ptr_dest)?;
                 let ptr_src = this.read_pointer(ptr_src)?;
 
@@ -878,8 +877,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 this.write_scalar(res, dest)?;
             }
             "lgammaf_r" => {
-                let [x, signp] =
-                    this.check_shim(abi, Conv::C , link_name, args)?;
+                let [x, signp] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let x = this.read_scalar(x)?.to_f32()?;
                 let signp = this.deref_pointer(signp)?;
 
@@ -890,8 +888,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
                 this.write_scalar(res, dest)?;
             }
             "lgamma_r" => {
-                let [x, signp] =
-                    this.check_shim(abi, Conv::C , link_name, args)?;
+                let [x, signp] = this.check_shim(abi, Conv::C, link_name, args)?;
                 let x = this.read_scalar(x)?.to_f64()?;
                 let signp = this.deref_pointer(signp)?;
 
@@ -904,8 +901,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
 
             // LLVM intrinsics
             "llvm.prefetch" => {
-                let [p, rw, loc, ty] =
-                    this.check_shim(abi, Conv::C , link_name, args)?;
+                let [p, rw, loc, ty] = this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let _ = this.read_pointer(p)?;
                 let rw = this.read_scalar(rw)?.to_i32()?;
@@ -932,7 +928,7 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
             // Used to implement the x86 `_mm{,256,512}_popcnt_epi{8,16,32,64}` and wasm
             // `{i,u}8x16_popcnt` functions.
             name if name.starts_with("llvm.ctpop.v") => {
-                let [op] = this.check_shim(abi, Conv::C , link_name, args)?;
+                let [op] = this.check_shim(abi, Conv::C, link_name, args)?;
 
                 let (op, op_len) = this.project_to_simd(op)?;
                 let (dest, dest_len) = this.project_to_simd(dest)?;
