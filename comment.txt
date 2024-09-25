@@ -16,3 +16,25 @@ $ gcc -fuse-ld=lld tmp/rmeta*/lib.rmeta tmp/rust_out.* dist/lib/rustlib/x86_64-u
 $ ./rust_out
 Hello World!
 ```
+
+use LLVM
+Install example:
+WASI_SDK_PATH=`pwd`/wasi-sdk-24.0-x86_64-linux WASI_SYSROOT=`pwd`/wasi-sdk-24.0-x86_64-linux/share/wasi-sysroot ./x.py install
+
+If you just want to run it, https://github.com/oligamiq/rust_wasm/tree/main/rustc_llvm
+```
+$ mkdir tmp
+$ echo 'fn main() { println!("Hello World!"); }' | wasmtime run -Sthreads=y -Spreview2=n --dir tmp::/ --dir dist --env RUST_MIN_STACK=16777216 dist/bin/rustc.wasm - --sysroot dist --target wasm32-wasip1-threads -Csave-temps
+$ gcc -fuse-ld=lld tmp/rmeta*/lib.rmeta tmp/rust_out.*.o dist/lib/rustlib/x86_64-unknown-linux-gnu/lib/lib*.rlib -o rust_out
+$ ./rust_out
+Hello World!
+```
+
+to Wasi
+```
+$ mkdir tmp
+$ echo 'fn main() { println!("Hello World!"); }' | wasmtime run -Sthreads=y -Spreview2=n --dir tmp::/ --dir dist --env RUST_MIN_STACK=16777216 dist/bin/rustc.wasm - --sysroot dist --target wasm32-wasip1-threads -Csave-temps
+$ wasi-sdk-24.0-x86_64-linux/bin/wasm-ld --shared-memory --max-memory=1073741824 --import-memory --export __main_void -z stack-size=1048576 --stack-first --allow-undefined --no-demangle --import-memory --export-memory --shared-memory dist/lib/rustlib/wasm32-wasip1-threads/lib/self-contained/crt1-command.o tmp/rust_out.*.o dist/lib/rustlib/wasm32-wasip1-threads/lib/lib*.rlib -L dist/lib/rustlib/wasm32-wasip1-threads/lib/self-contained -lc -o rust_out.wasm
+$ wasmtime run -Sthreads=y rust_out.wasm
+Hello World!
+```

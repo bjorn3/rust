@@ -102,6 +102,10 @@ fn output(cmd: &mut Command) -> String {
 }
 
 fn main() {
+    if env::var("TARGET").expect("TARGET was not set").contains("wasi") {
+        std::env::var("WASI_SYSROOT").expect("WASI_SYSROOT not set");
+    }
+
     for component in REQUIRED_COMPONENTS.iter().chain(OPTIONAL_COMPONENTS.iter()) {
         println!("cargo:rustc-check-cfg=cfg(llvm_component,values(\"{component}\"))");
     }
@@ -199,6 +203,15 @@ fn main() {
 
     if tracked_env_var_os("LLVM_ASSERTIONS").is_none() {
         cfg.define("NDEBUG", None);
+    }
+
+    if target.contains("wasi") {
+        // ref src/bootstrap/src/core/build_steps/llvm.rs
+
+        let wasi_sysroot = env::var("WASI_SYSROOT").expect("WASI_SYSROOT not set");
+        cfg.compiler(format!("{wasi_sysroot}/../../bin/{target}-clang++"));
+        cfg.flag("-pthread");
+        cfg.flag("-D_WASI_EMULATED_MMAN");
     }
 
     rerun_if_changed_anything_in_dir(Path::new("llvm-wrapper"));
@@ -363,6 +376,7 @@ fn main() {
         || target.contains("freebsd")
         || target.contains("windows-gnullvm")
         || target.contains("aix")
+        || target.contains("wasi")
     {
         "c++"
     } else if target.contains("netbsd") && llvm_static_stdcpp.is_some() {

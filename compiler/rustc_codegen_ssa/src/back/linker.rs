@@ -656,7 +656,7 @@ impl<'a> Linker for GccLinker<'a> {
         if self.sess.opts.optimize == config::OptLevel::Default
             || self.sess.opts.optimize == config::OptLevel::Aggressive
         {
-            self.link_arg("-O1");
+            //self.link_arg("-O1");
         }
     }
 

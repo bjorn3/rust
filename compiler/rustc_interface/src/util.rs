@@ -103,10 +103,8 @@ fn run_in_thread_with_globals<F: FnOnce(CurrentGcx) -> R + Send, R: Send>(
         // name contains null bytes.
         let r = builder
             .spawn_scoped(s, move || {*/
-                rustc_span::create_session_globals_then(edition, Some(sm_inputs), || {
-                    f(CurrentGcx::new())
-                })
-            /*})
+    rustc_span::create_session_globals_then(edition, Some(sm_inputs), || f(CurrentGcx::new()))
+    /*})
             .unwrap()
             .join();
 

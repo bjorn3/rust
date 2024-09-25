@@ -511,6 +511,184 @@ impl Step for Llvm {
             return res;
         }
 
+        if target.contains("wasi") {
+            let wasi_sysroot = env::var("WASI_SYSROOT").expect("WASI_SYSROOT not set");
+            let wasi_sdk_path = std::path::Path::new(&wasi_sysroot)
+                .join("../../")
+                .canonicalize()
+                .expect("invalid WASI_SYSROOT");
+            let wasi_sysroot = format!("--sysroot={wasi_sysroot}");
+            let wasi_sdk_path = wasi_sdk_path.to_str().expect("invalid WASI_SYSROOT");
+            let wasi_target = target.triple.to_string();
+            let wasi_target_llvm = target.triple.to_string();
+
+            let mut wasi_cflags_llvm = String::new();
+            let mut wasi_ldflags_llvm = String::new();
+            if target.contains("threads") {
+                wasi_cflags_llvm.push_str(" -pthread");
+            }
+            // LLVM has some (unreachable in our configuration) calls to mmap.
+            wasi_cflags_llvm.push_str(" -D_WASI_EMULATED_MMAN");
+            wasi_ldflags_llvm.push_str(" -lwasi-emulated-mman");
+            // Depending on the code being compiled, both Clang and LLD can consume unbounded amounts of memory.
+            wasi_ldflags_llvm.push_str(" -Wl,--max-memory=4294967296");
+            // Compiling C++ code requires a lot of stack space and can overflow and corrupt the heap.
+            // (For example, `#include <iostream>` alone does it in a build with the default stack size.)
+            wasi_ldflags_llvm.push_str(" -Wl,-z,stack-size=1048576 -Wl,--stack-first");
+
+            // We need two toolchain files: one for the compiler itself (which needs threads at the moment since
+            // -DLLVM_ENABLE_THREADS=OFF is kind of broken), and one for the runtime libs.
+            // FIXME use wasi-sdk-24.0-x86_64-linux/share/cmake/wasi-sdk-pthread.cmake to define
+            // some of these variables in the future.
+            cfg.define("WASI", "TRUE")
+                .define("CMAKE_SYSTEM_NAME", "Generic")
+                .define("CMAKE_SYSTEM_VERSION", "1")
+                .define("CMAKE_SYSTEM_PROCESSOR", "wasm32")
+                .define("CMAKE_EXECUTABLE_SUFFIX", ".wasm")
+                .define("CMAKE_FIND_ROOT_PATH_MODE_PROGRAM", "NEVER")
+                .define("CMAKE_FIND_ROOT_PATH_MODE_LIBRARY", "ONLY")
+                .define("CMAKE_FIND_ROOT_PATH_MODE_INCLUDE", "ONLY")
+                .define("CMAKE_FIND_ROOT_PATH_MODE_PACKAGE", "ONLY")
+                .define("CMAKE_C_COMPILER", format!("{wasi_sdk_path}/bin/{wasi_target}-clang"))
+                .define("CMAKE_CXX_COMPILER", format!("{wasi_sdk_path}/bin/{wasi_target}-clang++"))
+                .define("CMAKE_LINKER", format!("{wasi_sdk_path}/bin/wasm-ld"))
+                .define("CMAKE_AR", format!("{wasi_sdk_path}/bin/ar"))
+                .define("CMAKE_RANLIB", format!("{wasi_sdk_path}/bin/ranlib"))
+                .define("CMAKE_C_COMPILER_TARGET", &wasi_target_llvm)
+                .define("CMAKE_CXX_COMPILER_TARGET", &wasi_target_llvm)
+                .define("CMAKE_C_FLAGS", format!("{wasi_sysroot} {wasi_cflags_llvm}"))
+                .define("CMAKE_CXX_FLAGS", format!("{wasi_sysroot} {wasi_cflags_llvm}"))
+                .define("CMAKE_EXE_LINKER_FLAGS", wasi_ldflags_llvm)
+                .define("LLVM_BUILD_SHARED_LIBS", "OFF")
+                .define("LLVM_ENABLE_PIC", "OFF")
+                .define("LLVM_BUILD_STATIC", "ON")
+                .define("LLVM_BUILD_RUNTIME", "OFF")
+                .define("LLVM_BUILD_TOOLS", "OFF")
+                .define("LLVM_INCLUDE_UTILS", "OFF")
+                .define("LLVM_BUILD_UTILS", "OFF")
+                .define("LLVM_INCLUDE_RUNTIMES", "OFF")
+                .define("LLVM_INCLUDE_EXAMPLES", "OFF")
+                .define("LLVM_INCLUDE_TESTS", "OFF")
+                .define("LLVM_INCLUDE_BENCHMARKS", "OFF")
+                .define("LLVM_INCLUDE_DOCS", "OFF")
+                .define("LLVM_TOOL_BUGPOINT_BUILD", "OFF")
+                .define("LLVM_TOOL_BUGPOINT_PASSES_BUILD", "OFF")
+                .define("LLVM_TOOL_DSYMUTIL_BUILD", "OFF")
+                .define("LLVM_TOOL_DXIL_DIS_BUILD", "OFF")
+                .define("LLVM_TOOL_GOLD_BUILD", "OFF")
+                .define("LLVM_TOOL_LLC_BUILD", "OFF")
+                .define("LLVM_TOOL_LLI_BUILD", "OFF")
+                // .define("LLVM_TOOL_LLVM_AR_BUILD", "ON")
+                // .define("LLVM_TOOL_LLVM_AS_BUILD", "ON")
+                .define("LLVM_TOOL_LLVM_AS_FUZZER_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_BCANALYZER_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_CAT_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_CFI_VERIFY_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_CONFIG_BUILD", "OFF")
+                // .define("LLVM_TOOL_LLVM_COV_BUILD", "ON")
+                .define("LLVM_TOOL_LLVM_CVTRES_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_CXXDUMP_BUILD", "OFF")
+                // .define("LLVM_TOOL_LLVM_CXXFILT_BUILD", "ON")
+                .define("LLVM_TOOL_LLVM_CXXMAP_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_C_TEST_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_DEBUGINFOD_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_DEBUGINFOD_FIND_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_DEBUGINFO_ANALYZER_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_DIFF_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_DIS_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_DIS_FUZZER_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_DLANG_DEMANGLE_FUZZER_BUILD", "OFF")
+                // .define("LLVM_TOOL_LLVM_DRIVER_BUILD", "ON")
+                // .define("LLVM_TOOL_LLVM_DWARFDUMP_BUILD", "ON")
+                .define("LLVM_TOOL_LLVM_DWARFUTIL_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_DWP_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_EXEGESIS_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_EXTRACT_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_GSYMUTIL_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_IFS_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_ISEL_FUZZER_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_ITANIUM_DEMANGLE_FUZZER_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_JITLINK_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_JITLISTENER_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_LIBTOOL_DARWIN_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_LINK_BUILD", "ON")
+                .define("LLVM_TOOL_LLVM_LIPO_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_LTO2_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_LTO_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_MCA_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_MC_ASSEMBLE_FUZZER_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_MC_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_MC_DISASSEMBLE_FUZZER_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_MICROSOFT_DEMANGLE_FUZZER_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_ML_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_MODEXTRACT_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_MT_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_NM_BUILD", "OFF")
+                // .define("LLVM_TOOL_LLVM_OBJCOPY_BUILD", "ON")
+                // .define("LLVM_TOOL_LLVM_OBJDUMP_BUILD", "ON")
+                .define("LLVM_TOOL_LLVM_OPT_FUZZER_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_OPT_REPORT_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_PDBUTIL_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_PROFDATA_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_PROFGEN_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_RC_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_READOBJ_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_READTAPI_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_REDUCE_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_REMARKUTIL_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_RTDYLD_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_RUST_DEMANGLE_FUZZER_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_SHLIB_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_SIM_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_SIZE_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_SPECIAL_CASE_LIST_FUZZER_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_SPLIT_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_STRESS_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_STRINGS_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_SYMBOLIZER_BUILD", "ON")
+                .define("LLVM_TOOL_LLVM_TLI_CHECKER_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_UNDNAME_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_XRAY_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_YAML_NUMERIC_PARSER_FUZZER_BUILD", "OFF")
+                .define("LLVM_TOOL_LLVM_YAML_PARSER_FUZZER_BUILD", "OFF")
+                .define("LLVM_TOOL_LTO_BUILD", "OFF")
+                .define("LLVM_TOOL_OBJ2YAML_BUILD", "OFF")
+                .define("LLVM_TOOL_OPT_BUILD", "OFF")
+                .define("LLVM_TOOL_OPT_VIEWER_BUILD", "OFF")
+                .define("LLVM_TOOL_REDUCE_CHUNK_LIST_BUILD", "OFF")
+                .define("LLVM_TOOL_REMARKS_SHLIB_BUILD", "OFF")
+                .define("LLVM_TOOL_SANCOV_BUILD", "OFF")
+                .define("LLVM_TOOL_SANSTATS_BUILD", "OFF")
+                .define("LLVM_TOOL_SPIRV_TOOLS_BUILD", "OFF")
+                .define("LLVM_TOOL_VERIFY_USELISTORDER_BUILD", "OFF")
+                .define("LLVM_TOOL_VFABI_DEMANGLE_FUZZER_BUILD", "OFF")
+                .define("LLVM_TOOL_XCODE_TOOLCHAIN_BUILD", "OFF")
+                .define("LLVM_TOOL_YAML2OBJ_BUILD", "OFF")
+                // .define("LLVM_ENABLE_PROJECTS", "clang;lld")
+                .define("LLVM_ENABLE_PROJECTS", "")
+                // .define("CLANG_ENABLE_ARCMT", "OFF")
+                // .define("CLANG_ENABLE_STATIC_ANALYZER", "OFF")
+                // .define("CLANG_INCLUDE_TESTS", "OFF")
+                // .define("CLANG_BUILD_TOOLS", "OFF")
+                // .define("CLANG_TOOL_CLANG_SCAN_DEPS_BUILD", "OFF")
+                // .define("CLANG_TOOL_CLANG_INSTALLAPI_BUILD", "OFF")
+                // .define("CLANG_BUILD_EXAMPLES", "OFF")
+                // .define("CLANG_INCLUDE_DOCS", "OFF")
+                // .define("CLANG_LINKS_TO_CREATE", "clang;clang++")
+                // .define("CLANG_LINKS_TO_CREATE", "")
+                .define("LLD_BUILD_TOOLS", "OFF")
+                .define("CMAKE_BUILD_TYPE", "MinSizeRel")
+                .define("HAVE_DLOPEN", "");
+
+            if target.contains("threads") {
+                cfg.define("LLVM_ENABLE_THREADS", "ON");
+            } else {
+                cfg.define("LLVM_ENABLE_THREADS", "OFF");
+            }
+        } else {
+            cfg.define("LLVM_TOOL_LLVM_CONFIG_BUILD", "ON").define("LLVM_BUILD_TOOLS", "ON");
+        }
+
         cfg.build();
 
         // Helper to find the name of LLVM's shared library on darwin and linux.
