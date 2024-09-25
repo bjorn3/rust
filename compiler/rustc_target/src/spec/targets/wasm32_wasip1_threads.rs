@@ -19,7 +19,8 @@ pub(crate) fn target() -> Target {
         "--import-memory",
         "--export-memory",
         "--shared-memory",
-        "-Wl,--max-memory=1073741824",
+        "--max-memory=1073741824",
+        "-lwasi-emulated-mman",
     ]);
     options.add_pre_link_args(LinkerFlavor::WasmLld(Cc::Yes), &[
         "--target=wasm32-wasip1-threads",
@@ -27,6 +28,7 @@ pub(crate) fn target() -> Target {
         "-Wl,--export-memory,",
         "-Wl,--shared-memory",
         "-Wl,--max-memory=1073741824",
+        "-lwasi-emulated-mman",
     ]);
 
     options.pre_link_objects_self_contained = crt_objects::pre_wasi_self_contained();
