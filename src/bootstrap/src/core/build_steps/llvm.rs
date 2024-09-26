@@ -511,6 +511,8 @@ impl Step for Llvm {
             return res;
         }
 
+        cfg.define("LLVM_ENABLE_PROJECTS", "lld");
+
         if target.contains("wasi") {
             let wasi_sysroot = env::var("WASI_SYSROOT").expect("WASI_SYSROOT not set");
             let wasi_sdk_path = std::path::Path::new(&wasi_sysroot)
@@ -665,7 +667,6 @@ impl Step for Llvm {
                 .define("LLVM_TOOL_XCODE_TOOLCHAIN_BUILD", "OFF")
                 .define("LLVM_TOOL_YAML2OBJ_BUILD", "OFF")
                 // .define("LLVM_ENABLE_PROJECTS", "clang;lld")
-                .define("LLVM_ENABLE_PROJECTS", "")
                 // .define("CLANG_ENABLE_ARCMT", "OFF")
                 // .define("CLANG_ENABLE_STATIC_ANALYZER", "OFF")
                 // .define("CLANG_INCLUDE_TESTS", "OFF")
