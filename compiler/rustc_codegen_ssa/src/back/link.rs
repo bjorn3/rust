@@ -879,6 +879,23 @@ fn link_natively(
 
     // Invoke the system linker
     info!("{cmd:?}");
+
+    #[cfg(target_os = "wasi")]
+    {
+        let cmd = cmd.command();
+        println!("Linking using {cmd:?}");
+
+        let mut args =
+            libwild::args::Args::new(|| cmd.get_args().map(|arg| arg.to_str().unwrap())).unwrap();
+        args.parse(|| cmd.get_args().map(|arg| arg.to_str().unwrap())).unwrap();
+        if let Err(err) = libwild::run(args) {
+            libwild::error::report_error_and_exit(&err);
+        } else {
+            std::process::exit(0);
+        }
+    }
+
+    let retry_on_segfault = env::var("RUSTC_RETRY_LINKER_ON_SEGFAULT").is_ok();
     let unknown_arg_regex =
         Regex::new(r"(unknown|unrecognized) (command line )?(option|argument)").unwrap();
     let mut prog;

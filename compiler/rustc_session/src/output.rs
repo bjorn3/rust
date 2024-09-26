@@ -33,6 +33,7 @@ pub fn out_filename(
 /// check this already -- however, the Linux linker will happily overwrite a
 /// read-only file. We should be consistent.
 pub fn check_file_is_writeable(file: &Path, sess: &Session) {
+    return;
     if !is_writeable(file) {
         sess.dcx().emit_fatal(FileIsNotWriteable { file });
     }
