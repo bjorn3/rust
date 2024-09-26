@@ -24,7 +24,7 @@ docs = false
 extended = false
 tools = []
 host = ["wasm32-wasip1-threads"]
-target = ["x86_64-unknown-linux-gnu", "wasm32-wasip1-threads"]
+target = ["x86_64-unknown-linux-gnu", "wasm32-wasip1"]
 cargo-native-static = true
 
 [install]
