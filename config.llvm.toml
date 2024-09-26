@@ -10,8 +10,6 @@ debug = false
 debuginfo-level = 0
 
 [llvm]
-cflags = "-march=native"
-cxxflags = "-march=native"
 static-libstdcpp = true
 ninja = false
 download-ci-llvm = false
