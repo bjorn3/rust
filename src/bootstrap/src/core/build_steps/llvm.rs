@@ -1347,6 +1347,9 @@ impl Step for Lld {
             // `$ORIGIN` would otherwise be expanded when the `LdFlags` are passed verbatim to
             // cmake.
             ldflags.push_all("-Wl,-rpath,'$ORIGIN/../../../'");
+        } else {
+            // CMake defaults to building executables with rpath enabled.
+            cfg.define("CMAKE_SKIP_RPATH", "ON");
         }
 
         configure_cmake(builder, target, &mut cfg, true, ldflags, CcFlags::default(), &[]);
