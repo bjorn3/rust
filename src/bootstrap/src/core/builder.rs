@@ -2606,6 +2606,12 @@ impl Cargo {
             }
         }
 
+        if target.contains("wasi") {
+            // link-self-contained needs lld to be present, but getting it to
+            // link for wasi is a bit difficult.
+            self.rustflags.arg("-Clink-self-contained=no");
+        }
+
         for arg in linker_args(builder, compiler.host, LldThreads::Yes) {
             self.hostflags.arg(&arg);
         }
