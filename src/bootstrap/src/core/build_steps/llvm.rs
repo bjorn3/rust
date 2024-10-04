@@ -514,21 +514,11 @@ impl Step for Llvm {
         cfg.define("LLVM_ENABLE_PROJECTS", "lld");
 
         if target.contains("wasi") {
-            let wasi_sysroot = env::var("WASI_SYSROOT").expect("WASI_SYSROOT not set");
-            let wasi_sdk_path = std::path::Path::new(&wasi_sysroot)
-                .join("../../")
-                .canonicalize()
-                .expect("invalid WASI_SYSROOT");
-            let wasi_sysroot = format!("--sysroot={wasi_sysroot}");
-            let wasi_sdk_path = wasi_sdk_path.to_str().expect("invalid WASI_SYSROOT");
-            let wasi_target = target.triple.to_string();
-            let wasi_target_llvm = target.triple.to_string();
+            let wasi_sdk_path = env::var_os("WASI_SDK_PATH").expect("WASI_SDK_PATH not set");
+            let wasi_sdk_path = wasi_sdk_path.to_str().expect("invalid WASI_SDK_PATH");
 
             let mut wasi_cflags_llvm = String::new();
             let mut wasi_ldflags_llvm = String::new();
-            if target.contains("threads") {
-                wasi_cflags_llvm.push_str(" -pthread");
-            }
             // LLVM has some (unreachable in our configuration) calls to mmap.
             wasi_cflags_llvm.push_str(" -D_WASI_EMULATED_MMAN");
             wasi_ldflags_llvm.push_str(" -lwasi-emulated-mman");
@@ -538,28 +528,18 @@ impl Step for Llvm {
             // (For example, `#include <iostream>` alone does it in a build with the default stack size.)
             wasi_ldflags_llvm.push_str(" -Wl,-z,stack-size=1048576 -Wl,--stack-first");
 
-            // We need two toolchain files: one for the compiler itself (which needs threads at the moment since
-            // -DLLVM_ENABLE_THREADS=OFF is kind of broken), and one for the runtime libs.
-            // FIXME use wasi-sdk-24.0-x86_64-linux/share/cmake/wasi-sdk-pthread.cmake to define
-            // some of these variables in the future.
             cfg.define("WASI", "TRUE")
-                .define("CMAKE_SYSTEM_NAME", "Generic")
-                .define("CMAKE_SYSTEM_VERSION", "1")
-                .define("CMAKE_SYSTEM_PROCESSOR", "wasm32")
+                .define(
+                    "CMAKE_TOOLCHAIN_FILE",
+                    if target.contains("threads") {
+                        format!("{wasi_sdk_path}/share/cmake/wasi-sdk-pthread.cmake")
+                    } else {
+                        format!("{wasi_sdk_path}/share/cmake/wasi-sdk.cmake")
+                    },
+                )
                 .define("CMAKE_EXECUTABLE_SUFFIX", ".wasm")
-                .define("CMAKE_FIND_ROOT_PATH_MODE_PROGRAM", "NEVER")
-                .define("CMAKE_FIND_ROOT_PATH_MODE_LIBRARY", "ONLY")
-                .define("CMAKE_FIND_ROOT_PATH_MODE_INCLUDE", "ONLY")
-                .define("CMAKE_FIND_ROOT_PATH_MODE_PACKAGE", "ONLY")
-                .define("CMAKE_C_COMPILER", format!("{wasi_sdk_path}/bin/{wasi_target}-clang"))
-                .define("CMAKE_CXX_COMPILER", format!("{wasi_sdk_path}/bin/{wasi_target}-clang++"))
-                .define("CMAKE_LINKER", format!("{wasi_sdk_path}/bin/wasm-ld"))
-                .define("CMAKE_AR", format!("{wasi_sdk_path}/bin/ar"))
-                .define("CMAKE_RANLIB", format!("{wasi_sdk_path}/bin/ranlib"))
-                .define("CMAKE_C_COMPILER_TARGET", &wasi_target_llvm)
-                .define("CMAKE_CXX_COMPILER_TARGET", &wasi_target_llvm)
-                .define("CMAKE_C_FLAGS", format!("{wasi_sysroot} {wasi_cflags_llvm}"))
-                .define("CMAKE_CXX_FLAGS", format!("{wasi_sysroot} {wasi_cflags_llvm}"))
+                .define("CMAKE_C_FLAGS", &wasi_cflags_llvm)
+                .define("CMAKE_CXX_FLAGS", &wasi_cflags_llvm)
                 .define("CMAKE_EXE_LINKER_FLAGS", wasi_ldflags_llvm)
                 .define("LLVM_BUILD_SHARED_LIBS", "OFF")
                 .define("LLVM_ENABLE_PIC", "OFF")
