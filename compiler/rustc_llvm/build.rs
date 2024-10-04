@@ -102,10 +102,6 @@ fn output(cmd: &mut Command) -> String {
 }
 
 fn main() {
-    if env::var("TARGET").expect("TARGET was not set").contains("wasi") {
-        std::env::var("WASI_SYSROOT").expect("WASI_SYSROOT not set");
-    }
-
     for component in REQUIRED_COMPONENTS.iter().chain(OPTIONAL_COMPONENTS.iter()) {
         println!("cargo:rustc-check-cfg=cfg(llvm_component,values(\"{component}\"))");
     }
@@ -208,8 +204,9 @@ fn main() {
     if target.contains("wasi") {
         // ref src/bootstrap/src/core/build_steps/llvm.rs
 
-        let wasi_sysroot = env::var("WASI_SYSROOT").expect("WASI_SYSROOT not set");
-        cfg.compiler(format!("{wasi_sysroot}/../../bin/{target}-clang++"));
+        let wasi_sdk_path =
+            PathBuf::from(env::var_os("WASI_SDK_PATH").expect("WASI_SDK_PATH not set"));
+        cfg.compiler(wasi_sdk_path.join("bin").join(format!("{target}-clang++")));
         cfg.flag("-pthread");
         cfg.flag("-D_WASI_EMULATED_MMAN");
     }
