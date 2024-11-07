@@ -474,7 +474,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             let (_test_value2, target2) = target_iter.next().unwrap();
             let ll1 = helper.llbb_with_cleanup(self, target1);
             let ll2 = helper.llbb_with_cleanup(self, target2);
-            let switch_llty = bx.immediate_backend_type(bx.layout_of(switch_ty));
+            let switch_llty = bx.call_conv_backend_type(bx.layout_of(switch_ty));
             let llval = bx.const_uint_big(switch_llty, test_value1);
             let cmp = bx.icmp(IntPredicate::IntEQ, discr_value, llval);
             bx.cond_br(cmp, ll1, ll2);

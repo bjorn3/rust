@@ -193,7 +193,7 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                 if let OperandValue::Immediate(imm) = args[0].val {
                     self.call_intrinsic(
                         "llvm.is.constant",
-                        &[args[0].layout.immediate_llvm_type(self.cx)],
+                        &[args[0].layout.call_conv_llvm_type(self.cx)],
                         &[imm],
                     )
                 } else {

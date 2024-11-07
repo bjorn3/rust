@@ -127,6 +127,7 @@ pub trait LayoutTypeCodegenMethods<'tcx>: BackendTypes {
     /// [`from_immediate`](super::BuilderMethods::from_immediate) and
     /// [`to_immediate_scalar`](super::BuilderMethods::to_immediate_scalar).
     fn immediate_backend_type(&self, layout: TyAndLayout<'tcx>) -> Self::Type;
+    fn call_conv_backend_type(&self, layout: TyAndLayout<'tcx>) -> Self::Type;
     fn is_backend_immediate(&self, layout: TyAndLayout<'tcx>) -> bool;
     fn is_backend_scalar_pair(&self, layout: TyAndLayout<'tcx>) -> bool;
     fn scalar_pair_element_backend_type(
