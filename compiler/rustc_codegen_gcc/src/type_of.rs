@@ -158,6 +158,7 @@ pub trait LayoutGccExt<'tcx> {
     fn is_gcc_scalar_pair(&self) -> bool;
     fn gcc_type<'gcc>(&self, cx: &CodegenCx<'gcc, 'tcx>) -> Type<'gcc>;
     fn immediate_gcc_type<'gcc>(&self, cx: &CodegenCx<'gcc, 'tcx>) -> Type<'gcc>;
+    fn call_conv_gcc_type<'gcc>(&self, cx: &CodegenCx<'gcc, 'tcx>) -> Type<'gcc>;
     fn scalar_gcc_type_at<'gcc>(
         &self,
         cx: &CodegenCx<'gcc, 'tcx>,
@@ -276,6 +277,15 @@ impl<'tcx> LayoutGccExt<'tcx> for TyAndLayout<'tcx> {
         self.gcc_type(cx)
     }
 
+    fn call_conv_gcc_type<'gcc>(&self, cx: &CodegenCx<'gcc, 'tcx>) -> Type<'gcc> {
+        if let BackendRepr::Scalar(ref scalar) = self.backend_repr
+            && scalar.is_bool()
+        {
+            return cx.type_i1();
+        }
+        self.gcc_type(cx)
+    }
+
     fn scalar_gcc_type_at<'gcc>(
         &self,
         cx: &CodegenCx<'gcc, 'tcx>,
@@ -346,6 +356,10 @@ impl<'gcc, 'tcx> LayoutTypeCodegenMethods<'tcx> for CodegenCx<'gcc, 'tcx> {
 
     fn immediate_backend_type(&self, layout: TyAndLayout<'tcx>) -> Type<'gcc> {
         layout.immediate_gcc_type(self)
+    }
+
+    fn call_conv_backend_type(&self, layout: TyAndLayout<'tcx>) -> Type<'gcc> {
+        layout.call_conv_gcc_type(self)
     }
 
     fn is_backend_immediate(&self, layout: TyAndLayout<'tcx>) -> bool {
