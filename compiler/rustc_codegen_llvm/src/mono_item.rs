@@ -1,9 +1,7 @@
 use rustc_codegen_ssa::traits::*;
-use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{DefId, LOCAL_CRATE};
-use rustc_middle::bug;
 use rustc_middle::mir::mono::{Linkage, Visibility};
-use rustc_middle::ty::layout::{FnAbiOf, HasTypingEnv, LayoutOf};
+use rustc_middle::ty::layout::FnAbiOf;
 use rustc_middle::ty::{self, Instance, TypeVisitableExt};
 use rustc_session::config::CrateType;
 use rustc_target::spec::RelocModel;
@@ -11,7 +9,6 @@ use tracing::debug;
 
 use crate::context::CodegenCx;
 use crate::errors::SymbolAlreadyDefined;
-use crate::type_of::LayoutLlvmExt;
 use crate::{base, llvm};
 
 impl<'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
@@ -23,12 +20,10 @@ impl<'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
         symbol_name: &str,
     ) {
         let instance = Instance::mono(self.tcx, def_id);
-        let DefKind::Static { nested, .. } = self.tcx.def_kind(def_id) else { bug!() };
-        // Nested statics do not have a type, so pick a dummy type and let `codegen_static` figure
-        // out the llvm type from the actual evaluated initializer.
-        let ty =
-            if nested { self.tcx.types.unit } else { instance.ty(self.tcx, self.typing_env()) };
-        let llty = self.layout_of(ty).llvm_type(self);
+        // The lowering the rust type of the static to LLVM IR rarely agrees
+        // with what `codegen_static` would do, so let the latter figure out
+        // the llvm type from the actual evaluated initializer.
+        let llty = self.type_struct(&[], false);
 
         let g = self.define_global(symbol_name, llty).unwrap_or_else(|| {
             self.sess()
