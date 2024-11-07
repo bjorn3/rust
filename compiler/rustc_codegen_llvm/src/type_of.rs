@@ -159,6 +159,7 @@ pub(crate) trait LayoutLlvmExt<'tcx> {
     fn is_llvm_scalar_pair(&self) -> bool;
     fn llvm_type<'a>(&self, cx: &CodegenCx<'a, 'tcx>) -> &'a Type;
     fn immediate_llvm_type<'a>(&self, cx: &CodegenCx<'a, 'tcx>) -> &'a Type;
+    fn call_conv_llvm_type<'a>(&self, cx: &CodegenCx<'a, 'tcx>) -> &'a Type;
     fn scalar_llvm_type_at<'a>(&self, cx: &CodegenCx<'a, 'tcx>, scalar: Scalar) -> &'a Type;
     fn scalar_pair_element_llvm_type<'a>(
         &self,
@@ -258,21 +259,34 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
                 if scalar.is_bool() {
                     return cx.type_i1();
                 }
+
+                if let Some(&llty) = cx.scalar_lltypes.borrow().get(&self.ty) {
+                    return llty;
+                }
+                let llty = self.scalar_llvm_type_at(cx, scalar);
+                cx.scalar_lltypes.borrow_mut().insert(self.ty, llty);
+                llty
             }
             BackendRepr::ScalarPair(..) => {
                 // An immediate pair always contains just the two elements, without any padding
                 // filler, as it should never be stored to memory.
-                return cx.type_struct(
+                cx.type_struct(
                     &[
                         self.scalar_pair_element_llvm_type(cx, 0, true),
                         self.scalar_pair_element_llvm_type(cx, 1, true),
                     ],
                     false,
-                );
+                )
             }
-            _ => {}
-        };
-        self.llvm_type(cx)
+            _ => unreachable!("{self:#?} can't be represented as simple LLVM type"),
+        }
+    }
+
+    fn call_conv_llvm_type<'a>(&self, cx: &CodegenCx<'a, 'tcx>) -> &'a Type {
+        match self.backend_repr {
+            BackendRepr::Scalar(_) | BackendRepr::ScalarPair(..) => self.immediate_llvm_type(cx),
+            _ => self.llvm_type(cx),
+        }
     }
 
     fn scalar_llvm_type_at<'a>(&self, cx: &CodegenCx<'a, 'tcx>, scalar: Scalar) -> &'a Type {

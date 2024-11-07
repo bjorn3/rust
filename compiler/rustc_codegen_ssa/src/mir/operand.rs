@@ -304,7 +304,7 @@ impl<'a, 'tcx, V: CodegenObject> OperandRef<'tcx, V> {
         bx: &mut Bx,
     ) -> V {
         if let OperandValue::Pair(a, b) = self.val {
-            let llty = bx.cx().immediate_backend_type(self.layout);
+            let llty = bx.cx().call_conv_backend_type(self.layout);
             debug!("Operand::immediate_or_packed_pair: packing {:?} into {:?}", self, llty);
             // Reconstruct the immediate aggregate.
             let mut llpair = bx.cx().const_poison(llty);

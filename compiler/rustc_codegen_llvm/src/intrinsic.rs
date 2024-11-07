@@ -193,7 +193,7 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                 )
             }
             sym::is_val_statically_known => {
-                let intrinsic_type = args[0].layout.immediate_llvm_type(self.cx);
+                let intrinsic_type = args[0].layout.call_conv_llvm_type(self.cx);
                 let kind = self.type_kind(intrinsic_type);
                 let intrinsic_name = match kind {
                     TypeKind::Pointer | TypeKind::Integer => {

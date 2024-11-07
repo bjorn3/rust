@@ -252,6 +252,9 @@ impl<'ll, 'tcx> LayoutTypeCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     fn immediate_backend_type(&self, layout: TyAndLayout<'tcx>) -> &'ll Type {
         layout.immediate_llvm_type(self)
     }
+    fn call_conv_backend_type(&self, layout: TyAndLayout<'tcx>) -> &'ll Type {
+        layout.call_conv_llvm_type(self)
+    }
     fn is_backend_immediate(&self, layout: TyAndLayout<'tcx>) -> bool {
         layout.is_llvm_immediate()
     }

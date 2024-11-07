@@ -342,7 +342,7 @@ impl<'gcc, 'tcx> LayoutTypeCodegenMethods<'tcx> for CodegenCx<'gcc, 'tcx> {
         layout.gcc_type(self)
     }
 
-    fn immediate_backend_type(&self, layout: TyAndLayout<'tcx>) -> Type<'gcc> {
+    fn call_conv_backend_type(&self, layout: TyAndLayout<'tcx>) -> Type<'gcc> {
         layout.immediate_gcc_type(self)
     }
 

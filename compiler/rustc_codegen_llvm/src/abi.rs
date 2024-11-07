@@ -340,7 +340,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
 
         let llreturn_ty = match &self.ret.mode {
             PassMode::Ignore => cx.type_void(),
-            PassMode::Direct(_) | PassMode::Pair(..) => self.ret.layout.immediate_llvm_type(cx),
+            PassMode::Direct(_) | PassMode::Pair(..) => self.ret.layout.call_conv_llvm_type(cx),
             PassMode::Cast { cast, pad_i32: _ } => cast.llvm_type(cx),
             PassMode::Indirect { .. } => {
                 llargument_tys.push(cx.type_ptr());
@@ -358,7 +358,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                     // ABI-compatible Rust types have the same `layout.abi` (up to validity ranges),
                     // and for Scalar ABIs the LLVM type is fully determined by `layout.abi`,
                     // guaranteeing that we generate ABI-compatible LLVM IR.
-                    arg.layout.immediate_llvm_type(cx)
+                    arg.layout.call_conv_llvm_type(cx)
                 }
                 PassMode::Pair(..) => {
                     // ABI-compatible Rust types have the same `layout.abi` (up to validity ranges),
