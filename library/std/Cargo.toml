@@ -9,7 +9,7 @@ description = "The Rust Standard Library"
 edition = "2021"
 
 [lib]
-crate-type = ["dylib", "rlib"]
+#crate-type = ["dylib", "rlib"]
 
 [dependencies]
 alloc = { path = "../alloc", public = true }
