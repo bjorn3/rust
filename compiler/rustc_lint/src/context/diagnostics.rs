@@ -425,7 +425,6 @@ pub(super) fn decorate_lint(sess: &Session, diagnostic: BuiltinLintDiag, diag: &
         BuiltinLintDiag::UnusedCrateDependency { extern_crate, local_crate } => {
             lints::UnusedCrateDependency { extern_crate, local_crate }.decorate_lint(diag)
         }
-        BuiltinLintDiag::WasmCAbi => lints::WasmCAbi.decorate_lint(diag),
         BuiltinLintDiag::IllFormedAttributeInput { suggestions } => {
             lints::IllFormedAttributeInput {
                 num_suggestions: suggestions.len(),
