@@ -1,5 +1,5 @@
 use rustc_attr_parsing::InstructionSetAttr;
-use rustc_middle::mir::mono::{Linkage, MonoItem, MonoItemData, Visibility};
+use rustc_middle::mir::mono::{Linkage, MonoItemData, Visibility};
 use rustc_middle::mir::{InlineAsmOperand, START_BLOCK};
 use rustc_middle::ty::layout::{LayoutOf, TyAndLayout};
 use rustc_middle::ty::{Instance, TyCtxt, TypeVisitableExt};
@@ -8,17 +8,16 @@ use rustc_span::sym;
 
 use crate::common;
 use crate::mir::AsmCodegenMethods;
-use crate::traits::{GlobalAsmOperandRef, MiscCodegenMethods};
+use crate::traits::GlobalAsmOperandRef;
 
 pub(crate) fn codegen_naked_asm<
     'a,
     'tcx,
-    Cx: LayoutOf<'tcx, LayoutOfResult = TyAndLayout<'tcx>>
-        + AsmCodegenMethods<'tcx>
-        + MiscCodegenMethods<'tcx>,
+    Cx: LayoutOf<'tcx, LayoutOfResult = TyAndLayout<'tcx>> + AsmCodegenMethods<'tcx>,
 >(
     cx: &'a Cx,
     instance: Instance<'tcx>,
+    item_data: MonoItemData,
 ) {
     assert!(!instance.args.has_infer());
     let mir = cx.tcx().instance_mir(instance.def);
@@ -39,7 +38,6 @@ pub(crate) fn codegen_naked_asm<
     let operands: Vec<_> =
         operands.iter().map(|op| inline_to_global_operand::<Cx>(cx, instance, op)).collect();
 
-    let item_data = cx.codegen_unit().items().get(&MonoItem::Fn(instance)).unwrap();
     let name = cx.mangled_name(instance);
     let (begin, end) = prefix_and_suffix(cx.tcx(), instance, &name, item_data);
 
@@ -130,7 +128,7 @@ fn prefix_and_suffix<'tcx>(
     tcx: TyCtxt<'tcx>,
     instance: Instance<'tcx>,
     asm_name: &str,
-    item_data: &MonoItemData,
+    item_data: MonoItemData,
 ) -> (String, String) {
     use std::fmt::Write;
 
