@@ -1,16 +1,23 @@
 use rustc_attr_parsing::InstructionSetAttr;
 use rustc_middle::mir::mono::{Linkage, MonoItem, MonoItemData, Visibility};
 use rustc_middle::mir::{Body, InlineAsmOperand, START_BLOCK};
-use rustc_middle::ty::layout::{HasTyCtxt, HasTypingEnv, LayoutOf};
+use rustc_middle::ty::layout::{LayoutOf, TyAndLayout};
 use rustc_middle::ty::{Instance, TyCtxt};
 use rustc_middle::{bug, ty};
 use rustc_span::sym;
 
 use crate::common;
-use crate::traits::{AsmCodegenMethods, BuilderMethods, GlobalAsmOperandRef, MiscCodegenMethods};
+use crate::mir::AsmCodegenMethods;
+use crate::traits::{GlobalAsmOperandRef, MiscCodegenMethods};
 
-pub(crate) fn codegen_naked_asm<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
-    cx: &'a Bx::CodegenCx,
+pub(crate) fn codegen_naked_asm<
+    'a,
+    'tcx,
+    Cx: LayoutOf<'tcx, LayoutOfResult = TyAndLayout<'tcx>>
+        + AsmCodegenMethods<'tcx>
+        + MiscCodegenMethods<'tcx>,
+>(
+    cx: &'a Cx,
     mir: &Body<'tcx>,
     instance: Instance<'tcx>,
 ) {
@@ -28,7 +35,7 @@ pub(crate) fn codegen_naked_asm<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
     };
 
     let operands: Vec<_> =
-        operands.iter().map(|op| inline_to_global_operand::<Bx>(cx, instance, op)).collect();
+        operands.iter().map(|op| inline_to_global_operand::<Cx>(cx, instance, op)).collect();
 
     let item_data = cx.codegen_unit().items().get(&MonoItem::Fn(instance)).unwrap();
     let name = cx.mangled_name(instance);
@@ -42,8 +49,8 @@ pub(crate) fn codegen_naked_asm<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
     cx.codegen_global_asm(&template_vec, &operands, options, line_spans);
 }
 
-fn inline_to_global_operand<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
-    cx: &'a Bx::CodegenCx,
+fn inline_to_global_operand<'a, 'tcx, Cx: LayoutOf<'tcx, LayoutOfResult = TyAndLayout<'tcx>>>(
+    cx: &'a Cx,
     instance: Instance<'tcx>,
     op: &InlineAsmOperand<'tcx>,
 ) -> GlobalAsmOperandRef<'tcx> {
