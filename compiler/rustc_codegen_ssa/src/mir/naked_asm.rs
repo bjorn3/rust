@@ -15,7 +15,7 @@ pub fn codegen_naked_asm<
     'tcx,
     Cx: LayoutOf<'tcx, LayoutOfResult = TyAndLayout<'tcx>> + AsmCodegenMethods<'tcx>,
 >(
-    cx: &'a Cx,
+    cx: &'a mut Cx,
     instance: Instance<'tcx>,
     item_data: MonoItemData,
 ) {
