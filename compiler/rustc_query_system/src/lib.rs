@@ -5,7 +5,6 @@
 #![feature(dropck_eyepatch)]
 #![feature(hash_raw_entry)]
 #![feature(let_chains)]
-#![feature(min_specialization)]
 #![warn(unreachable_pub)]
 // tidy-alphabetical-end
 
