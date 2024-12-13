@@ -65,7 +65,6 @@ use rustc_hir::definitions::DefPathHash;
 use rustc_macros::{Decodable, Encodable};
 
 use super::{DepContext, FingerprintStyle, SerializedDepNodeIndex};
-use crate::ich::StableHashingContext;
 
 /// This serves as an index into arrays built by `make_dep_kind_array`.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -189,35 +188,6 @@ pub trait DepNodeParams<Tcx: DepContext>: fmt::Debug + Sized {
     /// It is always valid to return `None` here, in which case incremental
     /// compilation will treat the query as having changed instead of forcing it.
     fn recover(tcx: Tcx, dep_node: &DepNode) -> Option<Self>;
-}
-
-impl<Tcx: DepContext, T> DepNodeParams<Tcx> for T
-where
-    T: for<'a> HashStable<StableHashingContext<'a>> + fmt::Debug,
-{
-    #[inline(always)]
-    default fn fingerprint_style() -> FingerprintStyle {
-        FingerprintStyle::Opaque
-    }
-
-    #[inline(always)]
-    default fn to_fingerprint(&self, tcx: Tcx) -> Fingerprint {
-        tcx.with_stable_hashing_context(|mut hcx| {
-            let mut hasher = StableHasher::new();
-            self.hash_stable(&mut hcx, &mut hasher);
-            hasher.finish()
-        })
-    }
-
-    #[inline(always)]
-    default fn to_debug_str(&self, _: Tcx) -> String {
-        format!("{:?}", *self)
-    }
-
-    #[inline(always)]
-    default fn recover(_: Tcx, _: &DepNode) -> Option<Self> {
-        None
-    }
 }
 
 /// This struct stores metadata about each DepKind.

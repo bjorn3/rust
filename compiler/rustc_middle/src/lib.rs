@@ -47,7 +47,6 @@
 #![feature(if_let_guard)]
 #![feature(intra_doc_pointers)]
 #![feature(iter_from_coroutine)]
-#![feature(min_specialization)]
 #![feature(negative_impls)]
 #![feature(never_type)]
 #![feature(ptr_alignment_type)]
