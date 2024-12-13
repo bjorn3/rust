@@ -11,7 +11,6 @@
 )]
 #![doc(rust_logo)]
 #![feature(core_intrinsics)]
-#![feature(min_specialization)]
 #![feature(never_type)]
 #![feature(rustdoc_internals)]
 #![warn(unreachable_pub)]

@@ -1,4 +1,4 @@
-use std::hash::{BuildHasher, Hash, Hasher};
+use std::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
 use std::mem;
 use std::num::NonZero;
@@ -317,13 +317,6 @@ impl<T: HashStable<CTX>, CTX> HashStable<CTX> for [T] {
         for item in self {
             item.hash_stable(ctx, hasher);
         }
-    }
-}
-
-impl<CTX> HashStable<CTX> for [u8] {
-    fn hash_stable(&self, ctx: &mut CTX, hasher: &mut StableHasher) {
-        self.len().hash_stable(ctx, hasher);
-        hasher.write(self);
     }
 }
 
