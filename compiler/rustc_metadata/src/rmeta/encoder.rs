@@ -370,13 +370,6 @@ impl<'a, 'tcx> Encodable<EncodeContext<'a, 'tcx>> for SpanData {
     }
 }
 
-impl<'a, 'tcx> Encodable<EncodeContext<'a, 'tcx>> for [u8] {
-    fn encode(&self, e: &mut EncodeContext<'a, 'tcx>) {
-        Encoder::emit_usize(e, self.len());
-        e.emit_raw_bytes(self);
-    }
-}
-
 impl<'a, 'tcx> TyEncoder for EncodeContext<'a, 'tcx> {
     const CLEAR_CROSS_CRATE: bool = true;
 
