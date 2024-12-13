@@ -406,29 +406,6 @@ impl<'a> Decoder for MemDecoder<'a> {
     }
 }
 
-// Specializations for contiguous byte sequences follow. The default implementations for slices
-// encode and decode each element individually. This isn't necessary for `u8` slices when using
-// opaque encoders and decoders, because each `u8` is unchanged by encoding and decoding.
-// Therefore, we can use more efficient implementations that process the entire sequence at once.
-
-// Specialize encoding byte slices. This specialization also applies to encoding `Vec<u8>`s, etc.,
-// since the default implementations call `encode` on their slices internally.
-impl Encodable<FileEncoder> for [u8] {
-    fn encode(&self, e: &mut FileEncoder) {
-        Encoder::emit_usize(e, self.len());
-        e.emit_raw_bytes(self);
-    }
-}
-
-// Specialize decoding `Vec<u8>`. This specialization also applies to decoding `Box<[u8]>`s, etc.,
-// since the default implementations call `decode` to produce a `Vec<u8>` internally.
-impl<'a> Decodable<MemDecoder<'a>> for Vec<u8> {
-    fn decode(d: &mut MemDecoder<'a>) -> Self {
-        let len = Decoder::read_usize(d);
-        d.read_raw_bytes(len).to_owned()
-    }
-}
-
 /// An integer that will always encode to 8 bytes.
 pub struct IntEncodedWithFixedSize(pub u64);
 

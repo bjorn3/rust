@@ -9,7 +9,6 @@
 #![feature(if_let_guard)]
 #![feature(iter_from_coroutine)]
 #![feature(macro_metavar_expr)]
-#![feature(min_specialization)]
 #![feature(never_type)]
 #![feature(proc_macro_internals)]
 #![feature(rustdoc_internals)]

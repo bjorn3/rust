@@ -287,7 +287,7 @@ impl<D: Decoder, T: Decodable<D>> Decodable<D> for Rc<T> {
 }
 
 impl<S: Encoder, T: Encodable<S>> Encodable<S> for [T] {
-    default fn encode(&self, s: &mut S) {
+    fn encode(&self, s: &mut S) {
         s.emit_usize(self.len());
         for e in self {
             e.encode(s);
@@ -302,7 +302,7 @@ impl<S: Encoder, T: Encodable<S>> Encodable<S> for Vec<T> {
 }
 
 impl<D: Decoder, T: Decodable<D>> Decodable<D> for Vec<T> {
-    default fn decode(d: &mut D) -> Vec<T> {
+    fn decode(d: &mut D) -> Vec<T> {
         let len = d.read_usize();
         (0..len).map(|_| Decodable::decode(d)).collect()
     }

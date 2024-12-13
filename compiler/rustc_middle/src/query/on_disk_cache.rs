@@ -549,15 +549,6 @@ impl<'a, 'tcx> TyDecoder<'tcx> for CacheDecoder<'a, 'tcx> {
 
 crate::implement_ty_decoder!(CacheDecoder<'a, 'tcx>);
 
-// This ensures that the `Decodable<opaque::Decoder>::decode` specialization for `Vec<u8>` is used
-// when a `CacheDecoder` is passed to `Decodable::decode`. Unfortunately, we have to manually opt
-// into specializations this way, given how `CacheDecoder` and the decoding traits currently work.
-impl<'a, 'tcx> Decodable<CacheDecoder<'a, 'tcx>> for Vec<u8> {
-    fn decode(d: &mut CacheDecoder<'a, 'tcx>) -> Self {
-        Decodable::decode(&mut d.opaque)
-    }
-}
-
 impl<'a, 'tcx> SpanDecoder for CacheDecoder<'a, 'tcx> {
     fn decode_syntax_context(&mut self) -> SyntaxContext {
         let syntax_contexts = self.syntax_contexts;
@@ -974,15 +965,5 @@ impl<'a, 'tcx> Encoder for CacheEncoder<'a, 'tcx> {
         emit_i16(i16);
 
         emit_raw_bytes(&[u8]);
-    }
-}
-
-// This ensures that the `Encodable<opaque::FileEncoder>::encode` specialization for byte slices
-// is used when a `CacheEncoder` having an `opaque::FileEncoder` is passed to `Encodable::encode`.
-// Unfortunately, we have to manually opt into specializations this way, given how `CacheEncoder`
-// and the encoding traits currently work.
-impl<'a, 'tcx> Encodable<CacheEncoder<'a, 'tcx>> for [u8] {
-    fn encode(&self, e: &mut CacheEncoder<'a, 'tcx>) {
-        self.encode(&mut e.encoder);
     }
 }
