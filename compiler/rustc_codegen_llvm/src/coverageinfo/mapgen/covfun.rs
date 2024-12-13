@@ -188,7 +188,7 @@ fn fill_region_tables<'tcx>(
 /// contains the function's coverage mapping data. The record is then stored
 /// as a global variable in the `__llvm_covfun` section.
 pub(crate) fn generate_covfun_record<'tcx>(
-    cx: &CodegenCx<'_, 'tcx>,
+    cx: &mut CodegenCx<'_, 'tcx>,
     filenames_hash: u64,
     covfun: &CovfunRecord<'tcx>,
 ) {
