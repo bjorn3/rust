@@ -108,15 +108,6 @@ impl Encoder for MemEncoder {
     }
 }
 
-// Specialize encoding byte slices. This specialization also applies to encoding `Vec<u8>`s, etc.,
-// since the default implementations call `encode` on their slices internally.
-impl Encodable<MemEncoder> for [u8] {
-    fn encode(&self, e: &mut MemEncoder) {
-        Encoder::emit_usize(e, self.len());
-        e.emit_raw_bytes(self);
-    }
-}
-
 impl Encodable<MemEncoder> for IntEncodedWithFixedSize {
     #[inline]
     fn encode(&self, e: &mut MemEncoder) {

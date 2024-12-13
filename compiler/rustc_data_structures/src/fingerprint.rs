@@ -121,38 +121,8 @@ impl std::fmt::Display for Fingerprint {
 impl Hash for Fingerprint {
     #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_fingerprint(self);
-    }
-}
-
-trait FingerprintHasher {
-    fn write_fingerprint(&mut self, fingerprint: &Fingerprint);
-}
-
-impl<H: Hasher> FingerprintHasher for H {
-    #[inline]
-    default fn write_fingerprint(&mut self, fingerprint: &Fingerprint) {
-        self.write_u64(fingerprint.0);
-        self.write_u64(fingerprint.1);
-    }
-}
-
-impl FingerprintHasher for crate::unhash::Unhasher {
-    #[inline]
-    fn write_fingerprint(&mut self, fingerprint: &Fingerprint) {
-        // Even though both halves of the fingerprint are expected to be good
-        // quality hash values, let's still combine the two values because the
-        // Fingerprints in DefPathHash have the StableCrateId portion which is
-        // the same for all DefPathHashes from the same crate. Combining the
-        // two halves makes sure we get a good quality hash in such cases too.
-        //
-        // Since `Unhasher` is used only in the context of HashMaps, it is OK
-        // to combine the two components in an order-independent way (which is
-        // cheaper than the more robust Fingerprint::to_smaller_hash()). For
-        // HashMaps we don't really care if Fingerprint(x,y) and
-        // Fingerprint(y, x) result in the same hash value. Collision
-        // probability will still be much better than with FxHash.
-        self.write_u64(fingerprint.0.wrapping_add(fingerprint.1));
+        state.write_u64(self.0);
+        state.write_u64(self.1);
     }
 }
 

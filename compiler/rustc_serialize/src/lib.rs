@@ -5,7 +5,6 @@
 #![allow(rustc::internal)]
 #![doc(test(attr(allow(unused_variables), deny(warnings), allow(internal_features))))]
 #![feature(core_intrinsics)]
-#![feature(min_specialization)]
 #![feature(never_type)]
 #![feature(sized_hierarchy)]
 // tidy-alphabetical-end
