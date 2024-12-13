@@ -27,7 +27,6 @@
 #![feature(hash_raw_entry)]
 #![feature(macro_metavar_expr)]
 #![feature(map_try_insert)]
-#![feature(min_specialization)]
 #![feature(negative_impls)]
 #![feature(never_type)]
 #![feature(ptr_alignment_type)]

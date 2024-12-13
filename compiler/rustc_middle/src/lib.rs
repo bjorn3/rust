@@ -50,7 +50,6 @@
 #![feature(iter_from_coroutine)]
 #![feature(let_chains)]
 #![feature(macro_metavar_expr)]
-#![feature(min_specialization)]
 #![feature(negative_impls)]
 #![feature(never_type)]
 #![feature(ptr_alignment_type)]

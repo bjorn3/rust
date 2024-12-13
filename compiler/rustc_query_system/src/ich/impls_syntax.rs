@@ -6,35 +6,10 @@ use std::assert_matches::assert_matches;
 use rustc_ast as ast;
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
 use rustc_span::SourceFile;
-use smallvec::SmallVec;
 
 use crate::ich::StableHashingContext;
 
 impl<'ctx> rustc_target::HashStableContext for StableHashingContext<'ctx> {}
-
-impl<'a> HashStable<StableHashingContext<'a>> for [ast::Attribute] {
-    // FIXME remove this specialization
-    fn hash_stable(&self, hcx: &mut StableHashingContext<'a>, hasher: &mut StableHasher) {
-        if self.is_empty() {
-            self.len().hash_stable(hcx, hasher);
-            return;
-        }
-
-        // Some attributes are always ignored during hashing.
-        let filtered: SmallVec<[&ast::Attribute; 8]> = self
-            .iter()
-            .filter(|attr| {
-                !attr.is_doc_comment()
-                    && !attr.ident().is_some_and(|ident| hcx.is_ignored_attr(ident.name))
-            })
-            .collect();
-
-        filtered.len().hash_stable(hcx, hasher);
-        for attr in filtered {
-            attr.hash_stable(hcx, hasher);
-        }
-    }
-}
 
 impl<'ctx> rustc_ast::HashStableContext for StableHashingContext<'ctx> {
     fn hash_attr(&mut self, attr: &ast::Attribute, hasher: &mut StableHasher) {
