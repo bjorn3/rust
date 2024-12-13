@@ -458,7 +458,7 @@ fn collect_items_rec<'tcx>(
             // optimized, and if they did then the const-eval interpreter would have to worry about
             // mentioned_items.
         }
-        MonoItem::Fn(instance) => {
+        MonoItem::Fn(instance) | MonoItem::NakedFn(instance) => {
             // Sanity check whether this ended up being collected accidentally
             debug_assert!(tcx.should_codegen_locally(instance));
 
@@ -543,11 +543,13 @@ fn collect_items_rec<'tcx>(
         && starting_item.node.is_user_defined()
     {
         match starting_item.node {
-            MonoItem::Fn(instance) => tcx.dcx().emit_note(EncounteredErrorWhileInstantiating {
-                span: starting_item.span,
-                kind: "fn",
-                instance,
-            }),
+            MonoItem::Fn(instance) | MonoItem::NakedFn(instance) => {
+                tcx.dcx().emit_note(EncounteredErrorWhileInstantiating {
+                    span: starting_item.span,
+                    kind: "fn",
+                    instance,
+                })
+            }
             MonoItem::Static(def_id) => tcx.dcx().emit_note(EncounteredErrorWhileInstantiating {
                 span: starting_item.span,
                 kind: "static",

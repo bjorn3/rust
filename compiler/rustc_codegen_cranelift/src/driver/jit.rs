@@ -71,6 +71,10 @@ pub(crate) fn run_jit(tcx: TyCtxt<'_>, target_cpu: String, jit_args: Vec<String>
                         inst,
                     );
                 }
+                MonoItem::NakedFn(inst) => {
+                    let item = tcx.def_span(inst.def_id());
+                    tcx.dcx().span_fatal(item.span, "Naked asm is not supported in JIT mode");
+                }
                 MonoItem::Static(def_id) => {
                     crate::constant::codegen_static(tcx, &mut jit_module, def_id);
                 }

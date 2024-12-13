@@ -20,7 +20,6 @@ use rustc_data_structures::profiling::SelfProfilerRef;
 use rustc_errors::DiagCtxt;
 use rustc_hir::attrs::Linkage as RLinkage;
 use rustc_middle::dep_graph::WorkProduct;
-use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
 use rustc_middle::mono::{MonoItem, MonoItemData, Visibility};
 use rustc_session::Session;
 use rustc_session::config::{OptLevel, OutputFilenames, OutputType};
@@ -156,23 +155,6 @@ fn codegen_cgu(tcx: TyCtxt<'_>, cgu_name: Symbol) -> AotModule {
     for (mono_item, item_data) in mono_items {
         match mono_item {
             MonoItem::Fn(instance) => {
-                let flags = tcx.codegen_instance_attrs(instance.def).flags;
-                if flags.contains(CodegenFnAttrFlags::NAKED) {
-                    rustc_codegen_ssa::mir::naked_asm::codegen_naked_asm(
-                        &mut GlobalAsmContext { tcx, global_asm: &mut module.global_asm },
-                        instance,
-                        MonoItemData {
-                            linkage: RLinkage::External,
-                            visibility: if item_data.linkage == RLinkage::Internal {
-                                Visibility::Hidden
-                            } else {
-                                item_data.visibility
-                            },
-                            ..item_data
-                        },
-                    );
-                    continue;
-                }
                 let codegened_function = crate::base::codegen_fn(
                     tcx,
                     cgu.name(),
@@ -183,6 +165,21 @@ fn codegen_cgu(tcx: TyCtxt<'_>, cgu_name: Symbol) -> AotModule {
                     instance,
                 );
                 module.codegened_functions.push(codegened_function);
+            }
+            MonoItem::NakedFn(instance) => {
+                rustc_codegen_ssa::mir::naked_asm::codegen_naked_asm(
+                    &mut GlobalAsmContext { tcx, global_asm: &mut module.global_asm },
+                    instance,
+                    MonoItemData {
+                        linkage: RLinkage::External,
+                        visibility: if item_data.linkage == RLinkage::Internal {
+                            Visibility::Hidden
+                        } else {
+                            item_data.visibility
+                        },
+                        ..item_data
+                    },
+                );
             }
             MonoItem::Static(def_id) => {
                 let data_id = crate::constant::codegen_static(tcx, &mut module.module, def_id);

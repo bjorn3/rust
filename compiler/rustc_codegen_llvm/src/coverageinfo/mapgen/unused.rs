@@ -109,7 +109,7 @@ fn prepare_usage_sets<'tcx>(tcx: TyCtxt<'tcx>) -> UsageSets<'tcx> {
         .iter()
         .flat_map(|cgu| cgu.items().keys())
         .filter_map(|item| match item {
-            MonoItem::Fn(instance) => Some(instance),
+            MonoItem::Fn(instance) | MonoItem::NakedFn(instance) => Some(instance),
             MonoItem::Static(_) | MonoItem::GlobalAsm(_) => None,
         })
         // We only need one arbitrary instance per definition.

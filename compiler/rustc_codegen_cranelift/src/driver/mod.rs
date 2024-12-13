@@ -5,7 +5,6 @@
 //! [`codegen_static`]: crate::constant::codegen_static
 
 use rustc_data_structures::profiling::SelfProfilerRef;
-use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
 use rustc_middle::mono::{MonoItem, MonoItemData};
 
 use crate::prelude::*;
@@ -34,18 +33,9 @@ fn predefine_mono_items<'tcx>(
                         data.visibility,
                         is_compiler_builtins,
                     );
-                    let is_naked = tcx
-                        .codegen_instance_attrs(instance.def)
-                        .flags
-                        .contains(CodegenFnAttrFlags::NAKED);
-                    if is_naked {
-                        // Naked functions are defined in a separate object
-                        // file, so they can be declared on the fly.
-                        continue;
-                    }
                     module.declare_function(name, linkage, &sig).unwrap();
                 }
-                MonoItem::Static(_) | MonoItem::GlobalAsm(_) => {}
+                MonoItem::NakedFn(_) | MonoItem::Static(_) | MonoItem::GlobalAsm(_) => {}
             }
         }
     });
