@@ -627,7 +627,7 @@ fn characteristic_def_id_of_mono_item<'tcx>(
     mono_item: MonoItem<'tcx>,
 ) -> Option<DefId> {
     match mono_item {
-        MonoItem::Fn(instance) => {
+        MonoItem::Fn(instance) | MonoItem::NakedFn(instance) => {
             let def_id = match instance.def {
                 ty::InstanceKind::Item(def) => def,
                 ty::InstanceKind::VTableShim(..)
@@ -783,7 +783,7 @@ fn mono_item_visibility<'tcx>(
 ) -> Visibility {
     let instance = match mono_item {
         // This is pretty complicated; see below.
-        MonoItem::Fn(instance) => instance,
+        MonoItem::Fn(instance) | MonoItem::NakedFn(instance) => instance,
 
         // Misc handling for generics and such, but otherwise:
         MonoItem::Static(def_id) => return static_visibility(tcx, can_be_internalized, *def_id),
@@ -1163,7 +1163,7 @@ fn collect_and_partition_mono_items(tcx: TyCtxt<'_>, (): ()) -> MonoItemPartitio
     let mono_items: DefIdSet = items
         .iter()
         .filter_map(|mono_item| match *mono_item {
-            MonoItem::Fn(ref instance) => {
+            MonoItem::Fn(ref instance) | MonoItem::NakedFn(ref instance) => {
                 #[cfg(llvm_enzyme)]
                 autodiff_mono_items.push((mono_item, instance));
                 Some(instance.def_id())

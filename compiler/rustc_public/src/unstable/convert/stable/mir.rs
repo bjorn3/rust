@@ -928,6 +928,7 @@ impl<'tcx> Stable<'tcx> for MonoItem<'tcx> {
         use crate::mir::mono::MonoItem as StableMonoItem;
         match self {
             MonoItem::Fn(instance) => StableMonoItem::Fn(instance.stable(tables, cx)),
+            MonoItem::NakedFn(instance) => StableMonoItem::NakedFn(instance.stable(tables, cx)),
             MonoItem::Static(def_id) => StableMonoItem::Static(tables.static_def(*def_id)),
             MonoItem::GlobalAsm(item_id) => StableMonoItem::GlobalAsm(opaque(item_id)),
         }

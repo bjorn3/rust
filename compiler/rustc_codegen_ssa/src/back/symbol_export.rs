@@ -396,7 +396,8 @@ fn exported_generic_symbols_provider_local<'tcx>(
             // Note: These all set rustc_std_internal_symbol to false as generic functions must not
             // be marked with this attribute and we are only handling generic functions here.
             match *mono_item {
-                MonoItem::Fn(Instance { def: InstanceKind::Item(def), args }) => {
+                MonoItem::Fn(Instance { def: InstanceKind::Item(def), args })
+                | MonoItem::NakedFn(Instance { def: InstanceKind::Item(def), args }) => {
                     let has_generics = args.non_erasable_generics().next().is_some();
 
                     let should_export =

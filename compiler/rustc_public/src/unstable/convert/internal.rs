@@ -379,6 +379,9 @@ impl RustcInternal for MonoItem {
         use rustc_middle::mir::mono as rustc_mono;
         match self {
             MonoItem::Fn(instance) => rustc_mono::MonoItem::Fn(instance.internal(tables, tcx)),
+            MonoItem::NakedFn(instance) => {
+                rustc_mono::MonoItem::NakedFn(instance.internal(tables, tcx))
+            }
             MonoItem::Static(def) => rustc_mono::MonoItem::Static(def.internal(tables, tcx)),
             MonoItem::GlobalAsm(_) => {
                 unimplemented!()

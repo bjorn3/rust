@@ -13,6 +13,7 @@ use crate::{CrateItem, DefId, Error, IndexedVal, ItemKind, Opaque, Symbol, with}
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
 pub enum MonoItem {
     Fn(Instance),
+    NakedFn(Instance),
     Static(StaticDef),
     GlobalAsm(Opaque),
 }

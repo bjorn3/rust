@@ -109,7 +109,9 @@ fn prepare_usage_sets<'tcx>(tcx: TyCtxt<'tcx>) -> UsageSets<'tcx> {
         .iter()
         .flat_map(|cgu| cgu.items().keys())
         .filter_map(|item| match item {
-            mir::mono::MonoItem::Fn(instance) => Some(instance),
+            mir::mono::MonoItem::Fn(instance) | mir::mono::MonoItem::NakedFn(instance) => {
+                Some(instance)
+            }
             mir::mono::MonoItem::Static(_) | mir::mono::MonoItem::GlobalAsm(_) => None,
         })
         // We only need one arbitrary instance per definition.
