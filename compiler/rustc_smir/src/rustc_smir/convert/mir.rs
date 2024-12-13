@@ -778,7 +778,9 @@ impl<'tcx> Stable<'tcx> for MonoItem<'tcx> {
     fn stable(&self, tables: &mut Tables<'_>) -> Self::T {
         use stable_mir::mir::mono::MonoItem as StableMonoItem;
         match self {
-            MonoItem::Fn(instance) => StableMonoItem::Fn(instance.stable(tables)),
+            MonoItem::Fn(instance) | MonoItem::NakedFn(instance) => {
+                StableMonoItem::Fn(instance.stable(tables))
+            }
             MonoItem::Static(def_id) => StableMonoItem::Static(tables.static_def(*def_id)),
             MonoItem::GlobalAsm(item_id) => StableMonoItem::GlobalAsm(opaque(item_id)),
         }
