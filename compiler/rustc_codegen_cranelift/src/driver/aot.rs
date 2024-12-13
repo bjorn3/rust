@@ -22,7 +22,6 @@ use rustc_data_structures::sync::{IntoDynSyncSend, par_map};
 use rustc_metadata::EncodedMetadata;
 use rustc_metadata::fs::copy_to_stdout;
 use rustc_middle::dep_graph::{WorkProduct, WorkProductId};
-use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
 use rustc_middle::mir::mono::{
     CodegenUnit, Linkage as RLinkage, MonoItem, MonoItemData, Visibility,
 };
@@ -526,23 +525,6 @@ fn codegen_cgu_content(
     for (mono_item, item_data) in mono_items {
         match mono_item {
             MonoItem::Fn(instance) => {
-                if tcx.codegen_fn_attrs(instance.def_id()).flags.contains(CodegenFnAttrFlags::NAKED)
-                {
-                    rustc_codegen_ssa::mir::naked_asm::codegen_naked_asm(
-                        &mut GlobalAsmContext { tcx, global_asm: &mut cx.global_asm },
-                        instance,
-                        MonoItemData {
-                            linkage: RLinkage::External,
-                            visibility: if item_data.linkage == RLinkage::Internal {
-                                Visibility::Hidden
-                            } else {
-                                item_data.visibility
-                            },
-                            ..item_data
-                        },
-                    );
-                    continue;
-                }
                 let codegened_function = crate::base::codegen_fn(
                     tcx,
                     &mut cx,
@@ -552,6 +534,21 @@ fn codegen_cgu_content(
                     instance,
                 );
                 codegened_functions.push(codegened_function);
+            }
+            MonoItem::NakedFn(instance) => {
+                rustc_codegen_ssa::mir::naked_asm::codegen_naked_asm(
+                    &mut GlobalAsmContext { tcx, global_asm: &mut cx.global_asm },
+                    instance,
+                    MonoItemData {
+                        linkage: RLinkage::External,
+                        visibility: if item_data.linkage == RLinkage::Internal {
+                            Visibility::Hidden
+                        } else {
+                            item_data.visibility
+                        },
+                        ..item_data
+                    },
+                );
             }
             MonoItem::Static(def_id) => {
                 let data_id = crate::constant::codegen_static(tcx, module, def_id);

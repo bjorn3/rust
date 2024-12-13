@@ -50,6 +50,7 @@ pub enum InstantiationMode {
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash, HashStable, TyEncodable, TyDecodable)]
 pub enum MonoItem<'tcx> {
     Fn(Instance<'tcx>),
+    NakedFn(Instance<'tcx>),
     Static(DefId),
     GlobalAsm(ItemId),
 }
@@ -58,8 +59,10 @@ impl<'tcx> MonoItem<'tcx> {
     /// Returns `true` if the mono item is user-defined (i.e. not compiler-generated, like shims).
     pub fn is_user_defined(&self) -> bool {
         match *self {
-            MonoItem::Fn(instance) => matches!(instance.def, InstanceKind::Item(..)),
-            MonoItem::Static(..) | MonoItem::GlobalAsm(..) => true,
+            MonoItem::Fn(instance) => {
+                matches!(instance.def, InstanceKind::Item(..))
+            }
+            MonoItem::NakedFn(..) | MonoItem::Static(..) | MonoItem::GlobalAsm(..) => true,
         }
     }
 
@@ -67,7 +70,7 @@ impl<'tcx> MonoItem<'tcx> {
     // change NON_INCR_MIN_CGU_SIZE as well.
     pub fn size_estimate(&self, tcx: TyCtxt<'tcx>) -> usize {
         match *self {
-            MonoItem::Fn(instance) => tcx.size_estimate(instance),
+            MonoItem::Fn(instance) | MonoItem::NakedFn(instance) => tcx.size_estimate(instance),
             // Conservatively estimate the size of a static declaration or
             // assembly item to be 1.
             MonoItem::Static(_) | MonoItem::GlobalAsm(_) => 1,
@@ -76,14 +79,16 @@ impl<'tcx> MonoItem<'tcx> {
 
     pub fn is_generic_fn(&self) -> bool {
         match self {
-            MonoItem::Fn(instance) => instance.args.non_erasable_generics().next().is_some(),
+            MonoItem::Fn(instance) | MonoItem::NakedFn(instance) => {
+                instance.args.non_erasable_generics().next().is_some()
+            }
             MonoItem::Static(..) | MonoItem::GlobalAsm(..) => false,
         }
     }
 
     pub fn symbol_name(&self, tcx: TyCtxt<'tcx>) -> SymbolName<'tcx> {
         match *self {
-            MonoItem::Fn(instance) => tcx.symbol_name(instance),
+            MonoItem::Fn(instance) | MonoItem::NakedFn(instance) => tcx.symbol_name(instance),
             MonoItem::Static(def_id) => tcx.symbol_name(Instance::mono(tcx, def_id)),
             MonoItem::GlobalAsm(item_id) => {
                 SymbolName::new(tcx, &format!("global_asm_{:?}", item_id.owner_id))
@@ -101,7 +106,7 @@ impl<'tcx> MonoItem<'tcx> {
 
         // Statics and global_asm! must be instantiated exactly once.
         let instance = match *self {
-            MonoItem::Fn(instance) => instance,
+            MonoItem::Fn(instance) | MonoItem::NakedFn(instance) => instance,
             MonoItem::Static(..) | MonoItem::GlobalAsm(..) => {
                 return InstantiationMode::GloballyShared { may_conflict: false };
             }
@@ -179,7 +184,7 @@ impl<'tcx> MonoItem<'tcx> {
 
     pub fn explicit_linkage(&self, tcx: TyCtxt<'tcx>) -> Option<Linkage> {
         let def_id = match *self {
-            MonoItem::Fn(ref instance) => instance.def_id(),
+            MonoItem::Fn(ref instance) | MonoItem::NakedFn(ref instance) => instance.def_id(),
             MonoItem::Static(def_id) => def_id,
             MonoItem::GlobalAsm(..) => return None,
         };
@@ -216,7 +221,9 @@ impl<'tcx> MonoItem<'tcx> {
     pub fn is_instantiable(&self, tcx: TyCtxt<'tcx>) -> bool {
         debug!("is_instantiable({:?})", self);
         let (def_id, args) = match *self {
-            MonoItem::Fn(ref instance) => (instance.def_id(), instance.args),
+            MonoItem::Fn(ref instance) | MonoItem::NakedFn(ref instance) => {
+                (instance.def_id(), instance.args)
+            }
             MonoItem::Static(def_id) => (def_id, GenericArgs::empty()),
             // global asm never has predicates
             MonoItem::GlobalAsm(..) => return true,
@@ -227,7 +234,9 @@ impl<'tcx> MonoItem<'tcx> {
 
     pub fn local_span(&self, tcx: TyCtxt<'tcx>) -> Option<Span> {
         match *self {
-            MonoItem::Fn(Instance { def, .. }) => def.def_id().as_local(),
+            MonoItem::Fn(Instance { def, .. }) | MonoItem::NakedFn(Instance { def, .. }) => {
+                def.def_id().as_local()
+            }
             MonoItem::Static(def_id) => def_id.as_local(),
             MonoItem::GlobalAsm(item_id) => Some(item_id.owner_id.def_id),
         }
@@ -242,7 +251,7 @@ impl<'tcx> MonoItem<'tcx> {
     /// Returns the item's `CrateNum`
     pub fn krate(&self) -> CrateNum {
         match self {
-            MonoItem::Fn(ref instance) => instance.def_id().krate,
+            MonoItem::Fn(ref instance) | MonoItem::NakedFn(ref instance) => instance.def_id().krate,
             MonoItem::Static(def_id) => def_id.krate,
             MonoItem::GlobalAsm(..) => LOCAL_CRATE,
         }
@@ -251,7 +260,9 @@ impl<'tcx> MonoItem<'tcx> {
     /// Returns the item's `DefId`
     pub fn def_id(&self) -> DefId {
         match *self {
-            MonoItem::Fn(Instance { def, .. }) => def.def_id(),
+            MonoItem::Fn(Instance { def, .. }) | MonoItem::NakedFn(Instance { def, .. }) => {
+                def.def_id()
+            }
             MonoItem::Static(def_id) => def_id,
             MonoItem::GlobalAsm(item_id) => item_id.owner_id.to_def_id(),
         }
@@ -262,6 +273,7 @@ impl<'tcx> fmt::Display for MonoItem<'tcx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             MonoItem::Fn(instance) => write!(f, "fn {instance}"),
+            MonoItem::NakedFn(instance) => write!(f, "naked_fn {instance}"),
             MonoItem::Static(def_id) => {
                 write!(f, "static {}", Instance::new(def_id, GenericArgs::empty()))
             }
@@ -459,7 +471,7 @@ impl<'tcx> CodegenUnit<'tcx> {
         fn item_sort_key<'tcx>(tcx: TyCtxt<'tcx>, item: MonoItem<'tcx>) -> ItemSortKey<'tcx> {
             ItemSortKey(
                 match item {
-                    MonoItem::Fn(ref instance) => {
+                    MonoItem::Fn(ref instance) | MonoItem::NakedFn(ref instance) => {
                         match instance.def {
                             // We only want to take HirIds of user-defined
                             // instances into account. The others don't matter for
