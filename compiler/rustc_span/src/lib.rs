@@ -40,7 +40,9 @@ extern crate self as rustc_span;
 
 use derive_where::derive_where;
 use rustc_data_structures::{AtomicRef, outline};
-use rustc_macros::{Decodable, Encodable, HashStable_Generic};
+use rustc_macros::{
+    Decodable, Decodable_Generic, Encodable, Encodable_Generic, HashStable_Generic,
+};
 use rustc_serialize::opaque::{FileEncoder, MemDecoder};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 use tracing::debug;
@@ -1804,8 +1806,8 @@ impl fmt::Debug for SourceFile {
     PartialEq,
     Eq,
     HashStable_Generic,
-    Encodable,
-    Decodable,
+    Encodable_Generic,
+    Decodable_Generic,
     Default,
     PartialOrd,
     Ord
