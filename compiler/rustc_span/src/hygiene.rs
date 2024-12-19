@@ -38,7 +38,7 @@ use rustc_data_structures::sync::{Lock, WorkerLocal};
 use rustc_data_structures::unhash::UnhashMap;
 use rustc_hashes::Hash64;
 use rustc_index::IndexVec;
-use rustc_macros::{Decodable, Encodable, HashStable_Generic};
+use rustc_macros::{Decodable, Decodable_Generic, Encodable, Encodable_Generic, HashStable_Generic};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 use tracing::{debug, trace};
 
@@ -124,7 +124,7 @@ fn assert_default_hashing_controls<CTX: HashStableContext>(ctx: &CTX, msg: &str)
 }
 
 /// A unique hash value associated to an expansion.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Encodable, Decodable, HashStable_Generic)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Encodable_Generic, Decodable_Generic, HashStable_Generic)]
 pub struct ExpnHash(Fingerprint);
 
 impl ExpnHash {

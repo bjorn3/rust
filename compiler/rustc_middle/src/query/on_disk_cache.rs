@@ -10,7 +10,7 @@ use rustc_data_structures::unord::{UnordMap, UnordSet};
 use rustc_hir::def_id::{CrateNum, DefId, DefIndex, LOCAL_CRATE, LocalDefId, StableCrateId};
 use rustc_hir::definitions::DefPathHash;
 use rustc_index::{Idx, IndexVec};
-use rustc_macros::{Decodable, Encodable};
+use rustc_macros::{Decodable_Generic, Encodable_Generic};
 use rustc_query_system::query::QuerySideEffects;
 use rustc_serialize::opaque::{FileEncodeResult, FileEncoder, IntEncodedWithFixedSize, MemDecoder};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
@@ -100,7 +100,7 @@ pub struct OnDiskCache {
 }
 
 // This type is used only for serialization and deserialization.
-#[derive(Encodable, Decodable)]
+#[derive(Encodable_Generic, Decodable_Generic)]
 struct Footer {
     file_index_to_stable_id: FxHashMap<SourceFileIndex, EncodedSourceFileId>,
     query_result_index: EncodedDepNodeIndex,
@@ -118,10 +118,10 @@ struct Footer {
 
 pub type EncodedDepNodeIndex = Vec<(SerializedDepNodeIndex, AbsoluteBytePos)>;
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Encodable, Decodable)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Encodable_Generic, Decodable_Generic)]
 struct SourceFileIndex(u32);
 
-#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Encodable, Decodable)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Encodable_Generic, Decodable_Generic)]
 pub struct AbsoluteBytePos(u64);
 
 impl AbsoluteBytePos {
@@ -136,7 +136,7 @@ impl AbsoluteBytePos {
     }
 }
 
-#[derive(Encodable, Decodable, Clone, Debug)]
+#[derive(Encodable_Generic, Decodable_Generic, Clone, Debug)]
 struct EncodedSourceFileId {
     stable_source_file_id: StableSourceFileId,
     stable_crate_id: StableCrateId,
