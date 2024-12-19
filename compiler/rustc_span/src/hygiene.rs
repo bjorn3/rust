@@ -37,7 +37,7 @@ use rustc_data_structures::sync::Lock;
 use rustc_data_structures::unhash::UnhashMap;
 use rustc_hashes::Hash64;
 use rustc_index::IndexVec;
-use rustc_macros::{Decodable, Encodable, StableHash};
+use rustc_macros::{Decodable, Decodable_NoContext, Encodable, Encodable_NoContext, StableHash};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 use tracing::{debug, trace};
 
@@ -129,7 +129,8 @@ impl !Ord for LocalExpnId {}
 impl !PartialOrd for LocalExpnId {}
 
 /// A unique hash value associated to an expansion.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Encodable, Decodable, StableHash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Hash, StableHash, Encodable_NoContext, Decodable_NoContext)]
 pub struct ExpnHash(Fingerprint);
 
 impl ExpnHash {

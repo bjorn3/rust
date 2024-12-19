@@ -33,7 +33,7 @@ extern crate self as rustc_span;
 use derive_where::derive_where;
 use rustc_data_structures::stable_hash::StableHashCtxt;
 use rustc_data_structures::{AtomicRef, outline};
-use rustc_macros::{Decodable, Encodable, StableHash};
+use rustc_macros::{Decodable, Decodable_NoContext, Encodable, Encodable_NoContext, StableHash};
 use rustc_serialize::opaque::mem_encoder::MemEncoder;
 use rustc_serialize::opaque::{FileEncoder, MemDecoder};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
@@ -2121,10 +2121,8 @@ impl fmt::Debug for SourceFile {
 ///
 /// When `SourceFile`s are exported in crate metadata, the `StableSourceFileId`
 /// is updated to incorporate the `StableCrateId` of the exporting crate.
-#[derive(
-    Debug, Clone, Copy, Hash, PartialEq, Eq, StableHash, Encodable, Decodable, Default, PartialOrd,
-    Ord
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, PartialOrd, Ord)]
+#[derive(Hash, StableHash, Encodable_NoContext, Decodable_NoContext)]
 pub struct StableSourceFileId(Hash128);
 
 impl StableSourceFileId {

@@ -13,7 +13,7 @@ use rustc_data_structures::sync::{AtomicU64, Lock};
 use rustc_data_structures::unord::UnordMap;
 use rustc_errors::DiagInner;
 use rustc_index::IndexVec;
-use rustc_macros::{Decodable, Encodable};
+use rustc_macros::{Decodable, Decodable_NoContext, Encodable, Encodable_NoContext};
 use rustc_serialize::opaque::{FileEncodeResult, FileEncoder};
 use rustc_session::Session;
 use rustc_span::Symbol;
@@ -1060,7 +1060,7 @@ impl DepGraph {
 /// may be added -- for example, new monomorphizations -- even if
 /// nothing in P changed!). We will compare that hash against the
 /// previous hash. If it matches up, we can reuse the object file.
-#[derive(Clone, Debug, Encodable, Decodable)]
+#[derive(Clone, Debug, Encodable_NoContext, Decodable_NoContext)]
 pub struct WorkProduct {
     pub cgu_name: String,
     /// Saved files associated with this CGU. In each key/value pair, the value is the path to the

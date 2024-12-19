@@ -10,7 +10,7 @@ use rustc_data_structures::unord::{UnordMap, UnordSet};
 use rustc_hir::def_id::{CrateNum, DefId, DefIndex, LOCAL_CRATE, LocalDefId, StableCrateId};
 use rustc_hir::definitions::DefPathHash;
 use rustc_index::IndexVec;
-use rustc_macros::{Decodable, Encodable};
+use rustc_macros::{Decodable_NoContext, Encodable_NoContext};
 use rustc_serialize::opaque::{FileEncodeResult, FileEncoder, IntEncodedWithFixedSize, MemDecoder};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 use rustc_session::Session;
@@ -94,7 +94,7 @@ pub struct OnDiskCache {
 }
 
 // This type is used only for serialization and deserialization.
-#[derive(Encodable, Decodable)]
+#[derive(Encodable_NoContext, Decodable_NoContext)]
 struct Footer {
     file_index_to_stable_id: FxHashMap<SourceFileIndex, EncodedSourceFileId>,
     query_values_index: Vec<(SerializedDepNodeIndex, AbsoluteBytePos)>,
@@ -110,10 +110,10 @@ struct Footer {
     foreign_expn_data: UnhashMap<ExpnHash, u32>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Encodable, Decodable)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Encodable_NoContext, Decodable_NoContext)]
 struct SourceFileIndex(u32);
 
-#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Encodable, Decodable)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Encodable_NoContext, Decodable_NoContext)]
 pub struct AbsoluteBytePos(u64);
 
 impl AbsoluteBytePos {
@@ -128,7 +128,7 @@ impl AbsoluteBytePos {
     }
 }
 
-#[derive(Encodable, Decodable, Clone, Debug)]
+#[derive(Encodable_NoContext, Decodable_NoContext, Clone, Debug)]
 struct EncodedSourceFileId {
     stable_source_file_id: StableSourceFileId,
     stable_crate_id: StableCrateId,
