@@ -12,14 +12,16 @@ use rustc_hir::def_id::{
     CrateNum, DefId, LOCAL_CRATE, LocalDefId, StableCrateId, StableCrateIdMap,
 };
 use rustc_hir::definitions::{DefKey, DefPath, DefPathHash, Definitions};
-use rustc_macros::{BlobDecodable, Decodable, Encodable, StableHash};
+use rustc_macros::{
+    BlobDecodable, Decodable, Decodable_NoContext, Encodable, Encodable_NoContext, StableHash,
+};
 use rustc_span::{Span, Symbol};
 
 // lonely orphan structs and enums looking for a better home
 
 /// Where a crate came from on the local filesystem. One of these three options
 /// must be non-None.
-#[derive(PartialEq, Clone, Debug, StableHash, Encodable, Decodable)]
+#[derive(PartialEq, Clone, Debug, StableHash, Encodable_NoContext, Decodable_NoContext)]
 pub struct CrateSource {
     pub dylib: Option<PathBuf>,
     pub rlib: Option<PathBuf>,

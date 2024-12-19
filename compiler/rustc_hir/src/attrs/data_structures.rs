@@ -12,7 +12,9 @@ use rustc_ast::{AttrStyle, Path, ast};
 use rustc_data_structures::fx::FxIndexMap;
 use rustc_error_messages::{DiagArgValue, IntoDiagArg};
 use rustc_hir::LangItem;
-use rustc_macros::{Decodable, Encodable, PrintAttribute, StableHash};
+use rustc_macros::{
+    Decodable, Decodable_NoContext, Encodable, Encodable_NoContext, PrintAttribute, StableHash,
+};
 use rustc_span::def_id::DefId;
 use rustc_span::hygiene::Transparency;
 use rustc_span::{ErrorGuaranteed, Ident, Span, Symbol};
@@ -363,8 +365,8 @@ pub enum PeImportNameType {
     PartialOrd,
     Ord,
     Hash,
-    Encodable,
-    Decodable,
+    Encodable_NoContext,
+    Decodable_NoContext,
     PrintAttribute
 )]
 #[derive(StableHash)]
@@ -445,8 +447,8 @@ pub struct LinkEntry {
     pub import_name_type: Option<(PeImportNameType, Span)>,
 }
 
-#[derive(StableHash, PrintAttribute)]
-#[derive(Copy, PartialEq, PartialOrd, Clone, Ord, Eq, Hash, Debug, Encodable, Decodable)]
+#[derive(Copy, PartialEq, PartialOrd, Clone, Ord, Eq, Hash, Debug)]
+#[derive(StableHash, PrintAttribute, Encodable_NoContext, Decodable_NoContext)]
 pub enum DebuggerVisualizerType {
     Natvis,
     GdbPrettyPrinter,

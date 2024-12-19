@@ -34,8 +34,6 @@ use derive_where::derive_where;
 use rustc_data_structures::stable_hash::StableHashCtxt;
 use rustc_data_structures::{AtomicRef, outline};
 use rustc_macros::{Decodable, Decodable_NoContext, Encodable, Encodable_NoContext, StableHash};
-use rustc_serialize::opaque::mem_encoder::MemEncoder;
-use rustc_serialize::opaque::{FileEncoder, MemDecoder};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 use tracing::debug;
 pub use unicode_width::UNICODE_VERSION;
@@ -1362,80 +1360,6 @@ pub trait SpanEncoder: Encoder {
     fn encode_def_id(&mut self, def_id: DefId);
 }
 
-impl SpanEncoder for FileEncoder<'_> {
-    fn encode_span(&mut self, span: Span) {
-        let span = span.data();
-        span.lo.encode(self);
-        span.hi.encode(self);
-    }
-
-    fn encode_symbol(&mut self, sym: Symbol) {
-        self.emit_str(sym.as_str());
-    }
-
-    fn encode_byte_symbol(&mut self, byte_sym: ByteSymbol) {
-        self.emit_byte_str(byte_sym.as_byte_str());
-    }
-
-    fn encode_expn_id(&mut self, _expn_id: ExpnId) {
-        panic!("cannot encode `ExpnId` with `FileEncoder`");
-    }
-
-    fn encode_syntax_context(&mut self, _syntax_context: SyntaxContext) {
-        panic!("cannot encode `SyntaxContext` with `FileEncoder`");
-    }
-
-    fn encode_crate_num(&mut self, crate_num: CrateNum) {
-        self.emit_u32(crate_num.as_u32());
-    }
-
-    fn encode_def_index(&mut self, _def_index: DefIndex) {
-        panic!("cannot encode `DefIndex` with `FileEncoder`");
-    }
-
-    fn encode_def_id(&mut self, def_id: DefId) {
-        def_id.krate.encode(self);
-        def_id.index.encode(self);
-    }
-}
-
-impl SpanEncoder for MemEncoder {
-    fn encode_span(&mut self, span: Span) {
-        let span = span.data();
-        span.lo.encode(self);
-        span.hi.encode(self);
-    }
-
-    fn encode_symbol(&mut self, sym: Symbol) {
-        self.emit_str(sym.as_str());
-    }
-
-    fn encode_byte_symbol(&mut self, byte_sym: ByteSymbol) {
-        self.emit_byte_str(byte_sym.as_byte_str());
-    }
-
-    fn encode_expn_id(&mut self, _expn_id: ExpnId) {
-        panic!("cannot encode `ExpnId` with `FileEncoder`");
-    }
-
-    fn encode_syntax_context(&mut self, _syntax_context: SyntaxContext) {
-        panic!("cannot encode `SyntaxContext` with `FileEncoder`");
-    }
-
-    fn encode_crate_num(&mut self, crate_num: CrateNum) {
-        self.emit_u32(crate_num.as_u32());
-    }
-
-    fn encode_def_index(&mut self, _def_index: DefIndex) {
-        panic!("cannot encode `DefIndex` with `FileEncoder`");
-    }
-
-    fn encode_def_id(&mut self, def_id: DefId) {
-        def_id.krate.encode(self);
-        def_id.index.encode(self);
-    }
-}
-
 impl<E: SpanEncoder> Encodable<E> for Span {
     fn encode(&self, s: &mut E) {
         s.encode_span(*self);
@@ -1519,49 +1443,6 @@ pub trait SpanDecoder: BlobDecoder {
     fn decode_crate_num(&mut self) -> CrateNum;
     fn decode_def_id(&mut self) -> DefId;
     fn decode_attr_id(&mut self) -> AttrId;
-}
-
-impl BlobDecoder for MemDecoder<'_> {
-    fn decode_symbol(&mut self) -> Symbol {
-        Symbol::intern(self.read_str())
-    }
-
-    fn decode_byte_symbol(&mut self) -> ByteSymbol {
-        ByteSymbol::intern(self.read_byte_str())
-    }
-
-    fn decode_def_index(&mut self) -> DefIndex {
-        panic!("cannot decode `DefIndex` with `MemDecoder`");
-    }
-}
-
-impl SpanDecoder for MemDecoder<'_> {
-    fn decode_span(&mut self) -> Span {
-        let lo = Decodable::decode(self);
-        let hi = Decodable::decode(self);
-
-        Span::new(lo, hi, SyntaxContext::root(), None)
-    }
-
-    fn decode_expn_id(&mut self) -> ExpnId {
-        panic!("cannot decode `ExpnId` with `MemDecoder`");
-    }
-
-    fn decode_syntax_context(&mut self) -> SyntaxContext {
-        panic!("cannot decode `SyntaxContext` with `MemDecoder`");
-    }
-
-    fn decode_crate_num(&mut self) -> CrateNum {
-        CrateNum::from_u32(self.read_u32())
-    }
-
-    fn decode_def_id(&mut self) -> DefId {
-        DefId { krate: Decodable::decode(self), index: Decodable::decode(self) }
-    }
-
-    fn decode_attr_id(&mut self) -> AttrId {
-        panic!("cannot decode `AttrId` with `MemDecoder`");
-    }
 }
 
 impl<D: SpanDecoder> Decodable<D> for Span {

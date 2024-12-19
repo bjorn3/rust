@@ -5,7 +5,7 @@ use rustc_data_structures::fx::FxIndexSet;
 use rustc_data_structures::stable_hash::{StableCompare, StableHash, StableHashCtxt, StableHasher};
 use rustc_error_messages::{DiagArgValue, IntoDiagArg};
 use rustc_hir_id::HirId;
-use rustc_macros::{Decodable, Encodable, StableHash};
+use rustc_macros::{Decodable, Decodable_NoContext, Encodable, Encodable_NoContext, StableHash};
 pub use rustc_span::edition::Edition;
 use rustc_span::{AttrId, Ident, Symbol, sym};
 use serde::{Deserialize, Serialize};
@@ -149,7 +149,17 @@ impl From<StableLintExpectationId> for LintExpectationId {
 ///
 /// See: <https://doc.rust-lang.org/rustc/lints/levels.html>
 #[derive(
-    Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Debug, Hash, Encodable, Decodable, StableHash
+    Clone,
+    Copy,
+    PartialEq,
+    PartialOrd,
+    Eq,
+    Ord,
+    Debug,
+    Hash,
+    Encodable_NoContext,
+    Decodable_NoContext,
+    StableHash
 )]
 pub enum Level {
     /// The `allow` level will not issue any message.

@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 use rustc_data_structures::profiling::VerboseTimingGuard;
 use rustc_fs_util::try_canonicalize;
 use rustc_hir::attrs::NativeLibKind;
-use rustc_macros::{Decodable, Encodable, StableHash};
+use rustc_macros::{Decodable_NoContext, Encodable_NoContext, StableHash};
 
 use crate::session::Session;
 
@@ -18,8 +18,8 @@ impl Session {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Encodable, Decodable)]
-#[derive(StableHash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(StableHash, Encodable_NoContext, Decodable_NoContext)]
 pub struct NativeLib {
     pub name: String,
     pub new_name: Option<String>,

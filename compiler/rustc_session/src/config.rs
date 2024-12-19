@@ -19,7 +19,9 @@ use rustc_errors::emitter::HumanReadableErrorType;
 use rustc_errors::{ColorConfig, DiagCtxtFlags};
 use rustc_feature::UnstableFeatures;
 use rustc_hashes::Hash64;
-use rustc_macros::{BlobDecodable, Decodable, Encodable, StableHash};
+use rustc_macros::{
+    BlobDecodable, Decodable, Decodable_NoContext, Encodable, Encodable_NoContext, StableHash,
+};
 use rustc_span::edition::{DEFAULT_EDITION, EDITION_NAME_LIST, Edition, LATEST_STABLE_EDITION};
 use rustc_span::source_map::FilePathMapping;
 use rustc_span::{
@@ -629,7 +631,7 @@ macro_rules! define_output_types {
         ),* $(,)?
     ) => {
         #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord, StableHash)]
-        #[derive(Encodable, Decodable)]
+        #[derive(Encodable_NoContext, Decodable_NoContext)]
         pub enum OutputType {
             $(
                 $(#[doc = $doc])*
@@ -839,7 +841,7 @@ pub enum ResolveDocLinks {
 /// *Do not* switch `BTreeMap` out for an unsorted container type! That would break
 /// dependency tracking for command-line arguments. Also only hash keys, since tracking
 /// should only depend on the output types, not the paths they're written to.
-#[derive(Clone, Debug, Hash, StableHash, Encodable, Decodable)]
+#[derive(Clone, Debug, Hash, StableHash, Encodable_NoContext, Decodable_NoContext)]
 pub struct OutputTypes(BTreeMap<OutputType, Option<OutFileName>>);
 
 impl OutputTypes {
@@ -1053,7 +1055,7 @@ impl Input {
     }
 }
 
-#[derive(Clone, Hash, Debug, StableHash, PartialEq, Eq, Encodable, Decodable)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq, StableHash, Encodable_NoContext, Decodable_NoContext)]
 pub enum OutFileName {
     Real(PathBuf),
     Stdout,
@@ -1125,7 +1127,7 @@ impl OutFileName {
     }
 }
 
-#[derive(Clone, Hash, Debug, StableHash, Encodable, Decodable)]
+#[derive(Clone, Hash, Debug, StableHash, Encodable_NoContext, Decodable_NoContext)]
 pub struct OutputFilenames {
     pub(crate) out_directory: PathBuf,
     /// Crate name. Never contains '-'.

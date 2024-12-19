@@ -24,7 +24,7 @@ use rustc_hir::CRATE_HIR_ID;
 use rustc_hir::attrs::{CfgEntry, NativeLibKind, WindowsSubsystemKind};
 use rustc_hir::def_id::CrateNum;
 use rustc_lint_defs::builtin::LINKER_INFO;
-use rustc_macros::{Decodable, Encodable};
+use rustc_macros::{Decodable_NoContext, Encodable_NoContext};
 use rustc_metadata::EncodedMetadata;
 use rustc_middle::dep_graph::WorkProduct;
 use rustc_middle::lint::StableLevelSpec;
@@ -119,7 +119,7 @@ impl<M> ModuleCodegen<M> {
     }
 }
 
-#[derive(Debug, Encodable, Decodable)]
+#[derive(Debug, Encodable_NoContext, Decodable_NoContext)]
 pub struct CompiledModule {
     pub name: String,
     pub kind: ModuleKind,
@@ -155,7 +155,7 @@ pub(crate) struct CachedModuleCodegen {
     pub source: WorkProduct,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Encodable, Decodable)]
+#[derive(Copy, Clone, Debug, PartialEq, Encodable_NoContext, Decodable_NoContext)]
 pub enum ModuleKind {
     Regular,
     Allocator,
@@ -210,11 +210,11 @@ bitflags::bitflags! {
 //   be encoded with `FileEncoder`.
 // - (less important) the `verbatim` field is a `bool` rather than an `Option<bool>`, because here
 //   we can treat `false` and `absent` the same.
-#[derive(Clone, Debug, Encodable, Decodable)]
+#[derive(Clone, Debug, Encodable_NoContext, Decodable_NoContext)]
 pub struct NativeLib {
     pub kind: NativeLibKind,
     pub name: Symbol,
-    pub filename: Option<Symbol>,
+    pub filename: Option<String>,
     pub cfg: Option<CfgEntry>,
     pub verbatim: bool,
     pub dll_imports: Vec<cstore::DllImport>,
@@ -224,7 +224,7 @@ impl From<&cstore::NativeLib> for NativeLib {
     fn from(lib: &cstore::NativeLib) -> Self {
         NativeLib {
             kind: lib.kind,
-            filename: lib.filename,
+            filename: lib.filename.map(|filename| filename.as_str().to_owned()),
             name: lib.name,
             cfg: lib.cfg.clone(),
             verbatim: lib.verbatim.unwrap_or(false),
@@ -232,6 +232,8 @@ impl From<&cstore::NativeLib> for NativeLib {
         }
     }
 }
+
+type CrateNum = u32;
 
 /// Misc info we load from metadata to persist beyond the tcx.
 ///
@@ -241,20 +243,19 @@ impl From<&cstore::NativeLib> for NativeLib {
 /// identifiers (`CrateNum`) to `CrateSource`. The other fields map `CrateNum` to the crate's own
 /// additional properties, so that effectively we can retrieve each dependent crate's `CrateSource`
 /// and the corresponding properties without referencing information outside of a `CrateInfo`.
-// rustc_codegen_cranelift needs a Clone impl for its jit mode, which isn't tested in rust CI
-#[derive(Clone, Debug, Encodable, Decodable)]
+#[derive(Clone, Debug, Encodable_NoContext, Decodable_NoContext)]
 pub struct CrateInfo {
     pub target_cpu: String,
     pub target_features: Vec<String>,
     pub crate_types: Vec<CrateType>,
     pub exported_symbols: UnordMap<CrateType, Vec<(String, SymbolExportKind)>>,
     pub linked_symbols: FxIndexMap<CrateType, Vec<(String, SymbolExportKind)>>,
-    pub local_crate_name: Symbol,
+    pub local_crate_name: String,
     pub compiler_builtins: Option<CrateNum>,
     pub profiler_runtime: Option<CrateNum>,
     pub is_no_builtins: FxHashSet<CrateNum>,
     pub native_libraries: FxIndexMap<CrateNum, Vec<NativeLib>>,
-    pub crate_name: UnordMap<CrateNum, Symbol>,
+    pub crate_name: UnordMap<CrateNum, String>,
     pub used_libraries: Vec<NativeLib>,
     pub used_crate_source: UnordMap<CrateNum, Arc<CrateSource>>,
     pub used_crates: Vec<CrateNum>,
@@ -285,7 +286,7 @@ pub struct TargetConfig {
     pub has_reliable_f128_math: bool,
 }
 
-#[derive(Encodable, Decodable)]
+#[derive(Encodable_NoContext, Decodable_NoContext)]
 pub struct CompiledModules {
     pub modules: Vec<CompiledModule>,
     pub allocator_module: Option<CompiledModule>,
@@ -378,7 +379,7 @@ impl CompiledModules {
 /// When using `-Z link-only`, we don't have access to the tcx and must work
 /// solely from the `.rlink` file. `Lint`s are defined too early to be encodeable.
 /// Instead, encode exactly the information we need.
-#[derive(Copy, Clone, Debug, Encodable, Decodable)]
+#[derive(Copy, Clone, Debug, Encodable_NoContext, Decodable_NoContext)]
 pub struct CodegenLintLevelSpecs {
     linker_messages: StableLevelSpec,
     linker_info: StableLevelSpec,

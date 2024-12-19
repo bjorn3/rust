@@ -1,5 +1,7 @@
 use rustc_hir::def_id::{DefId, LOCAL_CRATE};
-use rustc_macros::{Decodable, Encodable, StableHash, TyDecodable, TyEncodable};
+use rustc_macros::{
+    Decodable_NoContext, Encodable_NoContext, StableHash, TyDecodable, TyEncodable,
+};
 
 use crate::ty::{self, GenericArgsRef, Ty, TyCtxt};
 
@@ -22,7 +24,17 @@ impl SymbolExportLevel {
 }
 
 /// Kind of exported symbols.
-#[derive(Eq, PartialEq, Debug, Copy, Clone, Encodable, Decodable, StableHash, Hash)]
+#[derive(
+    Eq,
+    PartialEq,
+    Debug,
+    Copy,
+    Clone,
+    Encodable_NoContext,
+    Decodable_NoContext,
+    StableHash,
+    Hash
+)]
 pub enum SymbolExportKind {
     Text,
     Data,

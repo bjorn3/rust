@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use rustc_macros::{Decodable, Encodable, StableHash};
+use rustc_macros::{Decodable_NoContext, Encodable_NoContext, StableHash};
 use rustc_target::spec::TargetTuple;
 
 use crate::EarlyDiagCtxt;
@@ -71,7 +71,8 @@ impl SearchPathFile {
     }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug, Hash, Eq, Encodable, Decodable, StableHash)]
+#[derive(PartialEq, Clone, Copy, Debug, Eq)]
+#[derive(Hash, StableHash, Encodable_NoContext, Decodable_NoContext)]
 pub enum PathKind {
     Native,
     Crate,
