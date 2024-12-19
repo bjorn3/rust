@@ -19,7 +19,7 @@ use rustc_data_structures::stable_hasher::{StableOrd, ToStableHashKey};
 use rustc_errors::emitter::HumanReadableErrorType;
 use rustc_errors::{ColorConfig, DiagArgValue, DiagCtxtFlags, IntoDiagArg};
 use rustc_feature::UnstableFeatures;
-use rustc_macros::{Decodable, Encodable, HashStable_Generic};
+use rustc_macros::{Decodable, Decodable_Generic, Encodable, Encodable_Generic, HashStable_Generic};
 use rustc_span::edition::{DEFAULT_EDITION, EDITION_NAME_LIST, Edition, LATEST_STABLE_EDITION};
 use rustc_span::source_map::FilePathMapping;
 use rustc_span::{
@@ -563,7 +563,7 @@ impl FromStr for SplitDwarfKind {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord, HashStable_Generic)]
-#[derive(Encodable, Decodable)]
+#[derive(Encodable_Generic, Decodable_Generic)]
 pub enum OutputType {
     /// This is the optimized bitcode, which could be either pre-LTO or non-LTO bitcode,
     /// depending on the specific request type.
@@ -718,7 +718,7 @@ pub enum ResolveDocLinks {
 /// *Do not* switch `BTreeMap` out for an unsorted container type! That would break
 /// dependency tracking for command-line arguments. Also only hash keys, since tracking
 /// should only depend on the output types, not the paths they're written to.
-#[derive(Clone, Debug, Hash, HashStable_Generic, Encodable, Decodable)]
+#[derive(Clone, Debug, Hash, HashStable_Generic, Encodable_Generic, Decodable_Generic)]
 pub struct OutputTypes(BTreeMap<OutputType, Option<OutFileName>>);
 
 impl OutputTypes {
@@ -962,7 +962,7 @@ impl Input {
     }
 }
 
-#[derive(Clone, Hash, Debug, HashStable_Generic, PartialEq, Encodable, Decodable)]
+#[derive(Clone, Hash, Debug, HashStable_Generic, PartialEq, Encodable_Generic, Decodable_Generic)]
 pub enum OutFileName {
     Real(PathBuf),
     Stdout,
@@ -1034,7 +1034,7 @@ impl OutFileName {
     }
 }
 
-#[derive(Clone, Hash, Debug, HashStable_Generic, Encodable, Decodable)]
+#[derive(Clone, Hash, Debug, HashStable_Generic, Encodable_Generic, Decodable_Generic)]
 pub struct OutputFilenames {
     pub(crate) out_directory: PathBuf,
     /// Crate name. Never contains '-'.
@@ -1332,7 +1332,18 @@ pub enum EntryFnType {
     },
 }
 
-#[derive(Copy, PartialEq, PartialOrd, Clone, Ord, Eq, Hash, Debug, Encodable, Decodable)]
+#[derive(
+    Copy,
+    PartialEq,
+    PartialOrd,
+    Clone,
+    Ord,
+    Eq,
+    Hash,
+    Debug,
+    Encodable_Generic,
+    Decodable_Generic
+)]
 #[derive(HashStable_Generic)]
 pub enum CrateType {
     Executable,

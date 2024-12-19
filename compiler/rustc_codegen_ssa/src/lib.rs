@@ -30,8 +30,7 @@ use rustc_ast as ast;
 use rustc_data_structures::fx::{FxHashSet, FxIndexMap};
 use rustc_data_structures::unord::UnordMap;
 use rustc_hir::CRATE_HIR_ID;
-use rustc_hir::def_id::CrateNum;
-use rustc_macros::{Decodable, Encodable, HashStable};
+use rustc_macros::{Decodable, Decodable_Generic, Encodable, Encodable_Generic, HashStable};
 use rustc_middle::dep_graph::WorkProduct;
 use rustc_middle::lint::LintLevelSource;
 use rustc_middle::middle::debugger_visualizer::DebuggerVisualizerFile;
@@ -47,7 +46,6 @@ use rustc_session::cstore::{self, CrateSource};
 use rustc_session::lint::Level;
 use rustc_session::lint::builtin::LINKER_MESSAGES;
 use rustc_session::utils::NativeLibKind;
-use rustc_span::Symbol;
 
 pub mod assert_module_sources;
 pub mod back;
@@ -126,7 +124,7 @@ impl<M> ModuleCodegen<M> {
     }
 }
 
-#[derive(Debug, Encodable, Decodable)]
+#[derive(Debug, Encodable_Generic, Decodable_Generic)]
 pub struct CompiledModule {
     pub name: String,
     pub kind: ModuleKind,
@@ -160,7 +158,7 @@ pub(crate) struct CachedModuleCodegen {
     pub source: WorkProduct,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Encodable, Decodable)]
+#[derive(Copy, Clone, Debug, PartialEq, Encodable_Generic, Decodable_Generic)]
 pub enum ModuleKind {
     Regular,
     Metadata,
@@ -176,11 +174,11 @@ bitflags::bitflags! {
     }
 }
 
-#[derive(Clone, Debug, Encodable, Decodable, HashStable)]
+#[derive(Clone, Debug, Encodable_Generic, Decodable_Generic, HashStable)]
 pub struct NativeLib {
     pub kind: NativeLibKind,
-    pub name: Symbol,
-    pub filename: Option<Symbol>,
+    pub name: String,
+    pub filename: Option<String>,
     pub cfg: Option<ast::MetaItemInner>,
     pub verbatim: bool,
     pub dll_imports: Vec<cstore::DllImport>,
@@ -199,6 +197,8 @@ impl From<&cstore::NativeLib> for NativeLib {
     }
 }
 
+type CrateNum = u32;
+
 /// Misc info we load from metadata to persist beyond the tcx.
 ///
 /// Note: though `CrateNum` is only meaningful within the same tcx, information within `CrateInfo`
@@ -207,19 +207,19 @@ impl From<&cstore::NativeLib> for NativeLib {
 /// identifiers (`CrateNum`) to `CrateSource`. The other fields map `CrateNum` to the crate's own
 /// additional properties, so that effectively we can retrieve each dependent crate's `CrateSource`
 /// and the corresponding properties without referencing information outside of a `CrateInfo`.
-#[derive(Debug, Encodable, Decodable)]
+#[derive(Debug, Encodable_Generic, Decodable_Generic)]
 pub struct CrateInfo {
     pub target_cpu: String,
     pub target_features: Vec<String>,
     pub crate_types: Vec<CrateType>,
     pub exported_symbols: UnordMap<CrateType, Vec<String>>,
     pub linked_symbols: FxIndexMap<CrateType, Vec<(String, SymbolExportKind)>>,
-    pub local_crate_name: Symbol,
+    pub local_crate_name: String,
     pub compiler_builtins: Option<CrateNum>,
     pub profiler_runtime: Option<CrateNum>,
     pub is_no_builtins: FxHashSet<CrateNum>,
     pub native_libraries: FxIndexMap<CrateNum, Vec<NativeLib>>,
-    pub crate_name: UnordMap<CrateNum, Symbol>,
+    pub crate_name: UnordMap<CrateNum, String>,
     pub used_libraries: Vec<NativeLib>,
     pub used_crate_source: UnordMap<CrateNum, Arc<CrateSource>>,
     pub used_crates: Vec<CrateNum>,
@@ -229,7 +229,7 @@ pub struct CrateInfo {
     pub lint_levels: CodegenLintLevels,
 }
 
-#[derive(Encodable, Decodable)]
+#[derive(Encodable_Generic, Decodable_Generic)]
 pub struct CodegenResults {
     pub modules: Vec<CompiledModule>,
     pub allocator_module: Option<CompiledModule>,

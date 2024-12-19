@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 
 use rustc_data_structures::profiling::VerboseTimingGuard;
 use rustc_fs_util::try_canonicalize;
-use rustc_macros::{Decodable, Encodable, HashStable_Generic};
+use rustc_macros::{Decodable_Generic, Encodable_Generic, HashStable_Generic};
 
 use crate::session::Session;
 
@@ -17,7 +17,18 @@ impl Session {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Encodable, Decodable)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Encodable_Generic,
+    Decodable_Generic
+)]
 #[derive(HashStable_Generic)]
 pub enum NativeLibKind {
     /// Static library (e.g. `libfoo.a` on Linux or `foo.lib` on Windows/MSVC)
@@ -80,7 +91,7 @@ impl NativeLibKind {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Encodable, Decodable)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Encodable_Generic, Decodable_Generic)]
 #[derive(HashStable_Generic)]
 pub struct NativeLib {
     pub name: String,

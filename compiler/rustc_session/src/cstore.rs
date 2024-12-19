@@ -12,8 +12,8 @@ use rustc_hir::def_id::{
     CrateNum, DefId, LOCAL_CRATE, LocalDefId, StableCrateId, StableCrateIdMap,
 };
 use rustc_hir::definitions::{DefKey, DefPath, DefPathHash, Definitions};
-use rustc_macros::{Decodable, Encodable, HashStable_Generic};
 use rustc_span::{Span, Symbol};
+use rustc_macros::{Decodable, Decodable_Generic, Encodable, Encodable_Generic, HashStable_Generic};
 
 use crate::search_paths::PathKind;
 use crate::utils::NativeLibKind;
@@ -22,7 +22,7 @@ use crate::utils::NativeLibKind;
 
 /// Where a crate came from on the local filesystem. One of these three options
 /// must be non-None.
-#[derive(PartialEq, Clone, Debug, HashStable_Generic, Encodable, Decodable)]
+#[derive(PartialEq, Clone, Debug, HashStable_Generic, Encodable_Generic, Decodable_Generic)]
 pub struct CrateSource {
     pub dylib: Option<(PathBuf, PathKind)>,
     pub rlib: Option<(PathBuf, PathKind)>,
