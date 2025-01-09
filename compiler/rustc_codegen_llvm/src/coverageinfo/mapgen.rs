@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 use rustc_abi::Align;
-use rustc_codegen_ssa::traits::{
-    BaseTypeCodegenMethods, ConstCodegenMethods, StaticCodegenMethods,
-};
+use rustc_codegen_ssa::traits::{BaseTypeCodegenMethods, ConstCodegenMethods};
 use rustc_data_structures::fx::{FxHashSet, FxIndexMap};
 use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_index::IndexVec;

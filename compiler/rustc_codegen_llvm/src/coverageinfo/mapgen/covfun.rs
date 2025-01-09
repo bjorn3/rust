@@ -7,9 +7,7 @@
 use std::ffi::CString;
 
 use rustc_abi::Align;
-use rustc_codegen_ssa::traits::{
-    BaseTypeCodegenMethods, ConstCodegenMethods, StaticCodegenMethods,
-};
+use rustc_codegen_ssa::traits::{BaseTypeCodegenMethods, ConstCodegenMethods};
 use rustc_middle::mir::coverage::{
     CovTerm, CoverageIdsInfo, Expression, FunctionCoverageInfo, Mapping, MappingKind, Op,
 };
