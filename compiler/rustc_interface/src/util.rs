@@ -8,7 +8,7 @@ use rustc_ast as ast;
 use rustc_codegen_ssa::traits::CodegenBackend;
 use rustc_data_structures::sync;
 use rustc_metadata::{DylibError, load_symbol_from_dylib};
-use rustc_middle::ty::CurrentGcx;
+use rustc_middle::ty::{CurrentGcx, TyCtxt};
 use rustc_parse::validate_attr;
 use rustc_session::config::{Cfg, OutFileName, OutputFilenames, OutputTypes, host_tuple};
 use rustc_session::filesearch::sysroot_candidates;
@@ -279,6 +279,7 @@ pub fn get_codegen_backend(
             }
             #[cfg(feature = "llvm")]
             "llvm" => rustc_codegen_llvm::LlvmCodegenBackend::new,
+            "dummy" => DummyCodegenBackend::new,
             backend_name => get_codegen_sysroot(early_dcx, sysroot, backend_name),
         }
     });
@@ -287,6 +288,44 @@ pub fn get_codegen_backend(
     // backend we hope that the backend links against the same rustc_driver version. If this is not
     // the case, we get UB.
     unsafe { load() }
+}
+
+struct DummyCodegenBackend;
+
+impl DummyCodegenBackend {
+    fn new() -> Box<dyn CodegenBackend> {
+        Box::new(DummyCodegenBackend)
+    }
+}
+
+impl CodegenBackend for DummyCodegenBackend {
+    fn locale_resource(&self) -> &'static str {
+        ""
+    }
+
+    fn codegen_crate<'tcx>(
+        &self,
+        _tcx: TyCtxt<'tcx>,
+        _metadata: rustc_metadata::EncodedMetadata,
+        _need_metadata_module: bool,
+    ) -> Box<dyn std::any::Any> {
+        todo!()
+    }
+
+    fn join_codegen(
+        &self,
+        _ongoing_codegen: Box<dyn std::any::Any>,
+        _sess: &Session,
+        _outputs: &OutputFilenames,
+    ) -> (
+        rustc_codegen_ssa::CodegenResults,
+        rustc_data_structures::fx::FxIndexMap<
+            rustc_middle::dep_graph::WorkProductId,
+            rustc_middle::dep_graph::WorkProduct,
+        >,
+    ) {
+        todo!()
+    }
 }
 
 // This is used for rustdoc, but it uses similar machinery to codegen backend

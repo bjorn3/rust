@@ -18,9 +18,8 @@ use rustc_parse::parser::attr::AllowLeadingUnsafe;
 use rustc_query_impl::QueryCtxt;
 use rustc_query_system::query::print_query_stack;
 use rustc_session::config::{self, Cfg, CheckCfg, ExpectedValues, Input, OutFileName};
-use rustc_session::filesearch::{self, sysroot_candidates};
 use rustc_session::parse::ParseSess;
-use rustc_session::{CompilerIO, EarlyDiagCtxt, Session, lint};
+use rustc_session::{CompilerIO, EarlyDiagCtxt, Session, filesearch, lint};
 use rustc_span::source_map::{FileLoader, RealFileLoader, SourceMapInputs};
 use rustc_span::{FileName, sym};
 use tracing::trace;
@@ -425,7 +424,7 @@ pub fn run_compiler<R: Send>(config: Config, f: impl FnOnce(&Compiler) -> R + Se
 
             let bundle = match rustc_errors::fluent_bundle(
                 config.opts.maybe_sysroot.clone(),
-                sysroot_candidates().to_vec(),
+                vec![sysroot.clone()],
                 config.opts.unstable_opts.translate_lang.clone(),
                 config.opts.unstable_opts.translate_additional_ftl.as_deref(),
                 config.opts.unstable_opts.translate_directionality_markers,
