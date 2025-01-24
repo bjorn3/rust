@@ -251,6 +251,10 @@ pub(crate) fn default_sysroot() -> PathBuf {
         rustlib_path.exists().then_some(p)
     }
 
+    if cfg!(miri) {
+        return PathBuf::from("/unknown-sysroot");
+    }
+
     from_env_args_next()
         .unwrap_or_else(|| default_from_rustc_driver_dll().expect("Failed finding sysroot"))
 }
