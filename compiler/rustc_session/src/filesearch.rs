@@ -63,7 +63,10 @@ fn current_dll_path() -> Result<PathBuf, String> {
     use std::ffi::{CStr, OsStr};
     use std::os::unix::prelude::*;
 
-    #[cfg(not(target_os = "aix"))]
+    #[cfg(miri)]
+    return Err("must manually specify --sysroot in miri".to_owned());
+
+    #[cfg(all(not(miri), not(target_os = "aix")))]
     unsafe {
         let addr = current_dll_path as usize as *mut _;
         let mut info = std::mem::zeroed();
@@ -160,8 +163,12 @@ fn current_dll_path() -> Result<PathBuf, String> {
 
 pub fn sysroot_candidates() -> SmallVec<[PathBuf; 2]> {
     let target = crate::config::host_tuple();
+    #[cfg(miri)]
+    let mut sysroot_candidates: SmallVec<[PathBuf; 2]> = smallvec![];
+    #[cfg(not(miri))]
     let mut sysroot_candidates: SmallVec<[PathBuf; 2]> =
         smallvec![get_or_default_sysroot().expect("Failed finding sysroot")];
+
     let path = current_dll_path().and_then(|s| try_canonicalize(s).map_err(|e| e.to_string()));
     if let Ok(dll) = path {
         // use `parent` twice to chop off the file name and then also the
