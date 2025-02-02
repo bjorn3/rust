@@ -260,7 +260,7 @@ pub fn run_compiler(at_args: &[String], callbacks: &mut (dyn Callbacks + Send)) 
         file_loader: None,
         locale_resources: DEFAULT_LOCALE_RESOURCES.to_vec(),
         lint_caps: Default::default(),
-        psess_created: None,
+        error_emitter: None,
         track_state: None,
         register_lints: None,
         override_queries: None,

@@ -290,7 +290,7 @@ pub(crate) fn create_config(
         file_loader: None,
         locale_resources: rustc_driver::DEFAULT_LOCALE_RESOURCES.to_vec(),
         lint_caps,
-        psess_created: None,
+        error_emitter: None,
         track_state: None,
         register_lints: Some(Box::new(crate::lint::register_lints)),
         override_queries: Some(|_sess, providers| {

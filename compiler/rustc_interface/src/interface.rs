@@ -7,6 +7,8 @@ use rustc_codegen_ssa::traits::CodegenBackend;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_data_structures::jobserver::{self, Proxy};
 use rustc_data_structures::stable_hasher::StableHasher;
+use rustc_data_structures::sync::DynSend;
+use rustc_errors::emitter::Emitter;
 use rustc_errors::registry::Registry;
 use rustc_errors::{DiagCtxtHandle, ErrorGuaranteed};
 use rustc_lint::LintStore;
@@ -330,8 +332,10 @@ pub struct Config {
 
     pub lint_caps: FxHashMap<lint::LintId, lint::Level>,
 
-    /// This is a callback from the driver that is called when [`ParseSess`] is created.
-    pub psess_created: Option<Box<dyn FnOnce(&mut ParseSess) + Send>>,
+    /// The error emitter to use in place of the default.
+    ///
+    /// Required by Aquascope and Argus.
+    pub error_emitter: Option<Box<dyn FnOnce() -> Box<dyn Emitter + DynSend> + Send>>,
 
     /// This is a callback to track otherwise untracked state used by the caller.
     ///
@@ -480,6 +484,10 @@ pub fn run_compiler<R: Send>(config: Config, f: impl FnOnce(&Compiler) -> R + Se
                 config.expanded_args,
             );
 
+            if let Some(emitter) = config.error_emitter {
+                sess.psess.dcx().set_emitter(emitter());
+            }
+
             codegen_backend.init(&sess);
 
             let cfg = parse_cfg(sess.dcx(), config.crate_cfg);
@@ -490,10 +498,6 @@ pub fn run_compiler<R: Send>(config: Config, f: impl FnOnce(&Compiler) -> R + Se
             let mut check_cfg = parse_check_cfg(sess.dcx(), config.crate_check_cfg);
             check_cfg.fill_well_known(&sess.target);
             sess.psess.check_config = check_cfg;
-
-            if let Some(psess_created) = config.psess_created {
-                psess_created(&mut sess.psess);
-            }
 
             if let Some(track_state) = config.track_state {
                 let mut hasher = StableHasher::new();

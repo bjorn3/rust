@@ -68,11 +68,8 @@ fn main() {
         file_loader: None,
         locale_resources: rustc_driver::DEFAULT_LOCALE_RESOURCES.to_owned(),
         lint_caps: rustc_hash::FxHashMap::default(),
-        psess_created: Some(Box::new(|parse_sess| {
-            parse_sess.dcx().set_emitter(Box::new(DebugEmitter {
-                source_map: parse_sess.clone_source_map(),
-                diagnostics,
-            }));
+        error_emitter: Some(Box::new(|| {
+            Box::new(DebugEmitter { source_map: parse_sess.clone_source_map(), diagnostics })
         })),
         register_lints: None,
         override_queries: None,
