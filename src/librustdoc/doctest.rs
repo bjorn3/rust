@@ -189,7 +189,7 @@ pub(crate) fn run(dcx: DiagCtxtHandle<'_>, input: Input, options: RustdocOptions
         output_dir: None,
         file_loader: None,
         lint_caps,
-        psess_created: None,
+        error_emitter: None,
         track_state: None,
         register_lints: Some(Box::new(crate::lint::register_lints)),
         override_queries: None,

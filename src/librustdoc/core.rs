@@ -295,7 +295,7 @@ pub(crate) fn create_config(
         },
         file_loader: None,
         lint_caps,
-        psess_created: None,
+        error_emitter: None,
         track_state: None,
         register_lints: Some(Box::new(crate::lint::register_lints)),
         override_queries: Some(|_sess, providers| {
