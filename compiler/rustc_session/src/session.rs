@@ -207,6 +207,12 @@ pub struct Session {
     /// how to call the compiler with the same arguments.
     pub expanded_args: Vec<String>,
 
+    /// Environment variables accessed during the build and their values when they exist.
+    pub env_depinfo: Lock<FxIndexSet<(Symbol, Option<Symbol>)>>,
+
+    /// File paths accessed during the build.
+    pub file_depinfo: Lock<FxIndexSet<Symbol>>,
+
     target_filesearch: FileSearch,
     host_filesearch: FileSearch,
 
@@ -1160,6 +1166,8 @@ pub fn build_session(
         target_filesearch,
         host_filesearch,
         invocation_temp,
+        env_depinfo: Default::default(),
+        file_depinfo: Default::default(),
     };
 
     validate_commandline_args_with_session_available(&sess);
