@@ -5,7 +5,7 @@ use std::str;
 
 use rustc_ast::attr::AttrIdGenerator;
 use rustc_ast::node_id::NodeId;
-use rustc_data_structures::fx::{FxHashMap, FxIndexMap, FxIndexSet};
+use rustc_data_structures::fx::{FxHashMap, FxIndexMap};
 use rustc_data_structures::sync::{AppendOnlyVec, Lock, Lrc};
 use rustc_errors::emitter::{HumanEmitter, SilentEmitter, stderr_destination};
 use rustc_errors::{
@@ -222,10 +222,6 @@ pub struct ParseSess {
     pub ambiguous_block_expr_parse: Lock<FxIndexMap<Span, Span>>,
     pub gated_spans: GatedSpans,
     pub symbol_gallery: SymbolGallery,
-    /// Environment variables accessed during the build and their values when they exist.
-    pub env_depinfo: Lock<FxIndexSet<(Symbol, Option<Symbol>)>>,
-    /// File paths accessed during the build.
-    pub file_depinfo: Lock<FxIndexSet<Symbol>>,
     /// Whether cfg(version) should treat the current release as incomplete
     pub assume_incomplete_release: bool,
     /// Spans passed to `proc_macro::quote_span`. Each span has a numerical
@@ -262,8 +258,6 @@ impl ParseSess {
             ambiguous_block_expr_parse: Lock::new(Default::default()),
             gated_spans: GatedSpans::default(),
             symbol_gallery: SymbolGallery::default(),
-            env_depinfo: Default::default(),
-            file_depinfo: Default::default(),
             assume_incomplete_release: false,
             proc_macro_quoted_spans: Default::default(),
             attr_id_generator: AttrIdGenerator::new(),
