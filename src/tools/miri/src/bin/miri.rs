@@ -1,3 +1,5 @@
+// FIXME use -Zjit-mode in miri
+
 #![feature(rustc_private, stmt_expr_attributes)]
 #![allow(
     clippy::manual_range_contains,
