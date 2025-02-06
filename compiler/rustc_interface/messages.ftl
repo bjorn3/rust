@@ -3,9 +3,6 @@ interface_abi_required_feature =
     .note = this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
 interface_abi_required_feature_issue = for more information, see issue #116344 <https://github.com/rust-lang/rust/issues/116344>
 
-interface_cant_emit_mir =
-    could not emit MIR: {$error}
-
 interface_emoji_identifier =
     identifiers cannot contain emoji: `{$ident}`
 
