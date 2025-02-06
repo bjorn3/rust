@@ -3,6 +3,7 @@
 
 use std::ffi::CString;
 use std::os::raw::{c_char, c_int};
+use std::process::ExitCode;
 
 use cranelift_jit::{JITBuilder, JITModule};
 use rustc_codegen_ssa::CrateInfo;
@@ -32,7 +33,7 @@ fn create_jit_module(tcx: TyCtxt<'_>) -> (UnwindModule<JITModule>, CodegenCx) {
     (jit_module, cx)
 }
 
-pub(crate) fn run_jit(tcx: TyCtxt<'_>, jit_args: Vec<String>) -> ! {
+pub(crate) fn run_jit(tcx: TyCtxt<'_>, jit_args: Vec<String>) -> ExitCode {
     if !tcx.sess.opts.output_types.should_codegen() {
         tcx.dcx().fatal("JIT mode doesn't work with `cargo check`");
     }
@@ -117,7 +118,7 @@ pub(crate) fn run_jit(tcx: TyCtxt<'_>, jit_args: Vec<String>) -> ! {
     argv.push(std::ptr::null());
 
     let ret = f(args.len() as c_int, argv.as_ptr());
-    std::process::exit(ret);
+    ExitCode::from(ret as u8)
 }
 
 fn codegen_and_compile_fn<'tcx>(

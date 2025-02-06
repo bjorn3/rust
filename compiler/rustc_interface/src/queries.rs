@@ -1,8 +1,10 @@
 use std::any::Any;
+use std::process::ExitCode;
 use std::sync::Arc;
 
 use rustc_codegen_ssa::CodegenResults;
 use rustc_codegen_ssa::traits::CodegenBackend;
+use rustc_data_structures::fx::FxIndexMap;
 use rustc_data_structures::svh::Svh;
 use rustc_errors::timings::TimingSection;
 use rustc_hir::def_id::LOCAL_CRATE;
@@ -15,21 +17,35 @@ use rustc_session::config::{self, OutputFilenames, OutputType};
 use crate::errors::FailedWritingFile;
 use crate::passes;
 
+enum ExitCodeOr<T> {
+    ExitCode(ExitCode),
+    Codegen(T),
+}
+
 pub struct Linker {
     dep_graph: DepGraph,
     output_filenames: Arc<OutputFilenames>,
     // Only present when incr. comp. is enabled.
     crate_hash: Option<Svh>,
     metadata: EncodedMetadata,
-    ongoing_codegen: Box<dyn Any>,
+    ongoing_codegen: ExitCodeOr<Box<dyn Any>>,
 }
 
 impl Linker {
     pub fn codegen_and_build_linker(
         tcx: TyCtxt<'_>,
         codegen_backend: &dyn CodegenBackend,
+        jit_args: Vec<String>,
     ) -> Linker {
-        let (ongoing_codegen, metadata) = passes::start_codegen(codegen_backend, tcx);
+        let (ongoing_codegen, metadata) = if tcx.sess.opts.unstable_opts.jit_mode {
+            (
+                ExitCodeOr::ExitCode(passes::jit_crate(codegen_backend, tcx, jit_args)),
+                EncodedMetadata::empty(),
+            )
+        } else {
+            let (ongoing_codegen, metadata) = passes::start_codegen(codegen_backend, tcx);
+            (ExitCodeOr::Codegen(ongoing_codegen), metadata)
+        };
 
         Linker {
             dep_graph: tcx.dep_graph.clone(),
@@ -45,9 +61,16 @@ impl Linker {
     }
 
     pub fn link(self, sess: &Session, codegen_backend: &dyn CodegenBackend) {
-        let (codegen_results, mut work_products) = sess.time("finish_ongoing_codegen", || {
-            codegen_backend.join_codegen(self.ongoing_codegen, sess, &self.output_filenames)
-        });
+        let (res, mut work_products) = match self.ongoing_codegen {
+            ExitCodeOr::ExitCode(exit_code) => {
+                (ExitCodeOr::ExitCode(exit_code), FxIndexMap::default())
+            }
+            ExitCodeOr::Codegen(any) => sess.time("finish_ongoing_codegen", || {
+                let (codegen_results, work_products) =
+                    codegen_backend.join_codegen(any, sess, &self.output_filenames);
+                (ExitCodeOr::Codegen(codegen_results), work_products)
+            }),
+        };
         sess.timings.end_section(sess.dcx(), TimingSection::Codegen);
 
         if sess.opts.incremental.is_some()
@@ -87,23 +110,28 @@ impl Linker {
             return;
         }
 
-        if sess.opts.unstable_opts.no_link {
-            let rlink_file = self.output_filenames.with_extension(config::RLINK_EXT);
-            CodegenResults::serialize_rlink(
-                sess,
-                &rlink_file,
-                &codegen_results,
-                &self.metadata,
-                &*self.output_filenames,
-            )
-            .unwrap_or_else(|error| {
-                sess.dcx().emit_fatal(FailedWritingFile { path: &rlink_file, error })
-            });
-            return;
-        }
+        match res {
+            ExitCodeOr::ExitCode(exit_code) => exit_code.exit_process(),
+            ExitCodeOr::Codegen(codegen_results) => {
+                if sess.opts.unstable_opts.no_link {
+                    let rlink_file = self.output_filenames.with_extension(config::RLINK_EXT);
+                    CodegenResults::serialize_rlink(
+                        sess,
+                        &rlink_file,
+                        &codegen_results,
+                        &self.metadata,
+                        &*self.output_filenames,
+                    )
+                    .unwrap_or_else(|error| {
+                        sess.dcx().emit_fatal(FailedWritingFile { path: &rlink_file, error })
+                    });
+                    return;
+                }
 
-        let _timer = sess.prof.verbose_generic_activity("link_crate");
-        let _timing = sess.timings.section_guard(sess.dcx(), TimingSection::Linking);
-        codegen_backend.link(sess, codegen_results, self.metadata, &self.output_filenames)
+                let _timer = sess.prof.verbose_generic_activity("link_crate");
+                let _timing = sess.timings.section_guard(sess.dcx(), TimingSection::Linking);
+                codegen_backend.link(sess, codegen_results, self.metadata, &self.output_filenames)
+            }
+        }
     }
 }
