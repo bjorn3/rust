@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::hash::Hash;
+use std::process::ExitCode;
 
 use rustc_ast::expand::allocator::AllocatorKind;
 use rustc_data_structures::fx::FxIndexMap;
@@ -87,6 +88,12 @@ pub trait CodegenBackend {
     /// This is called on the returned [`CodegenResults`] from [`join_codegen`](Self::join_codegen).
     fn link(&self, sess: &Session, codegen_results: CodegenResults, outputs: &OutputFilenames) {
         link_binary(sess, &ArArchiveBuilderBuilder, codegen_results, outputs);
+    }
+
+    /// Used in place of [`codegen_crate`](Self::codegen_crate) when `-Zjit-mode` is passed.
+    fn jit_crate<'tcx>(&self, tcx: TyCtxt<'tcx>, args: Vec<String>) -> ExitCode {
+        let _ = args;
+        tcx.sess.dcx().fatal("-Zjit-mode not supported by the active codegen backend")
     }
 
     /// Returns `true` if this backend can be safely called from multiple threads.

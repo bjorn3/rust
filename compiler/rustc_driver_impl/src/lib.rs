@@ -220,7 +220,15 @@ pub fn run_compiler(at_args: &[String], callbacks: &mut (dyn Callbacks + Send)) 
     // the compiler with @empty_file as argv[0] and no more arguments.
     let at_args = at_args.get(1..).unwrap_or_default();
 
-    let args = args::arg_expand_all(&default_early_dcx, at_args);
+    let mut args = args::arg_expand_all(&default_early_dcx, at_args);
+
+    let (args, jit_args) = if let Some(idx) = args.iter().position(|arg| arg == "--") {
+        let mut jit_args = args.split_off(idx);
+        jit_args.remove(0);
+        (args, jit_args)
+    } else {
+        (args, vec![])
+    };
 
     let Some(matches) = handle_options(&default_early_dcx, &args) else {
         return;
@@ -238,6 +246,10 @@ pub fn run_compiler(at_args: &[String], callbacks: &mut (dyn Callbacks + Send)) 
     let input = make_input(&default_early_dcx, &matches.free);
     let has_input = input.is_some();
     let (odir, ofile) = make_output(&matches);
+
+    if !jit_args.is_empty() && !sopts.unstable_opts.jit_mode {
+        default_early_dcx.early_fatal("passing arguments after -- requires -Zjit-mode");
+    }
 
     drop(default_early_dcx);
 
@@ -372,7 +384,7 @@ pub fn run_compiler(at_args: &[String], callbacks: &mut (dyn Callbacks + Send)) 
                 }
             }
 
-            Some(Linker::codegen_and_build_linker(tcx, &*compiler.codegen_backend))
+            Some(Linker::codegen_and_build_linker(tcx, &*compiler.codegen_backend, jit_args))
         });
 
         // Linking is done outside the `compiler.enter()` so that the
@@ -380,7 +392,7 @@ pub fn run_compiler(at_args: &[String], callbacks: &mut (dyn Callbacks + Send)) 
         if let Some(linker) = linker {
             linker.link(sess, codegen_backend);
         }
-    })
+    });
 }
 
 fn dump_feature_usage_metrics(tcxt: TyCtxt<'_>, metrics_dir: &Path) {
@@ -400,7 +412,7 @@ fn dump_feature_usage_metrics(tcxt: TyCtxt<'_>, metrics_dir: &Path) {
     }
 }
 
-// Extract output directory and file from matches.
+/// Extract output directory and file from matches.
 fn make_output(matches: &getopts::Matches) -> (Option<PathBuf>, Option<OutFileName>) {
     let odir = matches.opt_str("out-dir").map(|o| PathBuf::from(&o));
     let ofile = matches.opt_str("o").map(|o| match o.as_str() {

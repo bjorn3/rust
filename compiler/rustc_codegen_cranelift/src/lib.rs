@@ -36,6 +36,7 @@ extern crate rustc_driver;
 
 use std::any::Any;
 use std::env;
+use std::process::ExitCode;
 use std::sync::Arc;
 
 use cranelift_codegen::isa::TargetIsa;
@@ -210,19 +211,7 @@ impl CodegenBackend for CraneliftCodegenBackend {
         need_metadata_module: bool,
     ) -> Box<dyn Any> {
         info!("codegen crate {}", tcx.crate_name(LOCAL_CRATE));
-        let config = self.config.clone().unwrap_or_else(|| {
-            BackendConfig::from_opts(&tcx.sess.opts.cg.llvm_args)
-                .unwrap_or_else(|err| tcx.sess.dcx().fatal(err))
-        });
-        if config.jit_mode {
-            #[cfg(feature = "jit")]
-            driver::jit::run_jit(tcx, config.lazy_jit, config.jit_args);
-
-            #[cfg(not(feature = "jit"))]
-            tcx.dcx().fatal("jit support was disabled when compiling rustc_codegen_cranelift");
-        } else {
-            driver::aot::run_aot(tcx, metadata, need_metadata_module)
-        }
+        driver::aot::run_aot(tcx, metadata, need_metadata_module)
     }
 
     fn join_codegen(
@@ -232,6 +221,26 @@ impl CodegenBackend for CraneliftCodegenBackend {
         outputs: &OutputFilenames,
     ) -> (CodegenResults, FxIndexMap<WorkProductId, WorkProduct>) {
         ongoing_codegen.downcast::<driver::aot::OngoingCodegen>().unwrap().join(sess, outputs)
+    }
+
+    fn jit_crate<'tcx>(&self, tcx: TyCtxt<'tcx>, args: Vec<String>) -> ExitCode {
+        info!("codegen crate {}", tcx.crate_name(LOCAL_CRATE));
+
+        let config = self.config.clone().unwrap_or_else(|| {
+            BackendConfig::from_opts(&tcx.sess.opts.cg.llvm_args)
+                .unwrap_or_else(|err| tcx.sess.dcx().fatal(err))
+        });
+
+        #[cfg(feature = "jit")]
+        #[allow(unreachable_code)]
+        return driver::jit::run_jit(tcx, config.lazy_jit, args);
+
+        #[cfg(not(feature = "jit"))]
+        {
+            let _ = args;
+            let _ = config;
+            tcx.dcx().fatal("jit support was disabled when compiling rustc_codegen_cranelift");
+        }
     }
 }
 
@@ -260,7 +269,7 @@ fn build_isa(sess: &Session) -> Arc<dyn TargetIsa + 'static> {
     let target_triple = crate::target_triple(sess);
 
     let mut flags_builder = settings::builder();
-    flags_builder.enable("is_pic").unwrap();
+    flags_builder.set("is_pic", "false").unwrap();
     let enable_verifier = if enable_verifier(sess) { "true" } else { "false" };
     flags_builder.set("enable_verifier", enable_verifier).unwrap();
     flags_builder.set("regalloc_checker", enable_verifier).unwrap();

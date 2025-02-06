@@ -4,6 +4,7 @@
 use std::cell::RefCell;
 use std::ffi::CString;
 use std::os::raw::{c_char, c_int};
+use std::process::ExitCode;
 use std::sync::{Mutex, OnceLock, mpsc};
 
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext};
@@ -41,6 +42,7 @@ enum UnsafeMessage {
         trampoline_ptr: *const u8,
         tx: mpsc::Sender<*const u8>,
     },
+    Exit(ExitCode),
 }
 unsafe impl Send for UnsafeMessage {}
 
@@ -79,7 +81,7 @@ fn create_jit_module(tcx: TyCtxt<'_>, hotswap: bool) -> (UnwindModule<JITModule>
     (jit_module, cx)
 }
 
-pub(crate) fn run_jit(tcx: TyCtxt<'_>, jit_lazy: bool, jit_args: Vec<String>) -> ! {
+pub(crate) fn run_jit(tcx: TyCtxt<'_>, jit_lazy: bool, jit_args: Vec<String>) -> ExitCode {
     if !tcx.sess.opts.output_types.should_codegen() {
         tcx.dcx().fatal("JIT mode doesn't work with `cargo check`");
     }
@@ -91,7 +93,7 @@ pub(crate) fn run_jit(tcx: TyCtxt<'_>, jit_lazy: bool, jit_args: Vec<String>) ->
     let (mut jit_module, mut cx) = create_jit_module(tcx, jit_lazy);
     let mut cached_context = Context::new();
 
-    let (_, cgus) = tcx.collect_and_partition_mono_items(());
+    let cgus = tcx.collect_and_partition_mono_items(()).codegen_units;
     let mono_items = cgus
         .iter()
         .map(|cgu| cgu.items_in_deterministic_order(tcx).into_iter())
@@ -180,7 +182,7 @@ pub(crate) fn run_jit(tcx: TyCtxt<'_>, jit_lazy: bool, jit_args: Vec<String>) ->
         argv.push(std::ptr::null());
 
         let ret = f(args.len() as c_int, argv.as_ptr());
-        std::process::exit(ret);
+        UnsafeMessage::Exit(ExitCode::from(ret as u8)).send();
     });
 
     // Handle messages
@@ -191,6 +193,7 @@ pub(crate) fn run_jit(tcx: TyCtxt<'_>, jit_lazy: bool, jit_args: Vec<String>) ->
                 tx.send(jit_fn(instance_ptr, trampoline_ptr))
                     .expect("jitted runtime hung up before response to lazy JIT request was sent");
             }
+            UnsafeMessage::Exit(exit_code) => return exit_code,
         }
     }
 }
