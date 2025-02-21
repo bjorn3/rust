@@ -12,6 +12,7 @@ use rustc_session::config::{
     OptionsTargetModifiers, UnstableOptions, get_cmd_lint_options, nightly_options,
     parse_crate_types_from_list, parse_externs, parse_target_triple,
 };
+use rustc_session::filesearch::materialize_sysroot;
 use rustc_session::lint::Level;
 use rustc_session::search_paths::SearchPath;
 use rustc_session::{EarlyDiagCtxt, getopts};
@@ -713,12 +714,7 @@ impl Options {
         let target = parse_target_triple(early_dcx, matches);
         let maybe_sysroot = matches.opt_str("sysroot").map(PathBuf::from);
 
-        let sysroot = match &maybe_sysroot {
-            Some(s) => s.clone(),
-            None => {
-                rustc_session::filesearch::get_or_default_sysroot().expect("Failed finding sysroot")
-            }
-        };
+        let sysroot = materialize_sysroot(maybe_sysroot.clone());
 
         let libs = matches
             .opt_strs("L")
