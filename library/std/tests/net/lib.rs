@@ -1,8 +1,15 @@
-#![allow(warnings)] // not used on emscripten
+#![feature(core_io_borrowed_buf)]
+#![feature(io_error_uncategorized)]
+#![feature(read_buf)]
+#![feature(tcp_linger)]
 
-use crate::env;
-use crate::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
-use crate::sync::atomic::{AtomicUsize, Ordering};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+mod ip_addr;
+mod socket_addr;
+mod tcp;
+mod udp;
 
 static PORT: AtomicUsize = AtomicUsize::new(0);
 const BASE_PORT: u16 = 19600;

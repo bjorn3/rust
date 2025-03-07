@@ -1,15 +1,5 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
-#[cfg(all(
-    test,
-    not(any(
-        target_os = "emscripten",
-        all(target_os = "wasi", target_env = "p1"),
-        target_os = "xous"
-    ))
-))]
-mod tests;
-
 use crate::fmt;
 use crate::io::prelude::*;
 use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut};

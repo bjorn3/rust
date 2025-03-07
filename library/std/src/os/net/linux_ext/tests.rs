@@ -1,9 +1,17 @@
+use crate::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream};
+use crate::os::net::linux_ext::tcp::TcpStreamExt;
+use crate::sync::atomic::{AtomicUsize, Ordering};
+
+static PORT: AtomicUsize = AtomicUsize::new(0);
+const BASE_PORT: u16 = 19700; // Chosen to not conflict with tests/net/mod.rs
+
+pub fn next_test_ip4() -> SocketAddr {
+    let port = PORT.fetch_add(1, Ordering::Relaxed) as u16 + BASE_PORT;
+    SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port))
+}
+
 #[test]
 fn quickack() {
-    use crate::net::test::next_test_ip4;
-    use crate::net::{TcpListener, TcpStream};
-    use crate::os::net::linux_ext::tcp::TcpStreamExt;
-
     macro_rules! t {
         ($e:expr) => {
             match $e {
@@ -29,10 +37,6 @@ fn quickack() {
 #[test]
 #[cfg(target_os = "linux")]
 fn deferaccept() {
-    use crate::net::test::next_test_ip4;
-    use crate::net::{TcpListener, TcpStream};
-    use crate::os::net::linux_ext::tcp::TcpStreamExt;
-
     macro_rules! t {
         ($e:expr) => {
             match $e {

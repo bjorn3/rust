@@ -153,6 +153,10 @@ name = "io"
 path = "tests/io/lib.rs"
 
 [[test]]
+name = "net"
+path = "tests/net/lib.rs"
+
+[[test]]
 name = "thread_local"
 path = "tests/thread_local/lib.rs"
 

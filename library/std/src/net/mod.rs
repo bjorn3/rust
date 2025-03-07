@@ -39,8 +39,6 @@ use crate::io::{self, ErrorKind};
 mod ip_addr;
 mod socket_addr;
 mod tcp;
-#[cfg(test)]
-pub(crate) mod test;
 mod udp;
 
 /// Possible values which can be passed to the [`TcpStream::shutdown`] method.

@@ -1,5 +1,8 @@
-use crate::net::test::{sa4, sa6, tsa};
-use crate::net::*;
+#![cfg(not(any(target_os = "emscripten", all(target_os = "wasi", target_env = "p1"))))]
+
+use std::net::*;
+
+use crate::{sa4, sa6, tsa};
 
 #[test]
 fn to_socket_addr_ipaddr_u16() {
@@ -139,7 +142,7 @@ fn bind_udp_socket_bad() {
 
     const INPUT_23076: &str = "1200::AB00:1234::2552:7777:1313:34300";
 
-    assert!(crate::net::UdpSocket::bind(INPUT_23076).is_err())
+    assert!(std::net::UdpSocket::bind(INPUT_23076).is_err())
 }
 
 #[test]

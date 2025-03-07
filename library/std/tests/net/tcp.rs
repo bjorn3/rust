@@ -1,11 +1,18 @@
-use crate::io::prelude::*;
-use crate::io::{BorrowedBuf, IoSlice, IoSliceMut};
-use crate::mem::MaybeUninit;
-use crate::net::test::{next_test_ip4, next_test_ip6};
-use crate::net::*;
-use crate::sync::mpsc::channel;
-use crate::time::{Duration, Instant};
-use crate::{fmt, thread};
+#![cfg(not(any(
+    target_os = "emscripten",
+    all(target_os = "wasi", target_env = "p1"),
+    target_os = "xous"
+)))]
+
+use std::io::prelude::*;
+use std::io::{BorrowedBuf, ErrorKind, IoSlice, IoSliceMut};
+use std::mem::MaybeUninit;
+use std::net::*;
+use std::sync::mpsc::channel;
+use std::time::{Duration, Instant};
+use std::{fmt, thread};
+
+use crate::{next_test_ip4, next_test_ip6};
 
 fn each_ip(f: &mut dyn FnMut(SocketAddr)) {
     f(next_test_ip4());
@@ -691,15 +698,15 @@ fn debug() {
     }
 
     #[cfg(any(unix, target_os = "wasi"))]
-    use crate::os::fd::AsRawFd;
+    use std::os::fd::AsRawFd;
     #[cfg(target_env = "sgx")]
-    use crate::os::fortanix_sgx::io::AsRawFd;
+    use std::os::fortanix_sgx::io::AsRawFd;
     #[cfg(not(windows))]
     fn render_inner(addr: &dyn AsRawFd) -> impl fmt::Debug {
         addr.as_raw_fd()
     }
     #[cfg(windows)]
-    fn render_inner(addr: &dyn crate::os::windows::io::AsRawSocket) -> impl fmt::Debug {
+    fn render_inner(addr: &dyn std::os::windows::io::AsRawSocket) -> impl fmt::Debug {
         addr.as_raw_socket()
     }
 

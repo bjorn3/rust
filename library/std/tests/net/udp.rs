@@ -1,8 +1,17 @@
-use crate::net::test::{next_test_ip4, next_test_ip6};
-use crate::net::*;
-use crate::sync::mpsc::channel;
-use crate::thread;
-use crate::time::{Duration, Instant};
+#![cfg(not(any(
+    target_os = "emscripten",
+    all(target_os = "wasi", target_env = "p1"),
+    target_env = "sgx",
+    target_os = "xous"
+)))]
+
+use std::io::ErrorKind;
+use std::net::*;
+use std::sync::mpsc::channel;
+use std::thread;
+use std::time::{Duration, Instant};
+
+use crate::{next_test_ip4, next_test_ip6};
 
 fn each_ip(f: &mut dyn FnMut(SocketAddr, SocketAddr)) {
     f(next_test_ip4(), next_test_ip4());
@@ -170,12 +179,29 @@ fn udp_clone_two_write() {
 }
 
 #[test]
+#[cfg(unix)]
 fn debug() {
-    let name = if cfg!(windows) { "socket" } else { "fd" };
+    use std::os::fd::AsRawFd;
+
+    let name = "fd";
     let socket_addr = next_test_ip4();
 
     let udpsock = t!(UdpSocket::bind(&socket_addr));
-    let udpsock_inner = udpsock.0.socket().as_raw();
+    let udpsock_inner = udpsock.as_raw_fd();
+    let compare = format!("UdpSocket {{ addr: {socket_addr:?}, {name}: {udpsock_inner:?} }}");
+    assert_eq!(format!("{udpsock:?}"), compare);
+}
+
+#[test]
+#[cfg(windows)]
+fn debug() {
+    use std::os::windows::io::AsRawSocket;
+
+    let name = "socket";
+    let socket_addr = next_test_ip4();
+
+    let udpsock = t!(UdpSocket::bind(&socket_addr));
+    let udpsock_inner = udpsock.as_raw_socket();
     let compare = format!("UdpSocket {{ addr: {socket_addr:?}, {name}: {udpsock_inner:?} }}");
     assert_eq!(format!("{udpsock:?}"), compare);
 }

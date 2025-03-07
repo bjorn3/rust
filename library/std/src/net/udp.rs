@@ -1,14 +1,3 @@
-#[cfg(all(
-    test,
-    not(any(
-        target_os = "emscripten",
-        all(target_os = "wasi", target_env = "p1"),
-        target_env = "sgx",
-        target_os = "xous"
-    ))
-))]
-mod tests;
-
 use crate::fmt;
 use crate::io::{self, ErrorKind};
 use crate::net::{Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
