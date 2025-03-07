@@ -1,7 +1,8 @@
-use super::*;
-use crate::panic::{RefUnwindSafe, UnwindSafe};
-use crate::sync::mpsc::sync_channel;
-use crate::thread;
+use std::io::*;
+use std::panic::{RefUnwindSafe, UnwindSafe};
+use std::sync::{Arc, Mutex};
+use std::sync::mpsc::sync_channel;
+use std::thread;
 
 #[test]
 fn stdout_unwind_safe() {
@@ -125,7 +126,7 @@ where
             log.lock().unwrap().push(Start1);
             let handle = get_handle();
             {
-                let locked = handle.lock();
+                let _locked = handle.lock();
                 log.lock().unwrap().push(Acquire1);
                 tx.send(Acquire1).unwrap(); // notify of acquisition
                 tx.send(Release1).unwrap(); // wait for release command
@@ -133,7 +134,7 @@ where
             }
             tx.send(Acquire1).unwrap(); // wait for th2 acquire
             {
-                let locked = handle.lock();
+                let _locked = handle.lock();
                 log.lock().unwrap().push(Acquire1);
             }
             log.lock().unwrap().push(Release1);
@@ -143,7 +144,7 @@ where
         let (log, tx) = (Arc::clone(&log), tx2);
         thread::spawn(move || {
             tx.send(Start2).unwrap(); // wait for start command
-            let locked = get_locked();
+            let _locked = get_locked();
             log.lock().unwrap().push(Acquire2);
             tx.send(Acquire2).unwrap(); // notify of acquisition
             tx.send(Release2).unwrap(); // wait for release command

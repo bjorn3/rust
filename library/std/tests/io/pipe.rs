@@ -1,4 +1,4 @@
-use crate::io::{Read, Write, pipe};
+use std::io::{Read, Write, pipe};
 
 #[test]
 #[cfg(all(any(unix, windows), not(miri)))]

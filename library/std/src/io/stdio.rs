@@ -1,8 +1,5 @@
 #![cfg_attr(test, allow(unused))]
 
-#[cfg(test)]
-mod tests;
-
 use crate::cell::{Cell, RefCell};
 use crate::fmt;
 use crate::fs::File;

@@ -1,3 +1,4 @@
+#![feature(anonymous_pipe)]
 #![feature(buf_read_has_data_left)]
 #![feature(can_vector)]
 #![feature(core_io_borrowed_buf)]
@@ -21,6 +22,9 @@ use std::ops::Deref;
 mod buffered;
 mod cursor;
 mod impls;
+mod pipe;
+mod stdio;
+mod util;
 
 #[test]
 fn read_until() {

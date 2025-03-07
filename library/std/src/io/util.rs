@@ -1,8 +1,5 @@
 #![allow(missing_copy_implementations)]
 
-#[cfg(test)]
-mod tests;
-
 use crate::fmt;
 use crate::io::{
     self, BorrowedCursor, BufRead, IoSlice, IoSliceMut, Read, Seek, SeekFrom, SizeHint, Write,

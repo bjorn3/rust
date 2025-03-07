@@ -1,6 +1,6 @@
-use crate::io::prelude::*;
-use crate::io::{BorrowedBuf, Empty, Repeat, SeekFrom, Sink, empty, repeat, sink};
-use crate::mem::MaybeUninit;
+use std::io::prelude::*;
+use std::io::{BorrowedBuf, Empty, Repeat, SeekFrom, Sink, empty, repeat, sink};
+use std::mem::MaybeUninit;
 
 #[test]
 fn sink_sinks() {
