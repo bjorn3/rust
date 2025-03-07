@@ -294,9 +294,6 @@
 
 #![stable(feature = "rust1", since = "1.0.0")]
 
-#[cfg(test)]
-mod tests;
-
 #[unstable(feature = "read_buf", issue = "78485")]
 pub use core::io::{BorrowedBuf, BorrowedCursor};
 use core::slice::memchr;
@@ -3252,5 +3249,33 @@ impl<B: BufRead> Iterator for Lines<B> {
             }
             Err(e) => Some(Err(e)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[bench]
+    #[cfg_attr(miri, ignore)] // Miri isn't fast...
+    fn bench_read_to_end(b: &mut test::Bencher) {
+        b.iter(|| {
+            let mut lr = repeat(1).take(10000000);
+            let mut vec = Vec::with_capacity(1024);
+            default_read_to_end(&mut lr, &mut vec, None)
+        });
+    }
+
+    #[test]
+    fn read_buf_full_read() {
+        struct FullRead;
+
+        impl Read for FullRead {
+            fn read(&mut self, buf: &mut [u8]) -> crate::io::Result<usize> {
+                Ok(buf.len())
+            }
+        }
+
+        assert_eq!(BufReader::new(FullRead).fill_buf().unwrap().len(), DEFAULT_BUF_SIZE);
     }
 }

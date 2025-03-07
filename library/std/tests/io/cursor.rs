@@ -1,5 +1,5 @@
-use crate::io::prelude::*;
-use crate::io::{Cursor, IoSlice, IoSliceMut, SeekFrom};
+use std::io::prelude::*;
+use std::io::{Cursor, IoSlice, IoSliceMut, SeekFrom};
 
 #[test]
 fn test_vec_writer() {

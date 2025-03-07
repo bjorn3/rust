@@ -5,9 +5,6 @@ mod bufwriter;
 mod linewriter;
 mod linewritershim;
 
-#[cfg(test)]
-mod tests;
-
 #[stable(feature = "bufwriter_into_parts", since = "1.56.0")]
 pub use bufwriter::WriterPanicked;
 use linewritershim::LineWriterShim;
@@ -190,5 +187,35 @@ impl<W: Send + fmt::Debug> error::Error for IntoInnerError<W> {
 impl<W> fmt::Display for IntoInnerError<W> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.error().fmt(f)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::io::*;
+
+    #[test]
+    fn bufreader_full_initialize() {
+        struct OneByteReader;
+        impl Read for OneByteReader {
+            fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+                if buf.len() > 0 {
+                    buf[0] = 0;
+                    Ok(1)
+                } else {
+                    Ok(0)
+                }
+            }
+        }
+        let mut reader = BufReader::new(OneByteReader);
+        // Nothing is initialized yet.
+        assert_eq!(reader.initialized(), 0);
+
+        let buf = reader.fill_buf().unwrap();
+        // We read one byte...
+        assert_eq!(buf.len(), 1);
+        // But we initialized the whole buffer!
+        assert_eq!(reader.initialized(), reader.capacity());
     }
 }

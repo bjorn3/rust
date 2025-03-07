@@ -1,8 +1,16 @@
-use super::{Command, Output, Stdio};
-use crate::io::prelude::*;
-use crate::io::{BorrowedBuf, ErrorKind};
-use crate::mem::MaybeUninit;
-use crate::str;
+#![cfg(not(any(
+    target_os = "emscripten",
+    target_os = "wasi",
+    target_env = "sgx",
+    target_os = "xous"
+)))]
+#![feature(core_io_borrowed_buf, read_buf)]
+
+use std::io::prelude::*;
+use std::io::{BorrowedBuf, ErrorKind};
+use std::mem::MaybeUninit;
+use std::process::{Command, Output, Stdio};
+use std::str;
 
 fn known_command() -> Command {
     if cfg!(windows) { Command::new("help") } else { Command::new("echo") }
@@ -58,7 +66,7 @@ fn exit_reported_right() {
 #[cfg(unix)]
 #[cfg_attr(any(target_os = "vxworks"), ignore)]
 fn signal_reported_right() {
-    use crate::os::unix::process::ExitStatusExt;
+    use std::os::unix::process::ExitStatusExt;
 
     let mut p = shell_cmd().arg("-c").arg("read a").stdin(Stdio::piped()).spawn().unwrap();
     p.kill().unwrap();
@@ -104,7 +112,7 @@ fn set_current_dir_works() {
     // Also test the fork/exec path by setting a pre_exec function.
     #[cfg(unix)]
     {
-        use crate::os::unix::process::CommandExt;
+        use std::os::unix::process::CommandExt;
 
         let mut cmd = shell_cmd();
         cmd.arg("-c").arg("pwd").current_dir("/").stdout(Stdio::piped());
@@ -281,7 +289,7 @@ pub fn env_cmd() -> Command {
 #[test]
 #[cfg_attr(target_os = "vxworks", ignore)]
 fn test_override_env() {
-    use crate::env;
+    use std::env;
 
     // In some build environments (such as chrooted Nix builds), `env` can
     // only be found in the explicitly-provided PATH env variable, not in
@@ -316,7 +324,7 @@ fn test_add_to_env() {
 #[test]
 #[cfg_attr(target_os = "vxworks", ignore)]
 fn test_capture_env_at_spawn() {
-    use crate::env;
+    use std::env;
 
     let mut cmd = env_cmd();
     cmd.env("RUN_TEST_NEW_ENV1", "123");
@@ -452,7 +460,7 @@ fn debug_print() {
         )
     );
 
-    crate::os::unix::process::CommandExt::arg0(&mut command, "exciting-name");
+    std::os::unix::process::CommandExt::arg0(&mut command, "exciting-name");
 
     assert_eq!(
         format!("{command:?}"),
@@ -553,13 +561,13 @@ fn debug_print() {
 #[test]
 #[cfg(windows)]
 fn run_bat_script() {
-    let tempdir = crate::test_helpers::tmpdir();
+    let tempdir = std::test_helpers::tmpdir();
     let script_path = tempdir.join("hello.cmd");
 
-    crate::fs::write(&script_path, "@echo Hello, %~1!").unwrap();
+    std::fs::write(&script_path, "@echo Hello, %~1!").unwrap();
     let output = Command::new(&script_path)
         .arg("fellow Rustaceans")
-        .stdout(crate::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
         .spawn()
         .unwrap()
         .wait_with_output()
@@ -572,15 +580,15 @@ fn run_bat_script() {
 #[test]
 #[cfg(windows)]
 fn run_canonical_bat_script() {
-    let tempdir = crate::test_helpers::tmpdir();
+    let tempdir = std::test_helpers::tmpdir();
     let script_path = tempdir.join("hello.cmd");
 
-    crate::fs::write(&script_path, "@echo Hello, %~1!").unwrap();
+    std::fs::write(&script_path, "@echo Hello, %~1!").unwrap();
 
     // Try using a canonical path
     let output = Command::new(&script_path.canonicalize().unwrap())
         .arg("fellow Rustaceans")
-        .stdout(crate::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
         .spawn()
         .unwrap()
         .wait_with_output()

@@ -155,9 +155,6 @@
 // Under `test`, `__FastLocalKeyInner` seems unused.
 #![cfg_attr(test, allow(dead_code))]
 
-#[cfg(all(test, not(any(target_os = "emscripten", target_os = "wasi"))))]
-mod tests;
-
 use crate::any::Any;
 use crate::cell::UnsafeCell;
 use crate::ffi::CStr;

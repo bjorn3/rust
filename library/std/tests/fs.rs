@@ -1,23 +1,37 @@
+#![cfg(not(any(
+    target_os = "emscripten",
+    target_os = "wasi",
+    target_env = "sgx",
+    target_os = "xous"
+)))]
+#![feature(char_max_len)]
+#![feature(core_io_borrowed_buf)]
+#![feature(io_error_uncategorized)]
+#![feature(read_buf)]
+
+use std::char::MAX_LEN_UTF8;
+use std::fs::{self, File, FileTimes, OpenOptions};
+use std::io::prelude::*;
+use std::io::{BorrowedBuf, ErrorKind, SeekFrom};
+use std::mem::MaybeUninit;
+#[cfg(unix)]
+use std::os::unix::fs::symlink as symlink_dir;
+#[cfg(unix)]
+use std::os::unix::fs::symlink as symlink_file;
+#[cfg(unix)]
+use std::os::unix::fs::symlink as junction_point;
+#[cfg(windows)]
+use std::os::windows::fs::{OpenOptionsExt, junction_point, symlink_dir, symlink_file};
+use std::path::Path;
+use std::sync::Arc;
+use std::time::{Duration, Instant, SystemTime};
+use std::{env, str, thread};
+
 use rand::RngCore;
 
-use crate::char::MAX_LEN_UTF8;
-use crate::fs::{self, File, FileTimes, OpenOptions};
-use crate::io::prelude::*;
-use crate::io::{BorrowedBuf, ErrorKind, SeekFrom};
-use crate::mem::MaybeUninit;
-#[cfg(unix)]
-use crate::os::unix::fs::symlink as symlink_dir;
-#[cfg(unix)]
-use crate::os::unix::fs::symlink as symlink_file;
-#[cfg(unix)]
-use crate::os::unix::fs::symlink as junction_point;
-#[cfg(windows)]
-use crate::os::windows::fs::{OpenOptionsExt, junction_point, symlink_dir, symlink_file};
-use crate::path::Path;
-use crate::sync::Arc;
-use crate::test_helpers::{TempDir, tmpdir};
-use crate::time::{Duration, Instant, SystemTime};
-use crate::{env, str, thread};
+use crate::common::{TempDir, tmpdir, test_rng};
+
+mod common;
 
 macro_rules! check {
     ($e:expr) => {
@@ -64,7 +78,7 @@ macro_rules! error_contains {
 // have permission, and return otherwise. This way, we still don't run these
 // tests most of the time, but at least we do if the user has the right
 // permissions.
-pub fn got_symlink_permission(tmpdir: &TempDir) -> bool {
+fn got_symlink_permission(tmpdir: &TempDir) -> bool {
     if cfg!(not(windows)) || env::var_os("CI").is_some() {
         return true;
     }
@@ -315,7 +329,7 @@ fn file_lock_double_unlock() {
 #[test]
 #[cfg(windows)]
 fn file_lock_blocking_async() {
-    use crate::thread::{sleep, spawn};
+    use std::thread::{sleep, spawn};
     const FILE_FLAG_OVERLAPPED: u32 = 0x40000000;
 
     let tmpdir = tmpdir();
@@ -399,7 +413,7 @@ fn file_test_io_eof() {
 #[test]
 #[cfg(unix)]
 fn file_test_io_read_write_at() {
-    use crate::os::unix::fs::FileExt;
+    use std::os::unix::fs::FileExt;
 
     let tmpdir = tmpdir();
     let filename = tmpdir.join("file_rt_io_file_test_read_write_at.txt");
@@ -455,7 +469,7 @@ fn file_test_io_read_write_at() {
 #[test]
 #[cfg(unix)]
 fn set_get_unix_permissions() {
-    use crate::os::unix::fs::PermissionsExt;
+    use std::os::unix::fs::PermissionsExt;
 
     let tmpdir = tmpdir();
     let filename = &tmpdir.join("set_get_unix_permissions");
@@ -477,7 +491,7 @@ fn set_get_unix_permissions() {
 #[test]
 #[cfg(windows)]
 fn file_test_io_seek_read_write() {
-    use crate::os::windows::fs::FileExt;
+    use std::os::windows::fs::FileExt;
 
     let tmpdir = tmpdir();
     let filename = tmpdir.join("file_rt_io_file_test_seek_read_write.txt");
@@ -1201,7 +1215,7 @@ fn truncate_works() {
 
 #[test]
 fn open_flavors() {
-    use crate::fs::OpenOptions as OO;
+    use std::fs::OpenOptions as OO;
     fn c<T: Clone>(t: &T) -> T {
         t.clone()
     }
@@ -1332,7 +1346,7 @@ fn _assert_send_sync() {
 #[test]
 fn binary_file() {
     let mut bytes = [0; 1024];
-    crate::test_helpers::test_rng().fill_bytes(&mut bytes);
+    test_rng().fill_bytes(&mut bytes);
 
     let tmpdir = tmpdir();
 
@@ -1345,7 +1359,7 @@ fn binary_file() {
 #[test]
 fn write_then_read() {
     let mut bytes = [0; 1024];
-    crate::test_helpers::test_rng().fill_bytes(&mut bytes);
+    test_rng().fill_bytes(&mut bytes);
 
     let tmpdir = tmpdir();
 
@@ -1500,7 +1514,7 @@ fn dir_entry_debug() {
     let mut read_dir = tmpdir.path().read_dir().unwrap();
     let dir_entry = read_dir.next().unwrap().unwrap();
     let actual = format!("{dir_entry:?}");
-    let expected = format!("DirEntry({:?})", dir_entry.0.path());
+    let expected = format!("DirEntry({:?})", dir_entry.path());
     assert_eq!(actual, expected);
 }
 
@@ -1639,9 +1653,9 @@ fn symlink_hard_link() {
 #[test]
 #[cfg(windows)]
 fn create_dir_long_paths() {
-    use crate::ffi::OsStr;
-    use crate::iter;
-    use crate::os::windows::ffi::OsStrExt;
+    use std::ffi::OsStr;
+    use std::iter;
+    use std::os::windows::ffi::OsStrExt;
     const PATH_LEN: usize = 247;
 
     let tmpdir = tmpdir();
@@ -1667,7 +1681,7 @@ fn create_dir_long_paths() {
 
     // #90940: Ensure an empty path returns the "Not Found" error.
     let path = Path::new("");
-    assert_eq!(path.canonicalize().unwrap_err().kind(), crate::io::ErrorKind::NotFound);
+    assert_eq!(path.canonicalize().unwrap_err().kind(), std::io::ErrorKind::NotFound);
 }
 
 /// Ensure ReadDir works on large directories.
@@ -1723,8 +1737,8 @@ fn test_eq_direntry_metadata() {
 #[test]
 #[cfg(target_os = "linux")]
 fn test_read_dir_infinite_loop() {
-    use crate::io::ErrorKind;
-    use crate::process::Command;
+    use std::io::ErrorKind;
+    use std::process::Command;
 
     // Create a zombie child process
     let Ok(mut child) = Command::new("echo").spawn() else { return };
@@ -1766,9 +1780,9 @@ fn rename_directory() {
 #[test]
 fn test_file_times() {
     #[cfg(target_vendor = "apple")]
-    use crate::os::darwin::fs::FileTimesExt;
+    use std::os::darwin::fs::FileTimesExt;
     #[cfg(windows)]
-    use crate::os::windows::fs::FileTimesExt;
+    use std::os::windows::fs::FileTimesExt;
 
     let tmp = tmpdir();
     let file = File::create(tmp.join("foo")).unwrap();
@@ -1812,7 +1826,7 @@ fn test_file_times() {
 #[test]
 #[cfg(target_vendor = "apple")]
 fn test_file_times_pre_epoch_with_nanos() {
-    use crate::os::darwin::fs::FileTimesExt;
+    use std::os::darwin::fs::FileTimesExt;
 
     let tmp = tmpdir();
     let file = File::create(tmp.join("foo")).unwrap();
@@ -1847,8 +1861,8 @@ fn test_file_times_pre_epoch_with_nanos() {
 #[test]
 #[cfg(windows)]
 fn windows_unix_socket_exists() {
-    use crate::sys::{c, net};
-    use crate::{mem, ptr};
+    use std::sys::{c, net};
+    use std::{mem, ptr};
 
     let tmp = tmpdir();
     let socket_path = tmp.join("socket");

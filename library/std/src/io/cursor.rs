@@ -1,6 +1,3 @@
-#[cfg(test)]
-mod tests;
-
 use crate::alloc::Allocator;
 use crate::cmp;
 use crate::io::prelude::*;

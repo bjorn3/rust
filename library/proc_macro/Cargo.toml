@@ -3,6 +3,10 @@ name = "proc_macro"
 version = "0.0.0"
 edition = "2021"
 
+[lib]
+test = false
+bench = false
+
 [dependencies]
 std = { path = "../std" }
 # Workaround: when documenting this crate rustdoc will try to load crate named

@@ -5,6 +5,10 @@ name = "test"
 version = "0.0.0"
 edition = "2021"
 
+[lib]
+#test = false
+#bench = false
+
 [dependencies]
 getopts = { version = "0.2.21", features = ['rustc-dep-of-std'] }
 std = { path = "../std", public = true }

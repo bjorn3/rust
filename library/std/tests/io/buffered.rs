@@ -1,10 +1,10 @@
-use crate::io::prelude::*;
-use crate::io::{
+use std::io::prelude::*;
+use std::io::{
     self, BorrowedBuf, BufReader, BufWriter, ErrorKind, IoSlice, LineWriter, SeekFrom,
 };
-use crate::mem::MaybeUninit;
-use crate::sync::atomic::{AtomicUsize, Ordering};
-use crate::{panic, thread};
+use std::mem::MaybeUninit;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{panic, thread};
 
 /// A dummy reader intended at testing short-reads propagation.
 pub struct ShortReader {
@@ -681,7 +681,7 @@ fn line_vectored() {
 
 #[test]
 fn line_vectored_partial_and_errors() {
-    use crate::collections::VecDeque;
+    use std::collections::VecDeque;
 
     enum Call {
         Write { inputs: Vec<&'static [u8]>, output: io::Result<usize> },
@@ -1023,7 +1023,7 @@ struct WriteRecorder {
 
 impl Write for WriteRecorder {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        use crate::str::from_utf8;
+        use std::str::from_utf8;
 
         self.events.push(RecordedEvent::Write(from_utf8(buf).unwrap().to_string()));
         Ok(buf.len())
@@ -1052,34 +1052,10 @@ fn single_formatted_write() {
     assert_eq!(writer.get_ref().events, [RecordedEvent::Write("hello, world!\n".to_string())]);
 }
 
-#[test]
-fn bufreader_full_initialize() {
-    struct OneByteReader;
-    impl Read for OneByteReader {
-        fn read(&mut self, buf: &mut [u8]) -> crate::io::Result<usize> {
-            if buf.len() > 0 {
-                buf[0] = 0;
-                Ok(1)
-            } else {
-                Ok(0)
-            }
-        }
-    }
-    let mut reader = BufReader::new(OneByteReader);
-    // Nothing is initialized yet.
-    assert_eq!(reader.initialized(), 0);
-
-    let buf = reader.fill_buf().unwrap();
-    // We read one byte...
-    assert_eq!(buf.len(), 1);
-    // But we initialized the whole buffer!
-    assert_eq!(reader.initialized(), reader.capacity());
-}
-
 /// This is a regression test for https://github.com/rust-lang/rust/issues/127584.
 #[test]
 fn bufwriter_aliasing() {
-    use crate::io::{BufWriter, Cursor};
+    use std::io::{BufWriter, Cursor};
     let mut v = vec![0; 1024];
     let c = Cursor::new(&mut v);
     let w = BufWriter::new(Box::new(c));

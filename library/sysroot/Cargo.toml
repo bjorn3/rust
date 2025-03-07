@@ -5,6 +5,11 @@ name = "sysroot"
 version = "0.0.0"
 edition = "2021"
 
+[lib]
+test = false
+bench = false
+doc = false
+
 # this is a dummy crate to ensure that all required crates appear in the sysroot
 [dependencies]
 proc_macro = { path = "../proc_macro", public = true }

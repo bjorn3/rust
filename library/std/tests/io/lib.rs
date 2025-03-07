@@ -1,10 +1,26 @@
-use super::{BorrowedBuf, Cursor, SeekFrom, repeat};
-use crate::cmp::{self, min};
-use crate::io::{
-    self, BufRead, BufReader, DEFAULT_BUF_SIZE, IoSlice, IoSliceMut, Read, Seek, Write,
+#![feature(buf_read_has_data_left)]
+#![feature(can_vector)]
+#![feature(core_io_borrowed_buf)]
+#![feature(cursor_split)]
+#![feature(io_const_error)]
+#![feature(io_slice_as_bytes)]
+#![feature(read_buf)]
+#![feature(seek_stream_len)]
+#![feature(test)]
+#![feature(write_all_vectored)]
+
+extern crate test;
+
+use std::cmp::{self, min};
+use std::io::{
+    self, BorrowedBuf, BufRead, BufReader, Cursor, IoSlice, IoSliceMut, Read, Seek, SeekFrom, Write,
 };
-use crate::mem::MaybeUninit;
-use crate::ops::Deref;
+use std::mem::MaybeUninit;
+use std::ops::Deref;
+
+mod buffered;
+mod cursor;
+mod impls;
 
 #[test]
 fn read_until() {
@@ -273,7 +289,7 @@ fn chain_bufread() {
 #[test]
 fn chain_splitted_char() {
     let chain = b"\xc3".chain(b"\xa9".as_slice());
-    assert_eq!(crate::io::read_to_string(chain).unwrap(), "é");
+    assert_eq!(std::io::read_to_string(chain).unwrap(), "é");
 
     let mut chain = b"\xc3".chain(b"\xa9\n".as_slice());
     let mut buf = String::new();
@@ -355,16 +371,6 @@ fn chain_zero_length_read_is_not_eof() {
     chain.read(&mut []).unwrap();
     chain.read_to_string(&mut s).unwrap();
     assert_eq!("AB", s);
-}
-
-#[bench]
-#[cfg_attr(miri, ignore)] // Miri isn't fast...
-fn bench_read_to_end(b: &mut test::Bencher) {
-    b.iter(|| {
-        let mut lr = repeat(1).take(10000000);
-        let mut vec = Vec::with_capacity(1024);
-        super::default_read_to_end(&mut lr, &mut vec, None)
-    });
 }
 
 #[test]
@@ -732,19 +738,6 @@ fn read_buf_broken_read() {
     }
 
     let _ = BufReader::new(MalformedRead).fill_buf();
-}
-
-#[test]
-fn read_buf_full_read() {
-    struct FullRead;
-
-    impl Read for FullRead {
-        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-            Ok(buf.len())
-        }
-    }
-
-    assert_eq!(BufReader::new(FullRead).fill_buf().unwrap().len(), DEFAULT_BUF_SIZE);
 }
 
 struct DataAndErrorReader(&'static [u8]);

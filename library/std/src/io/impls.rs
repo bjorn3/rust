@@ -1,6 +1,3 @@
-#[cfg(test)]
-mod tests;
-
 use crate::alloc::Allocator;
 use crate::collections::VecDeque;
 use crate::io::{self, BorrowedCursor, BufRead, IoSlice, IoSliceMut, Read, Seek, SeekFrom, Write};

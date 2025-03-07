@@ -11,6 +11,8 @@ autobenches = false
 
 [lib]
 crate-type = ["dylib", "rlib"]
+#test = false
+#bench = false
 
 [dependencies]
 alloc = { path = "../alloc", public = true }
@@ -145,6 +147,10 @@ path = "tests/sync/lib.rs"
 [[test]]
 name = "floats"
 path = "tests/floats/lib.rs"
+
+[[test]]
+name = "io"
+path = "tests/io/lib.rs"
 
 [[test]]
 name = "thread_local"
