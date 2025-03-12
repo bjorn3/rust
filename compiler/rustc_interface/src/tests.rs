@@ -41,6 +41,7 @@ where
 
     let matches = optgroups().parse(args).unwrap();
     let sessopts = build_session_options(&mut early_dcx, &matches);
+    let host_sysroot = sessopts.host_sysroot.clone();
     let sysroot = sessopts.sysroot.clone();
     let target =
         rustc_session::config::build_target_config(&early_dcx, &sessopts.target_triple, &sysroot);
@@ -72,6 +73,7 @@ where
             vec![],
             Default::default(),
             target,
+            host_sysroot,
             sysroot,
             "",
             None,

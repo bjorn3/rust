@@ -8,7 +8,7 @@
 
 use std::borrow::Cow;
 use std::error::Error;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, LazyLock};
 use std::{fmt, fs, io};
 
@@ -21,7 +21,6 @@ use intl_memoizer::concurrent::IntlLangMemoizer;
 use rustc_data_structures::sync::IntoDynSyncSend;
 use rustc_macros::{Decodable, Encodable};
 use rustc_span::Span;
-use smallvec::SmallVec;
 use tracing::{instrument, trace};
 pub use unic_langid::{LanguageIdentifier, langid};
 
@@ -107,7 +106,7 @@ impl From<Vec<FluentError>> for TranslationBundleError {
 /// (overriding any conflicting messages).
 #[instrument(level = "trace")]
 pub fn fluent_bundle(
-    sysroot_candidates: SmallVec<[PathBuf; 2]>,
+    sysroot: &Path,
     requested_locale: Option<LanguageIdentifier>,
     additional_ftl_path: Option<&Path>,
     with_directionality_markers: bool,
@@ -141,38 +140,36 @@ pub fn fluent_bundle(
     // If the user requests the default locale then don't try to load anything.
     if let Some(requested_locale) = requested_locale {
         let mut found_resources = false;
-        for mut sysroot in sysroot_candidates {
-            sysroot.push("share");
-            sysroot.push("locale");
-            sysroot.push(requested_locale.to_string());
-            trace!(?sysroot);
 
-            if !sysroot.exists() {
+        let mut locale_dir = sysroot.to_owned();
+        locale_dir.push("share");
+        locale_dir.push("locale");
+        locale_dir.push(requested_locale.to_string());
+        trace!(?locale_dir);
+
+        if !locale_dir.exists() {
+            return Err(TranslationBundleError::MissingLocale);
+        }
+
+        if !locale_dir.is_dir() {
+            return Err(TranslationBundleError::LocaleIsNotDir);
+        }
+
+        for entry in locale_dir.read_dir().map_err(TranslationBundleError::ReadLocalesDir)? {
+            let entry = entry.map_err(TranslationBundleError::ReadLocalesDirEntry)?;
+            let path = entry.path();
+            trace!(?path);
+            if path.extension().and_then(|s| s.to_str()) != Some("ftl") {
                 trace!("skipping");
                 continue;
             }
 
-            if !sysroot.is_dir() {
-                return Err(TranslationBundleError::LocaleIsNotDir);
-            }
-
-            for entry in sysroot.read_dir().map_err(TranslationBundleError::ReadLocalesDir)? {
-                let entry = entry.map_err(TranslationBundleError::ReadLocalesDirEntry)?;
-                let path = entry.path();
-                trace!(?path);
-                if path.extension().and_then(|s| s.to_str()) != Some("ftl") {
-                    trace!("skipping");
-                    continue;
-                }
-
-                let resource_str =
-                    fs::read_to_string(path).map_err(TranslationBundleError::ReadFtl)?;
-                let resource =
-                    FluentResource::try_new(resource_str).map_err(TranslationBundleError::from)?;
-                trace!(?resource);
-                bundle.add_resource(resource).map_err(TranslationBundleError::from)?;
-                found_resources = true;
-            }
+            let resource_str = fs::read_to_string(path).map_err(TranslationBundleError::ReadFtl)?;
+            let resource =
+                FluentResource::try_new(resource_str).map_err(TranslationBundleError::from)?;
+            trace!(?resource);
+            bundle.add_resource(resource).map_err(TranslationBundleError::from)?;
+            found_resources = true;
         }
 
         if !found_resources {

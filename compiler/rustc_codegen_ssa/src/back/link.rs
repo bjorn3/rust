@@ -1265,6 +1265,8 @@ fn link_sanitizer_runtime(
         if path.exists() {
             sess.target_tlib_path.dir.clone()
         } else {
+            // FIXME use target sysroot with fallback to host sysroot?
+
             let default_sysroot = filesearch::get_or_default_sysroot();
             let default_tlib =
                 filesearch::make_target_lib_path(&default_sysroot, sess.opts.target_triple.tuple());

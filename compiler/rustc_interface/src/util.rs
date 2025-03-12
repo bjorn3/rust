@@ -305,7 +305,7 @@ fn load_backend_from_dylib(early_dcx: &EarlyDiagCtxt, path: &Path) -> MakeBacken
 /// A name of `None` indicates that the default backend should be used.
 pub fn get_codegen_backend(
     early_dcx: &EarlyDiagCtxt,
-    sysroot: &Path,
+    host_sysroot: &Path,
     backend_name: Option<&str>,
     target: &Target,
 ) -> Box<dyn CodegenBackend> {
@@ -323,7 +323,7 @@ pub fn get_codegen_backend(
             }
             #[cfg(feature = "llvm")]
             "llvm" => rustc_codegen_llvm::LlvmCodegenBackend::new,
-            backend_name => get_codegen_sysroot(early_dcx, sysroot, backend_name),
+            backend_name => get_codegen_sysroot(early_dcx, host_sysroot, backend_name),
         }
     });
 
@@ -345,6 +345,7 @@ pub fn rustc_path<'a>() -> Option<&'a Path> {
 }
 
 fn get_rustc_path_inner(bin_path: &str) -> Option<PathBuf> {
+    // FIXME use host sysroot
     let candidate = filesearch::get_or_default_sysroot()
         .join(bin_path)
         .join(if cfg!(target_os = "windows") { "rustc.exe" } else { "rustc" });
@@ -354,7 +355,7 @@ fn get_rustc_path_inner(bin_path: &str) -> Option<PathBuf> {
 #[allow(rustc::untranslatable_diagnostic)] // FIXME: make this translatable
 fn get_codegen_sysroot(
     early_dcx: &EarlyDiagCtxt,
-    sysroot: &Path,
+    host_sysroot: &Path,
     backend_name: &str,
 ) -> MakeBackendFn {
     // For now we only allow this function to be called once as it'll dlopen a
@@ -369,29 +370,17 @@ fn get_codegen_sysroot(
     );
 
     let target = host_tuple();
-    let sysroot_candidates = filesearch::sysroot_with_fallback(&sysroot);
 
-    let sysroot = sysroot_candidates
-        .iter()
-        .map(|sysroot| {
-            filesearch::make_target_lib_path(sysroot, target).with_file_name("codegen-backends")
-        })
-        .find(|f| {
-            info!("codegen backend candidate: {}", f.display());
-            f.exists()
-        })
-        .unwrap_or_else(|| {
-            let candidates = sysroot_candidates
-                .iter()
-                .map(|p| p.display().to_string())
-                .collect::<Vec<_>>()
-                .join("\n* ");
-            let err = format!(
-                "failed to find a `codegen-backends` folder \
-                           in the sysroot candidates:\n* {candidates}"
-            );
-            early_dcx.early_fatal(err);
-        });
+    let sysroot =
+        filesearch::make_target_lib_path(host_sysroot, target).with_file_name("codegen-backends");
+    if !sysroot.exists() {
+        let err = format!(
+            "failed to find a `codegen-backends` folder \
+                           in the sysroot candidate `{}`",
+            sysroot.display()
+        );
+        early_dcx.early_fatal(err);
+    }
 
     info!("probing {} for a codegen backend", sysroot.display());
 

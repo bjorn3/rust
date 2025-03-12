@@ -1342,6 +1342,7 @@ impl Default for Options {
             describe_lints: false,
             output_types: OutputTypes(BTreeMap::new()),
             search_paths: vec![],
+            host_sysroot: filesearch::materialize_sysroot(None),
             sysroot: filesearch::materialize_sysroot(None),
             target_triple: TargetTuple::from_tuple(host_tuple()),
             test: false,
@@ -1779,7 +1780,8 @@ pub fn rustc_optgroups() -> Vec<RustcOptGroup> {
             "Specify where an external rust library is located",
             "<NAME>[=<PATH>]",
         ),
-        opt(Stable, Opt, "", "sysroot", "Override the system root", "<PATH>"),
+        opt(Stable, Opt, "", "host-sysroot", "Override the system root for the host", "<PATH>"),
+        opt(Stable, Opt, "", "sysroot", "Override the system root for the target", "<PATH>"),
         opt(Unstable, Multi, "Z", "", "Set unstable / perma-unstable options", "<FLAG>"),
         opt(
             Stable,
@@ -2651,6 +2653,7 @@ pub fn build_session_options(early_dcx: &mut EarlyDiagCtxt, matches: &getopts::M
 
     let cg = cg;
 
+    let host_sysroot_opt = matches.opt_str("host-sysroot").map(|m| PathBuf::from(&m));
     let sysroot_opt = matches.opt_str("sysroot").map(|m| PathBuf::from(&m));
     let target_triple = parse_target_triple(early_dcx, matches);
     let opt_level = parse_opt_level(early_dcx, matches, &cg);
@@ -2690,11 +2693,12 @@ pub fn build_session_options(early_dcx: &mut EarlyDiagCtxt, matches: &getopts::M
 
     let logical_env = parse_logical_env(early_dcx, matches);
 
+    let host_sysroot = filesearch::materialize_sysroot(host_sysroot_opt);
     let sysroot = filesearch::materialize_sysroot(sysroot_opt);
 
     let real_rust_source_base_dir = {
         // This is the location used by the `rust-src` `rustup` component.
-        let mut candidate = sysroot.join("lib/rustlib/src/rust");
+        let mut candidate = host_sysroot.join("lib/rustlib/src/rust");
         if let Ok(metadata) = candidate.symlink_metadata() {
             // Replace the symlink bootstrap creates, with its destination.
             // We could try to use `fs::canonicalize` instead, but that might
@@ -2741,6 +2745,7 @@ pub fn build_session_options(early_dcx: &mut EarlyDiagCtxt, matches: &getopts::M
         describe_lints,
         output_types,
         search_paths,
+        host_sysroot,
         sysroot,
         target_triple,
         test,

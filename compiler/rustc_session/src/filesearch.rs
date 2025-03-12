@@ -5,7 +5,6 @@ use std::{env, fs};
 
 use rustc_fs_util::try_canonicalize;
 use rustc_target::spec::Target;
-use smallvec::{SmallVec, smallvec};
 
 use crate::search_paths::{PathKind, SearchPath};
 
@@ -180,15 +179,6 @@ fn current_dll_path() -> Result<PathBuf, String> {
 #[cfg(target_os = "wasi")]
 fn current_dll_path() -> Result<PathBuf, String> {
     Err("current_dll_path is not supported on WASI".to_string())
-}
-
-pub fn sysroot_with_fallback(sysroot: &Path) -> SmallVec<[PathBuf; 2]> {
-    let mut candidates = smallvec![sysroot.to_owned()];
-    let default_sysroot = get_or_default_sysroot();
-    if default_sysroot != sysroot {
-        candidates.push(default_sysroot);
-    }
-    candidates
 }
 
 /// Returns the provided sysroot or calls [`get_or_default_sysroot`] if it's none.
