@@ -5,7 +5,6 @@ use std::{env, fs};
 
 use rustc_fs_util::{fix_windows_verbatim_for_gcc, try_canonicalize};
 use rustc_target::spec::Target;
-use smallvec::{SmallVec, smallvec};
 
 use crate::search_paths::{PathKind, SearchPath};
 
@@ -156,39 +155,6 @@ fn current_dll_path() -> Result<PathBuf, String> {
     filename.truncate(n);
 
     Ok(OsString::from_wide(&filename).into())
-}
-
-pub fn sysroot_candidates() -> SmallVec<[PathBuf; 2]> {
-    let target = crate::config::host_tuple();
-    let mut sysroot_candidates: SmallVec<[PathBuf; 2]> = smallvec![get_or_default_sysroot()];
-    let path = current_dll_path().and_then(|s| try_canonicalize(s).map_err(|e| e.to_string()));
-    if let Ok(dll) = path {
-        // use `parent` twice to chop off the file name and then also the
-        // directory containing the dll which should be either `lib` or `bin`.
-        if let Some(path) = dll.parent().and_then(|p| p.parent()) {
-            // The original `path` pointed at the `rustc_driver` crate's dll.
-            // Now that dll should only be in one of two locations. The first is
-            // in the compiler's libdir, for example `$sysroot/lib/*.dll`. The
-            // other is the target's libdir, for example
-            // `$sysroot/lib/rustlib/$target/lib/*.dll`.
-            //
-            // We don't know which, so let's assume that if our `path` above
-            // ends in `$target` we *could* be in the target libdir, and always
-            // assume that we may be in the main libdir.
-            sysroot_candidates.push(path.to_owned());
-
-            if path.ends_with(target) {
-                sysroot_candidates.extend(
-                    path.parent() // chop off `$target`
-                        .and_then(|p| p.parent()) // chop off `rustlib`
-                        .and_then(|p| p.parent()) // chop off `lib`
-                        .map(|s| s.to_owned()),
-                );
-            }
-        }
-    }
-
-    sysroot_candidates
 }
 
 /// Returns the provided sysroot or calls [`get_or_default_sysroot`] if it's none.

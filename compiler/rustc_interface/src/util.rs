@@ -11,7 +11,7 @@ use rustc_metadata::{DylibError, load_symbol_from_dylib};
 use rustc_middle::ty::CurrentGcx;
 use rustc_parse::validate_attr;
 use rustc_session::config::{Cfg, OutFileName, OutputFilenames, OutputTypes, host_tuple};
-use rustc_session::filesearch::sysroot_candidates;
+use rustc_session::filesearch::get_or_default_sysroot;
 use rustc_session::lint::{self, BuiltinLintDiag, LintBuffer};
 use rustc_session::output::{CRATE_TYPES, categorize_crate_type};
 use rustc_session::{EarlyDiagCtxt, Session, filesearch};
@@ -301,14 +301,13 @@ pub fn rustc_path<'a>() -> Option<&'a Path> {
 }
 
 fn get_rustc_path_inner(bin_path: &str) -> Option<PathBuf> {
-    sysroot_candidates().iter().find_map(|sysroot| {
-        let candidate = sysroot.join(bin_path).join(if cfg!(target_os = "windows") {
-            "rustc.exe"
-        } else {
-            "rustc"
-        });
-        candidate.exists().then_some(candidate)
-    })
+    let sysroot = get_or_default_sysroot();
+    let candidate = sysroot.join(bin_path).join(if cfg!(target_os = "windows") {
+        "rustc.exe"
+    } else {
+        "rustc"
+    });
+    candidate.exists().then_some(candidate)
 }
 
 #[allow(rustc::untranslatable_diagnostic)] // FIXME: make this translatable
@@ -329,7 +328,7 @@ fn get_codegen_sysroot(
     );
 
     let target = host_tuple();
-    let sysroot_candidates = sysroot_candidates();
+    let sysroot_candidates = vec![get_or_default_sysroot()];
 
     let sysroot = iter::once(sysroot)
         .chain(sysroot_candidates.iter().map(<_>::as_ref))
