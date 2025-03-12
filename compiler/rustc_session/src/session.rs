@@ -445,6 +445,7 @@ impl Session {
     /// (#125246): we also add the bin directories to the sysroot where rustc is located.
     pub fn get_tools_search_paths(&self, self_contained: bool) -> Vec<PathBuf> {
         let bin_path = filesearch::make_target_bin_path(&self.sysroot, config::host_tuple());
+        // FIXME use host sysroot
         let fallback_sysroot_paths = Some(filesearch::get_or_default_sysroot())
             // Ignore sysroot candidate if it was the same as the sysroot path we just used.
             .filter(|sysroot| *sysroot != self.sysroot)

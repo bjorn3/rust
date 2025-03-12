@@ -424,6 +424,7 @@ pub fn run_compiler<R: Send>(config: Config, f: impl FnOnce(&Compiler) -> R + Se
             let temps_dir = config.opts.unstable_opts.temps_dir.as_deref().map(PathBuf::from);
 
             let bundle = match rustc_errors::fluent_bundle(
+                // FIXME only use host sysroot
                 config.opts.sysroot.clone(),
                 vec![get_or_default_sysroot()],
                 config.opts.unstable_opts.translate_lang.clone(),

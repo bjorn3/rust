@@ -1060,6 +1060,7 @@ fn get_backend_from_raw_matches(
     let debug_flags = matches.opt_strs("Z");
     let backend_name = debug_flags.iter().find_map(|x| x.strip_prefix("codegen-backend="));
     let target = parse_target_triple(early_dcx, matches);
+    // FIXME use host sysroot
     let sysroot = filesearch::materialize_sysroot(matches.opt_str("sysroot").map(PathBuf::from));
     let target = config::build_target_config(early_dcx, &target, &sysroot);
 

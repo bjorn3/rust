@@ -2567,10 +2567,12 @@ pub fn build_session_options(early_dcx: &mut EarlyDiagCtxt, matches: &getopts::M
 
     let logical_env = parse_logical_env(early_dcx, matches);
 
+    // FIXME use target sysroot
     let sysroot = filesearch::materialize_sysroot(sysroot_opt);
 
     let real_rust_source_base_dir = {
         // This is the location used by the `rust-src` `rustup` component.
+        // FIXME use host sysroot
         let mut candidate = sysroot.join("lib/rustlib/src/rust");
         if let Ok(metadata) = candidate.symlink_metadata() {
             // Replace the symlink bootstrap creates, with its destination.
@@ -2618,6 +2620,7 @@ pub fn build_session_options(early_dcx: &mut EarlyDiagCtxt, matches: &getopts::M
         describe_lints,
         output_types,
         search_paths,
+        // FIXME use target sysroot
         sysroot,
         target_triple,
         test,

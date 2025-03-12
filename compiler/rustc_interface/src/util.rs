@@ -301,6 +301,7 @@ pub fn rustc_path<'a>() -> Option<&'a Path> {
 }
 
 fn get_rustc_path_inner(bin_path: &str) -> Option<PathBuf> {
+    // FIXME use host sysroot
     let sysroot = get_or_default_sysroot();
     let candidate = sysroot.join(bin_path).join(if cfg!(target_os = "windows") {
         "rustc.exe"
@@ -328,6 +329,7 @@ fn get_codegen_sysroot(
     );
 
     let target = host_tuple();
+    // FIXME use host sysroot
     let sysroot_candidates = vec![get_or_default_sysroot()];
 
     let sysroot = iter::once(sysroot)
