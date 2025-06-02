@@ -1,3 +1,5 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "rustc_codegen_ssa"
 version = "0.0.0"
@@ -5,7 +7,7 @@ edition = "2024"
 
 [dependencies]
 # tidy-alphabetical-start
-ar_archive_writer = "0.5"
+ar_archive_writer = "0.4"
 bitflags = "2.4.1"
 bstr = "1.11.3"
 find-msvc-tools = "0.1.2"

@@ -263,7 +263,7 @@ impl<'a, 'tcx> TypeErrCtxt<'a, 'tcx> {
             _ => (false, None),
         };
 
-        let mut finder = ParamFinder { .. };
+        let mut finder = ParamFinder { params: Vec::new() };
         finder.visit_binder(&trait_pred);
 
         // FIXME: Add check for trait bound that is already present, particularly `?Sized` so we
@@ -5225,7 +5225,7 @@ impl<'a, 'tcx> TypeErrCtxt<'a, 'tcx> {
         // Suggesting `T: ?Sized` is only valid in an ADT if `T` is only used in a
         // borrow. `struct S<'a, T: ?Sized>(&'a T);` is valid, `struct S<T: ?Sized>(T);`
         // is not. Look for invalid "bare" parameter uses, and suggest using indirection.
-        let mut visitor = FindTypeParam { param: param.name.ident().name, .. };
+        let mut visitor = FindTypeParam { param: param.name.ident().name, invalid_spans: Vec::new(), nested: false };
         visitor.visit_item(item);
         if visitor.invalid_spans.is_empty() {
             return false;
@@ -5800,8 +5800,8 @@ fn get_deref_type_and_refs(mut ty: Ty<'_>) -> (Ty<'_>, Vec<hir::Mutability>) {
 /// `param: ?Sized` would be a valid constraint.
 struct FindTypeParam {
     param: rustc_span::Symbol,
-    invalid_spans: Vec<Span> = Vec::new(),
-    nested: bool = false,
+    invalid_spans: Vec<Span>,
+    nested: bool,
 }
 
 impl<'v> Visitor<'v> for FindTypeParam {
@@ -5843,7 +5843,7 @@ impl<'v> Visitor<'v> for FindTypeParam {
 /// Look for type parameters in predicates. We use this to identify whether a bound is suitable in
 /// on a given item.
 struct ParamFinder {
-    params: Vec<Symbol> = Vec::new(),
+    params: Vec<Symbol>,
 }
 
 impl<'tcx> TypeVisitor<TyCtxt<'tcx>> for ParamFinder {

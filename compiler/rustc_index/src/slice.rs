@@ -1,10 +1,6 @@
 use std::fmt;
 use std::marker::PhantomData;
 use std::ops::{Index, IndexMut, RangeBounds};
-#[cfg(not(bootstrap))]
-use std::slice::GetDisjointMutError::*;
-#[cfg(bootstrap)]
-use std::slice::GetManyMutError::*;
 use std::slice::{self, SliceIndex};
 
 use crate::{Idx, IndexVec, IntoSliceIdx};
@@ -141,10 +137,7 @@ impl<I: Idx, T> IndexSlice<I, T> {
 
         match self.raw.get_many_mut([ai, bi]) {
             Ok([a, b]) => (a, b),
-            Err(OverlappingIndices) => panic!("Indices {ai:?} and {bi:?} are not disjoint!"),
-            Err(IndexOutOfBounds) => {
-                panic!("Some indices among ({ai:?}, {bi:?}) are out of bounds")
-            }
+            Err(err) => panic!("{err:?}"),
         }
     }
 
@@ -158,10 +151,7 @@ impl<I: Idx, T> IndexSlice<I, T> {
 
         match self.raw.get_disjoint_mut([ai, bi]) {
             Ok([a, b]) => (a, b),
-            Err(OverlappingIndices) => panic!("Indices {ai:?} and {bi:?} are not disjoint!"),
-            Err(IndexOutOfBounds) => {
-                panic!("Some indices among ({ai:?}, {bi:?}) are out of bounds")
-            }
+            Err(err) => panic!("{err:?}"),
         }
     }
 
@@ -172,12 +162,7 @@ impl<I: Idx, T> IndexSlice<I, T> {
 
         match self.raw.get_many_mut([ai, bi, ci]) {
             Ok([a, b, c]) => (a, b, c),
-            Err(OverlappingIndices) => {
-                panic!("Indices {ai:?}, {bi:?} and {ci:?} are not disjoint!")
-            }
-            Err(IndexOutOfBounds) => {
-                panic!("Some indices among ({ai:?}, {bi:?}, {ci:?}) are out of bounds")
-            }
+            Err(err) => panic!("{err:?}"),
         }
     }
 
@@ -191,12 +176,7 @@ impl<I: Idx, T> IndexSlice<I, T> {
 
         match self.raw.get_disjoint_mut([ai, bi, ci]) {
             Ok([a, b, c]) => (a, b, c),
-            Err(OverlappingIndices) => {
-                panic!("Indices {ai:?}, {bi:?} and {ci:?} are not disjoint!")
-            }
-            Err(IndexOutOfBounds) => {
-                panic!("Some indices among ({ai:?}, {bi:?}, {ci:?}) are out of bounds")
-            }
+            Err(err) => panic!("{err:?}"),
         }
     }
 

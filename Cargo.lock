@@ -163,11 +163,11 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "ar_archive_writer"
-version = "0.5.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7eb93bbb63b9c227414f6eb3a0adfddca591a8ce1e9b60661bb08969b87e340b"
+checksum = "01667f6f40216b9a0b2945e05fed5f1ad0ab6470e69cb9378001e37b1c0668e4"
 dependencies = [
- "object 0.37.3",
+ "object 0.36.7",
 ]
 
 [[package]]
@@ -649,7 +649,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "termize",
+ "termize 0.2.1",
  "toml 0.9.8",
  "ui_test",
  "walkdir",
@@ -3884,7 +3884,7 @@ dependencies = [
  "rustc_span",
  "serde",
  "serde_json",
- "termize",
+ "termize 0.1.1",
  "tracing",
  "windows",
 ]
@@ -4678,7 +4678,7 @@ dependencies = [
  "rustc_serialize",
  "rustc_span",
  "rustc_target",
- "termize",
+ "termize 0.1.1",
  "tracing",
  "windows",
 ]
@@ -5528,6 +5528,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "termize"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1706be6b564323ce7092f5f7e6b118a14c8ef7ed0e69c8c5329c914a9f101295"
+dependencies = [
+ "libc",
+ "winapi",
 ]
 
 [[package]]

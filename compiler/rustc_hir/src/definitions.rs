@@ -103,7 +103,7 @@ pub struct DisambiguatorState {
 }
 
 impl DisambiguatorState {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self { next: UnordMap::new() }
     }
 

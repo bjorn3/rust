@@ -1,4 +1,4 @@
-cargo-features = ["public-dependency"]
+cargo-features = ["edition2024", "public-dependency"]
 
 [package]
 name = "rustc-std-workspace-core"

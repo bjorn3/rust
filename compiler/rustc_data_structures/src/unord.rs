@@ -250,7 +250,7 @@ impl<V: Eq + Hash> Default for UnordSet<V> {
 
 impl<V: Eq + Hash> UnordSet<V> {
     #[inline]
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self { inner: FxHashSet::with_hasher(FxBuildHasher) }
     }
 
@@ -439,7 +439,7 @@ pub struct UnordMap<K: Eq + Hash, V> {
 impl<K: Eq + Hash, V> UnordCollection for UnordMap<K, V> {}
 
 impl<K: Eq + Hash, V> UnordMap<K, V> {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self { inner: FxHashMap::with_hasher(FxBuildHasher) }
     }
 }

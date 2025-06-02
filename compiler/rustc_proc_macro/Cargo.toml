@@ -4,6 +4,8 @@
 # proc-macro crates. In addition it confuses the workspace_members function of
 # bootstrap.
 
+cargo-features = ["edition2024"]
+
 [package]
 name = "rustc_proc_macro"
 version = "0.0.0"

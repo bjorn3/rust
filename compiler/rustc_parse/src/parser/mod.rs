@@ -175,17 +175,17 @@ pub enum Recovery {
 pub struct Parser<'a> {
     pub psess: &'a ParseSess,
     /// The current token.
-    pub token: Token = Token::dummy(),
+    pub token: Token,
     /// The spacing for the current token.
-    token_spacing: Spacing = Spacing::Alone,
+    token_spacing: Spacing,
     /// The previous token.
-    pub prev_token: Token = Token::dummy(),
-    pub capture_cfg: bool = false,
-    restrictions: Restrictions = Restrictions::empty(),
-    expected_token_types: TokenTypeSet = TokenTypeSet::new(),
+    pub prev_token: Token,
+    pub capture_cfg: bool,
+    restrictions: Restrictions,
+    expected_token_types: TokenTypeSet,
     token_cursor: TokenCursor,
     // The number of calls to `bump`, i.e. the position in the token stream.
-    num_bump_calls: u32 = 0,
+    num_bump_calls: u32,
     // During parsing we may sometimes need to "unglue" a glued token into two
     // or three component tokens (e.g. `>>` into `>` and `>`, or `>>=` into `>`
     // and `>` and `=`), so the parser can consume them one at a time. This
@@ -204,27 +204,27 @@ pub struct Parser<'a> {
     //
     // This value is always 0, 1, or 2. It can only reach 2 when splitting
     // `>>=` or `<<=`.
-    break_last_token: u32 = 0,
+    break_last_token: u32,
     /// This field is used to keep track of how many left angle brackets we have seen. This is
     /// required in order to detect extra leading left angle brackets (`<` characters) and error
     /// appropriately.
     ///
     /// See the comments in the `parse_path_segment` function for more details.
-    unmatched_angle_bracket_count: u16 = 0,
-    angle_bracket_nesting: u16 = 0,
+    unmatched_angle_bracket_count: u16,
+    angle_bracket_nesting: u16,
     /// Keep track of when we're within `<...>` for proper error recovery.
-    parsing_generics: bool = false,
+    parsing_generics: bool,
 
-    last_unexpected_token_span: Option<Span> = None,
+    last_unexpected_token_span: Option<Span>,
     /// If present, this `Parser` is not parsing Rust code but rather a macro call.
     subparser_name: Option<&'static str>,
     capture_state: CaptureState,
     /// This allows us to recover when the user forget to add braces around
     /// multiple statements in the closure body.
-    current_closure: Option<ClosureSpans> = None,
+    current_closure: Option<ClosureSpans>,
     /// Whether the parser is allowed to do recovery.
     /// This is disabled when parsing macro arguments, see #103534
-    recovery: Recovery = Recovery::Allowed,
+    recovery: Recovery,
 }
 
 // This type is used a lot, e.g. it's cloned when matching many declarative macro rules with
@@ -353,7 +353,19 @@ impl<'a> Parser<'a> {
     ) -> Self {
         let mut parser = Parser {
             psess,
+            token: Token::dummy(),
+            token_spacing: Spacing::Alone,
+            prev_token: Token::dummy(),
+            capture_cfg: false,
+            restrictions: Restrictions::empty(),
+            expected_token_types: TokenTypeSet::new(),
             token_cursor: TokenCursor { curr: TokenTreeCursor::new(stream), stack: Vec::new() },
+            num_bump_calls: 0,
+            break_last_token: 0,
+            unmatched_angle_bracket_count: 0,
+            angle_bracket_nesting: 0,
+            parsing_generics: false,
+            last_unexpected_token_span: None,
             subparser_name,
             capture_state: CaptureState {
                 capturing: Capturing::No,
@@ -361,7 +373,8 @@ impl<'a> Parser<'a> {
                 inner_attr_parser_ranges: Default::default(),
                 seen_attrs: IntervalSet::new(u32::MAX as usize),
             },
-            ..
+            current_closure: None,
+            recovery: Recovery::Allowed,
         };
 
         // Make parser point to the first token.

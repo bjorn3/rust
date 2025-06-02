@@ -8,7 +8,7 @@ authors = [
 ]
 description = "`std::detect` - Rust's standard library run-time CPU feature detection."
 license = "MIT OR Apache-2.0"
-edition = "2024"
+edition = "2021"
 
 [badges]
 is-it-maintained-issue-resolution = { repository = "rust-lang/stdarch" }

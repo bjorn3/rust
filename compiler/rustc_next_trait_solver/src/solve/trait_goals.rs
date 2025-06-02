@@ -1389,7 +1389,7 @@ where
             })
         {
             let alias_bounds: Vec<_> = candidates
-                .extract_if(.., |c| matches!(c.source, CandidateSource::AliasBound(..)))
+                .extract_if(#[cfg(not(bootstrap))] (..), |c| matches!(c.source, CandidateSource::AliasBound(..)))
                 .collect();
             return if let Some((response, _)) = self.try_merge_candidates(&alias_bounds) {
                 Ok((response, Some(TraitGoalProvenVia::AliasBound)))
@@ -1405,7 +1405,7 @@ where
             .any(|c| matches!(c.source, CandidateSource::ParamEnv(ParamEnvSource::NonGlobal)));
         if has_non_global_where_bounds {
             let where_bounds: Vec<_> = candidates
-                .extract_if(.., |c| matches!(c.source, CandidateSource::ParamEnv(_)))
+                .extract_if(#[cfg(not(bootstrap))] (..), |c| matches!(c.source, CandidateSource::ParamEnv(_)))
                 .collect();
             let Some((response, info)) = self.try_merge_candidates(&where_bounds) else {
                 return Ok((self.bail_with_ambiguity(&where_bounds), None));
@@ -1445,7 +1445,7 @@ where
         // Next, prefer any alias bound (nested or otherwise).
         if candidates.iter().any(|c| matches!(c.source, CandidateSource::AliasBound(_))) {
             let alias_bounds: Vec<_> = candidates
-                .extract_if(.., |c| matches!(c.source, CandidateSource::AliasBound(_)))
+                .extract_if(#[cfg(not(bootstrap))] (..), |c| matches!(c.source, CandidateSource::AliasBound(_)))
                 .collect();
             return if let Some((response, _)) = self.try_merge_candidates(&alias_bounds) {
                 Ok((response, Some(TraitGoalProvenVia::AliasBound)))

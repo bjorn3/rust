@@ -14,7 +14,6 @@
 #![feature(assert_matches)]
 #![feature(associated_type_defaults)]
 #![feature(box_patterns)]
-#![feature(default_field_values)]
 #![feature(hash_set_entry)]
 #![feature(if_let_guard)]
 #![feature(iter_intersperse)]
