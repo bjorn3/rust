@@ -13,7 +13,6 @@
 #![feature(assert_matches)]
 #![feature(associated_type_defaults)]
 #![feature(box_patterns)]
-#![feature(default_field_values)]
 #![feature(error_reporter)]
 #![feature(negative_impls)]
 #![feature(never_type)]

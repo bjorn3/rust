@@ -1,3 +1,5 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "windows-targets"
 description = "A drop-in replacement for the real windows-targets crate for use in std only."

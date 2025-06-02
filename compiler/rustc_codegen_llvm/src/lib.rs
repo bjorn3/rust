@@ -16,7 +16,6 @@
 #![feature(impl_trait_in_assoc_type)]
 #![feature(iter_intersperse)]
 #![feature(rustdoc_internals)]
-#![feature(slice_as_array)]
 #![feature(try_blocks)]
 // tidy-alphabetical-end
 

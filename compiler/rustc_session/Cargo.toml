@@ -1,3 +1,5 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "rustc_session"
 version = "0.0.0"
@@ -22,7 +24,7 @@ rustc_macros = { path = "../rustc_macros" }
 rustc_serialize = { path = "../rustc_serialize" }
 rustc_span = { path = "../rustc_span" }
 rustc_target = { path = "../rustc_target" }
-termize = "0.2"
+termize = "0.1"
 tracing = "0.1"
 # tidy-alphabetical-end
 

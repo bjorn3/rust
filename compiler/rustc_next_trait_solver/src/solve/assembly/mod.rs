@@ -985,7 +985,7 @@ where
                 // Prefer "orphaned" param-env normalization predicates, which are used
                 // (for example, and ideally only) when proving item bounds for an impl.
                 let candidates_from_env: Vec<_> = candidates
-                    .extract_if(.., |c| matches!(c.source, CandidateSource::ParamEnv(_)))
+                    .extract_if(#[cfg(not(bootstrap))] (..), |c| matches!(c.source, CandidateSource::ParamEnv(_)))
                     .collect();
                 if let Some(response) = self.try_merge_candidates(&candidates_from_env) {
                     return Ok(response);

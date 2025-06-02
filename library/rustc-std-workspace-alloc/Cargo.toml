@@ -1,3 +1,5 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "rustc-std-workspace-alloc"
 version = "1.99.0"

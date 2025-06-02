@@ -1,3 +1,5 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "rustc_public"
 version = "0.1.0-preview"

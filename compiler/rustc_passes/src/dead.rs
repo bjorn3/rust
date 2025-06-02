@@ -843,7 +843,7 @@ fn live_symbols_and_ignored_derived_traits(
     // We have marked the primary seeds as live. We now need to process unsolved items from traits
     // and trait impls: add them to the work list if the trait or the implemented type is live.
     let mut items_to_check: Vec<_> = unsolved_items
-        .extract_if(.., |&mut local_def_id| {
+        .extract_if(#[cfg(not(bootstrap))] (..), |&mut local_def_id| {
             symbol_visitor.check_impl_or_impl_item_live(local_def_id)
         })
         .collect();
@@ -854,7 +854,7 @@ fn live_symbols_and_ignored_derived_traits(
             .extend(items_to_check.drain(..).map(|id| (id, ComesFromAllowExpect::No)));
         symbol_visitor.mark_live_symbols();
 
-        items_to_check.extend(unsolved_items.extract_if(.., |&mut local_def_id| {
+        items_to_check.extend(unsolved_items.extract_if(#[cfg(not(bootstrap))] (..), |&mut local_def_id| {
             symbol_visitor.check_impl_or_impl_item_live(local_def_id)
         }));
     }

@@ -6,7 +6,7 @@ name = "miri-script"
 repository = "https://github.com/rust-lang/miri"
 version = "0.1.0"
 default-run = "miri-script"
-edition = "2024"
+edition = "2021"
 rust-version = "1.85"
 
 [workspace]

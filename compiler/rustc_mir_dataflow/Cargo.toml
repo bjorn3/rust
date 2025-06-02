@@ -1,3 +1,5 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "rustc_mir_dataflow"
 version = "0.0.0"

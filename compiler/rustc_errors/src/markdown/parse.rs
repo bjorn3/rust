@@ -44,9 +44,9 @@ type ParseResult<'a> = Option<Parsed<'a>>;
 // line start (yes leading whitespace, not escaped).
 struct Context {
     /// If true, we are at a the topmost level (not recursing a nested tt)
-    top_block: bool = false,
+    top_block: bool,
     /// Previous character
-    prev: Prev = Prev::Whitespace,
+    prev: Prev,
 }
 
 /// Character class preceding this one
@@ -242,7 +242,7 @@ fn parse_heading(buf: &[u8]) -> ParseResult<'_> {
     }
 
     let (txt, rest) = parse_to_newline(&buf[1..]);
-    let ctx = Context { .. };
+    let ctx = Context { top_block: false, prev: Prev::Whitespace };
     let stream = parse_recursive(txt, ctx);
 
     Some((MdTree::Heading(level.try_into().unwrap(), stream), rest))
@@ -251,7 +251,7 @@ fn parse_heading(buf: &[u8]) -> ParseResult<'_> {
 /// Bulleted list
 fn parse_unordered_li(buf: &[u8]) -> Parsed<'_> {
     let (txt, rest) = get_indented_section(&buf[2..]);
-    let ctx = Context { .. };
+    let ctx = Context { top_block: false, prev: Prev::Whitespace };
     let stream = parse_recursive(trim_ascii_start(txt), ctx);
     (MdTree::UnorderedListItem(stream), rest)
 }
@@ -260,7 +260,7 @@ fn parse_unordered_li(buf: &[u8]) -> Parsed<'_> {
 fn parse_ordered_li(buf: &[u8]) -> Parsed<'_> {
     let (num, pos) = ord_list_start(buf).unwrap(); // success tested in caller
     let (txt, rest) = get_indented_section(&buf[pos..]);
-    let ctx = Context { .. };
+    let ctx = Context { top_block: false, prev: Prev::Whitespace };
     let stream = parse_recursive(trim_ascii_start(txt), ctx);
     (MdTree::OrderedListItem(num, stream), rest)
 }
