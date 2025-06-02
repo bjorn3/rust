@@ -337,7 +337,7 @@ fn gen_call_handling<'ll>(
         // get function arg, store it into the alloca, and read it.
         let p = llvm::get_param(called, index as u32);
         let name = llvm::get_value_name(p);
-        let name = str::from_utf8(&name).unwrap();
+        let name = std::str::from_utf8(&name).unwrap();
         let arg_name = format!("{name}.addr");
         let alloca = builder.direct_alloca(in_ty, Align::EIGHT, &arg_name);
 

@@ -16,6 +16,7 @@
 #![feature(assert_matches)]
 #![feature(box_patterns)]
 #![cfg_attr(bootstrap, feature(cell_update))]
+#![cfg_attr(bootstrap, feature(extract_if))]
 #![feature(if_let_guard)]
 #![feature(iter_intersperse)]
 #![feature(rustc_attrs)]
