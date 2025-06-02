@@ -12,7 +12,6 @@
 #![feature(assert_matches)]
 #![feature(box_patterns)]
 #![feature(const_trait_impl)]
-#![feature(control_flow_into_value)]
 #![feature(decl_macro)]
 #![feature(default_field_values)]
 #![feature(if_let_guard)]
@@ -1134,7 +1133,7 @@ pub struct Resolver<'ra, 'tcx> {
     /// Assert that we are in speculative resolution mode.
     assert_speculative: bool,
 
-    prelude: Option<Module<'ra>> = None,
+    prelude: Option<Module<'ra>>,
     extern_prelude: FxIndexMap<Macros20NormalizedIdent, ExternPreludeEntry<'ra>>,
 
     /// N.B., this is used only for better diagnostics, not name resolution itself.
@@ -1146,10 +1145,10 @@ pub struct Resolver<'ra, 'tcx> {
     field_visibility_spans: FxHashMap<DefId, Vec<Span>> = default::fx_hash_map(),
 
     /// All imports known to succeed or fail.
-    determined_imports: Vec<Import<'ra>> = Vec::new(),
+    determined_imports: Vec<Import<'ra>>,
 
     /// All non-determined imports.
-    indeterminate_imports: Vec<Import<'ra>> = Vec::new(),
+    indeterminate_imports: Vec<Import<'ra>>,
 
     // Spans for local variables found during pattern resolution.
     // Used for suggestions during error reporting.
@@ -1160,7 +1159,7 @@ pub struct Resolver<'ra, 'tcx> {
     /// Resolutions for import nodes, which have multiple resolutions in different namespaces.
     import_res_map: NodeMap<PerNS<Option<Res>>> = UnordMap::new(),
     /// An import will be inserted into this map if it has been used.
-    import_use_map: FxHashMap<Import<'ra>, Used> = default::fx_hash_map(),
+    import_use_map: FxHashMap<Import<'ra>, Used>,
     /// Resolutions for labels (node IDs of their corresponding blocks or loops).
     label_res_map: NodeMap<NodeId> = UnordMap::new(),
     /// Resolutions for lifetimes.
@@ -1188,7 +1187,7 @@ pub struct Resolver<'ra, 'tcx> {
     ///
     /// There will be an anonymous module created around `g` with the ID of the
     /// entry block for `f`.
-    block_map: NodeMap<Module<'ra>> = UnordMap::new(),
+    block_map: NodeMap<Module<'ra>> ,
     /// A fake module that contains no definition and no prelude. Used so that
     /// some AST passes can generate identifiers that only resolve to local or
     /// lang items.
@@ -1208,12 +1207,12 @@ pub struct Resolver<'ra, 'tcx> {
     maybe_unused_trait_imports: FxIndexSet<LocalDefId>,
 
     /// Privacy errors are delayed until the end in order to deduplicate them.
-    privacy_errors: Vec<PrivacyError<'ra>> = Vec::new(),
+    privacy_errors: Vec<PrivacyError<'ra>>,
     /// Ambiguity errors are delayed for deduplication.
-    ambiguity_errors: Vec<AmbiguityError<'ra>> = Vec::new(),
+    ambiguity_errors: Vec<AmbiguityError<'ra>>,
     issue_145575_hack_applied: bool = false,
     /// `use` injections are delayed for better placement and deduplication.
-    use_injections: Vec<UseError<'tcx>> = Vec::new(),
+    use_injections: Vec<UseError<'tcx>>,
     /// Crate-local macro expanded `macro_export` referred to by a module-relative path.
     macro_expanded_macro_export_errors: BTreeSet<(Span, Span)> = BTreeSet::new(),
 
@@ -1232,14 +1231,14 @@ pub struct Resolver<'ra, 'tcx> {
     registered_tools: &'tcx RegisteredTools,
     macro_use_prelude: FxIndexMap<Symbol, Decl<'ra>>,
     /// Eagerly populated map of all local macro definitions.
-    local_macro_map: FxHashMap<LocalDefId, &'ra MacroData> = default::fx_hash_map(),
+    local_macro_map: FxHashMap<LocalDefId, &'ra MacroData>,
     /// Lazily populated cache of macro definitions loaded from external crates.
     extern_macro_map: CacheRefCell<FxHashMap<DefId, &'ra MacroData>>,
     dummy_ext_bang: Arc<SyntaxExtension>,
     dummy_ext_derive: Arc<SyntaxExtension>,
     non_macro_attr: &'ra MacroData,
-    local_macro_def_scopes: FxHashMap<LocalDefId, Module<'ra>> = default::fx_hash_map(),
-    ast_transform_scopes: FxHashMap<LocalExpnId, Module<'ra>> = default::fx_hash_map(),
+    local_macro_def_scopes: FxHashMap<LocalDefId, Module<'ra>>,
+    ast_transform_scopes: FxHashMap<LocalExpnId, Module<'ra>> ,
     unused_macros: FxIndexMap<LocalDefId, (NodeId, Ident)>,
     /// A map from the macro to all its potentially unused arms.
     unused_macro_rules: FxIndexMap<NodeId, DenseBitSet<usize>>,
@@ -1249,21 +1248,21 @@ pub struct Resolver<'ra, 'tcx> {
         CmRefCell<Vec<(Ident, MacroKind, ParentScope<'ra>, Option<Decl<'ra>>, Option<Span>)>>,
     multi_segment_macro_resolutions:
         CmRefCell<Vec<(Vec<Segment>, Span, MacroKind, ParentScope<'ra>, Option<Res>, Namespace)>>,
-    builtin_attrs: Vec<(Ident, ParentScope<'ra>)> = Vec::new(),
+    builtin_attrs: Vec<(Ident, ParentScope<'ra>)>,
     /// `derive(Copy)` marks items they are applied to so they are treated specially later.
     /// Derive macros cannot modify the item themselves and have to store the markers in the global
     /// context, so they attach the markers to derive container IDs using this resolver table.
     containers_deriving_copy: FxHashSet<LocalExpnId> = default::fx_hash_set(),
     /// Parent scopes in which the macros were invoked.
     /// FIXME: `derives` are missing in these parent scopes and need to be taken from elsewhere.
-    invocation_parent_scopes: FxHashMap<LocalExpnId, ParentScope<'ra>> = default::fx_hash_map(),
+    invocation_parent_scopes: FxHashMap<LocalExpnId, ParentScope<'ra>> ,
     /// `macro_rules` scopes *produced* by expanding the macro invocations,
     /// include all the `macro_rules` items and other invocations generated by them.
-    output_macro_rules_scopes: FxHashMap<LocalExpnId, MacroRulesScopeRef<'ra>> = default::fx_hash_map(),
+    output_macro_rules_scopes: FxHashMap<LocalExpnId, MacroRulesScopeRef<'ra>> ,
     /// `macro_rules` scopes produced by `macro_rules` item definitions.
-    macro_rules_scopes: FxHashMap<LocalDefId, MacroRulesScopeRef<'ra>> = default::fx_hash_map(),
+    macro_rules_scopes: FxHashMap<LocalDefId, MacroRulesScopeRef<'ra>> ,
     /// Helper attributes that are in scope for the given expansion.
-    helper_attrs: FxHashMap<LocalExpnId, Vec<(Macros20NormalizedIdent, Decl<'ra>)>> = default::fx_hash_map(),
+    helper_attrs: FxHashMap<LocalExpnId, Vec<(Macros20NormalizedIdent, Decl<'ra>)>> ,
     /// Ready or in-progress results of resolving paths inside the `#[derive(...)]` attribute
     /// with the given `ExpnId`.
     derive_data: FxHashMap<LocalExpnId, DeriveData> = default::fx_hash_map(),
@@ -1271,9 +1270,9 @@ pub struct Resolver<'ra, 'tcx> {
     /// Avoid duplicated errors for "name already defined".
     name_already_seen: FxHashMap<Symbol, Span> = default::fx_hash_map(),
 
-    potentially_unused_imports: Vec<Import<'ra>> = Vec::new(),
+    potentially_unused_imports: Vec<Import<'ra>>,
 
-    potentially_unnecessary_qualifications: Vec<UnnecessaryQualification<'ra>> = Vec::new(),
+    potentially_unnecessary_qualifications: Vec<UnnecessaryQualification<'ra>>,
 
     /// Table for mapping struct IDs into struct constructor IDs,
     /// it's not used during normal resolution, only for better error reporting.
@@ -1605,8 +1604,13 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             // AST.
             graph_root,
             assert_speculative: false, // Only set/cleared in Resolver::resolve_imports for now
+            prelude: None,
             extern_prelude,
 
+            determined_imports: Vec::new(),
+            indeterminate_imports: Vec::new(),
+            import_use_map: Default::default(),
+            block_map: Default::default(),
             empty_module,
             local_modules,
             local_module_map,
@@ -1614,6 +1618,10 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
 
             glob_map: Default::default(),
             maybe_unused_trait_imports: Default::default(),
+
+            privacy_errors: Vec::new(),
+            ambiguity_errors: Vec::new(),
+            use_injections: Vec::new(),
 
             arenas,
             dummy_decl: arenas.new_pub_def_decl(Res::Err, DUMMY_SP, LocalExpnId::ROOT),
@@ -1643,15 +1651,25 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 .collect(),
             registered_tools,
             macro_use_prelude: Default::default(),
+            local_macro_map: Default::default(),
             extern_macro_map: Default::default(),
             dummy_ext_bang: Arc::new(SyntaxExtension::dummy_bang(edition)),
             dummy_ext_derive: Arc::new(SyntaxExtension::dummy_derive(edition)),
             non_macro_attr: arenas
                 .alloc_macro(MacroData::new(Arc::new(SyntaxExtension::non_macro_attr(edition)))),
+            local_macro_def_scopes: FxHashMap::default(),
+            ast_transform_scopes: FxHashMap::default(),
             unused_macros: Default::default(),
             unused_macro_rules: Default::default(),
             single_segment_macro_resolutions: Default::default(),
             multi_segment_macro_resolutions: Default::default(),
+            builtin_attrs: Vec::new(),
+            invocation_parent_scopes: FxHashMap::default(),
+            output_macro_rules_scopes: FxHashMap::default(),
+            macro_rules_scopes: FxHashMap::default(),
+            helper_attrs: FxHashMap::default(),
+            potentially_unused_imports: Vec::new(),
+            potentially_unnecessary_qualifications: Vec::new(),
             lint_buffer: LintBuffer::default(),
             node_id_to_def_id,
             invocation_parents,

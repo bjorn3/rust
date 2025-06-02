@@ -3,6 +3,7 @@
 
 use std::cmp;
 use std::ops::{Range, RangeBounds};
+use std::range::Bound;
 
 use rustc_abi::{HasDataLayout, Size};
 use rustc_data_structures::sorted_map::SortedMap;
@@ -274,7 +275,13 @@ impl<Prov: Provenance> ProvenanceMap<Prov> {
         data_bytes: &[u8],
         ptr_size: Size,
     ) -> impl Iterator<Item = (Size, PointerFrag<Prov>)> {
-        if pos_range.is_empty() {
+        if !match (pos_range.start_bound(), pos_range.end_bound()) {
+            (Bound::Unbounded, _) | (_, Bound::Unbounded) => true,
+            (Bound::Included(start), Bound::Excluded(end))
+            | (Bound::Excluded(start), Bound::Included(end))
+            | (Bound::Excluded(start), Bound::Excluded(end)) => start < end,
+            (Bound::Included(start), Bound::Included(end)) => start <= end,
+        } {
             return either::Left(std::iter::empty());
         }
         // Read ptr_size many bytes starting at ptr_pos.

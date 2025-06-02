@@ -30,7 +30,7 @@ pub trait EraseType: Copy {
 pub type Erase<T: EraseType> = Erased<impl Copy>;
 
 #[inline(always)]
-#[define_opaque(Erase)]
+#[cfg_attr(not(bootstrap), define_opaque(Erase))]
 pub fn erase<T: EraseType>(src: T) -> Erase<T> {
     // Ensure the sizes match
     const {
@@ -54,7 +54,7 @@ pub fn erase<T: EraseType>(src: T) -> Erase<T> {
 
 /// Restores an erased value.
 #[inline(always)]
-#[define_opaque(Erase)]
+#[cfg_attr(not(bootstrap), define_opaque(Erase))]
 pub fn restore<T: EraseType>(value: Erase<T>) -> T {
     let value: Erased<<T as EraseType>::Result> = value;
     // See comment in `erase` for why we use `transmute_unchecked`.

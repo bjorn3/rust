@@ -7,6 +7,10 @@
 #![feature(sized_hierarchy)]
 #![feature(staged_api)]
 
+pub mod prelude {
+    pub use crate::PtrExt as _;
+}
+
 // Copied from library/core/src/macros.rs of rustc 1.88.0
 #[unstable(feature = "cfg_select", issue = "none")]
 pub macro cfg_select {
@@ -37,3 +41,19 @@ impl<T: ?Sized> PointeeSized for T {}
 
 #[cfg(not(bootstrap))]
 pub use std::marker::PointeeSized;
+
+pub trait PtrExt<T> {
+    unsafe fn offset_from_unsigned(self, origin: *const T) -> usize;
+}
+
+impl<T> PtrExt<T> for *const T {
+    unsafe fn offset_from_unsigned(self, origin: *const T) -> usize {
+        unsafe { usize::try_from(self.offset_from(origin)).unwrap_unchecked() }
+    }
+}
+
+impl<T> PtrExt<T> for *mut T {
+    unsafe fn offset_from_unsigned(self, origin: *const T) -> usize {
+        unsafe { usize::try_from(self.offset_from(origin)).unwrap_unchecked() }
+    }
+}

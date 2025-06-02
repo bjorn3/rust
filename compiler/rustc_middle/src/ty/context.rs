@@ -660,7 +660,7 @@ impl<'tcx> Interner for TyCtxt<'tcx> {
             | ty::Bound(_, _) => bug!("unexpected self type: {self_ty}"),
         }
 
-        #[allow(rustc::usage_of_type_ir_traits)]
+        #[cfg_attr(not(bootstrap), allow(rustc::usage_of_type_ir_traits))]
         self.for_each_blanket_impl(trait_def_id, f)
     }
     fn for_each_blanket_impl(self, trait_def_id: DefId, mut f: impl FnMut(DefId)) {

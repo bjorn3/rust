@@ -5381,7 +5381,7 @@ fn hint_missing_borrow<'tcx>(
 /// Used to suggest replacing associated types with an explicit type in `where` clauses.
 #[derive(Debug)]
 pub struct SelfVisitor<'v> {
-    pub paths: Vec<&'v hir::Ty<'v>> = Vec::new(),
+    pub paths: Vec<&'v hir::Ty<'v>>,
     pub name: Option<Symbol>,
 }
 
@@ -5759,7 +5759,7 @@ fn point_at_assoc_type_restriction<G: EmissionGuarantee>(
                 );
                 // Search for the associated type `Self::{name}`, get
                 // its type and suggest replacing the bound with it.
-                let mut visitor = SelfVisitor { name: Some(name), .. };
+                let mut visitor = SelfVisitor { paths: Vec::new(), name: Some(name) };
                 visitor.visit_trait_ref(trait_ref);
                 for path in visitor.paths {
                     err.span_suggestion_verbose(
@@ -5770,7 +5770,7 @@ fn point_at_assoc_type_restriction<G: EmissionGuarantee>(
                     );
                 }
             } else {
-                let mut visitor = SelfVisitor { name: None, .. };
+                let mut visitor = SelfVisitor { paths: Vec::new(), name: None };
                 visitor.visit_trait_ref(trait_ref);
                 let span: MultiSpan =
                     visitor.paths.iter().map(|p| p.span).collect::<Vec<Span>>().into();

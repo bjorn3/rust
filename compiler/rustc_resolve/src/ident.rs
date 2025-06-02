@@ -463,7 +463,10 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                     Err(ControlFlow::Break(determinacy)) if innermost_results.is_empty() => {
                         return ControlFlow::Break(Err(determinacy));
                     }
-                    Err(determinacy) => Err(determinacy.into_value()),
+                    Err(determinacy) => Err(match determinacy {
+                        ControlFlow::Break(v) => v,
+                        ControlFlow::Continue(v) => v,
+                    }),
                 };
                 match res {
                     Ok(decl) if sub_namespace_match(decl.macro_kinds(), macro_kind) => {

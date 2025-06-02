@@ -3,7 +3,7 @@
 #![cfg_attr(not(bootstrap), allow(rustc::direct_use_of_rustc_type_ir))]
 #![allow(rustc::usage_of_ty_tykind)]
 #![allow(rustc::usage_of_type_ir_inherent)]
-#![allow(rustc::usage_of_type_ir_traits)]
+#![cfg_attr(not(bootstrap), allow(rustc::usage_of_type_ir_traits))]
 #![cfg_attr(feature = "nightly", allow(internal_features))]
 #![cfg_attr(
     feature = "nightly",

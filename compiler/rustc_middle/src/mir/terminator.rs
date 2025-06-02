@@ -505,14 +505,18 @@ mod helper {
 
     // Note: this method ensures all paths below produce an iterator with the same concrete type.
     #[inline]
-    #[define_opaque(Successors)]
-    fn mk_successors(
+    #[cfg_attr(not(bootstrap), define_opaque(Successors))]
+    pub(super) fn mk_successors(
         slice: &[BasicBlock],
         option1: Option<BasicBlock>,
         option2: Option<BasicBlock>,
     ) -> Successors<'_> {
         slice.iter().copied().chain(option1.into_iter().chain(option2))
     }
+}
+
+mod helper2 {
+    use super::*;
 
     impl SwitchTargets {
         /// Like [`SwitchTargets::target_for_value`], but returning the same type as
