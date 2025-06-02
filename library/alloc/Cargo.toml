@@ -1,4 +1,4 @@
-cargo-features = ["public-dependency"]
+cargo-features = ["public-dependency", "edition2024"]
 
 [package]
 name = "alloc"

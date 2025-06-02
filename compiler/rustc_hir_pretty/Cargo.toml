@@ -1,3 +1,5 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "rustc_hir_pretty"
 version = "0.0.0"

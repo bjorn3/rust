@@ -1,3 +1,5 @@
+cargo-features = ["edition2024"]
+
 # NOTE: Must be kept in sync with `../builtins-shim/Cargo.toml`.
 #
 # This manifest is actually used in-tree by rust-lang/rust,

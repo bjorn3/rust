@@ -1,6 +1,5 @@
 // tidy-alphabetical-start
 #![allow(internal_features)]
-#![feature(default_field_values)]
 #![cfg_attr(bootstrap, feature(map_many_mut))]
 #![feature(iter_intersperse)]
 #![feature(rustc_attrs)]

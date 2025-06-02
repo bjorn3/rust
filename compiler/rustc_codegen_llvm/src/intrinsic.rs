@@ -331,7 +331,7 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                 let (size, signed) = fn_args.type_at(0).int_size_and_signed(self.tcx);
 
                 let wide_llty = self.type_ix(size.bits() * 2);
-                let args = args.as_array().unwrap();
+                let args: [_; 4] = args.try_into().unwrap();
                 let [a, b, c, d] = args.map(|a| self.intcast(a.immediate(), wide_llty, signed));
 
                 let wide = if signed {
