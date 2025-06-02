@@ -14,6 +14,7 @@
 #![feature(core_intrinsics)]
 #![feature(min_specialization)]
 #![feature(never_type)]
+#![cfg_attr(bootstrap, feature(ptr_sub_ptr))]
 #![feature(rustdoc_internals)]
 // tidy-alphabetical-end
 

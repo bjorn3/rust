@@ -4,6 +4,7 @@
 #![doc(rust_logo)]
 #![feature(decl_macro)]
 #![feature(error_iter)]
+#![cfg_attr(bootstrap, feature(extract_if))]
 #![feature(file_buffered)]
 #![feature(gen_blocks)]
 #![feature(if_let_guard)]

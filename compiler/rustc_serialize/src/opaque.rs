@@ -282,15 +282,31 @@ impl<'a> MemDecoder<'a> {
     }
 
     #[inline]
+    #[cfg(not(bootstrap))]
     pub fn len(&self) -> usize {
         // SAFETY: This recovers the length of the original slice, only using members we never modify.
         unsafe { self.end.offset_from_unsigned(self.start) }
     }
 
     #[inline]
+    #[cfg(bootstrap)]
+    pub fn len(&self) -> usize {
+        // SAFETY: This recovers the length of the original slice, only using members we never modify.
+        unsafe { self.end.sub_ptr(self.start) }
+    }
+
+    #[inline]
+    #[cfg(not(bootstrap))]
     pub fn remaining(&self) -> usize {
         // SAFETY: This type guarantees current <= end.
         unsafe { self.end.offset_from_unsigned(self.current) }
+    }
+
+    #[inline]
+    #[cfg(bootstrap)]
+    pub fn remaining(&self) -> usize {
+        // SAFETY: This type guarantees current <= end.
+        unsafe { self.end.sub_ptr(self.current) }
     }
 
     #[cold]
@@ -402,9 +418,17 @@ impl<'a> Decoder for MemDecoder<'a> {
     }
 
     #[inline]
+    #[cfg(not(bootstrap))]
     fn position(&self) -> usize {
         // SAFETY: This type guarantees start <= current
         unsafe { self.current.offset_from_unsigned(self.start) }
+    }
+
+    #[inline]
+    #[cfg(bootstrap)]
+    fn position(&self) -> usize {
+        // SAFETY: This type guarantees start <= current
+        unsafe { self.current.sub_ptr(self.start) }
     }
 }
 
