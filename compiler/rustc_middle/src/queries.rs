@@ -72,9 +72,7 @@ use rustc_lint_defs::LintId;
 use rustc_macros::rustc_queries;
 use rustc_session::Limits;
 use rustc_session::config::{EntryFnType, OptLevel, OutputFilenames, SymbolManglingVersion};
-use rustc_session::cstore::{
-    CrateDepKind, CrateSource, ExternCrate, ForeignModule, LinkagePreference, NativeLib,
-};
+use rustc_session::cstore::{CrateDepKind, CrateSource, ExternCrate, ForeignModule, NativeLib};
 use rustc_session::lint::StableLintExpectationId;
 use rustc_span::def_id::LOCAL_CRATE;
 use rustc_span::{DUMMY_SP, LocalExpnId, Span, Spanned, Symbol};
@@ -1787,17 +1785,6 @@ rustc_queries! {
         key: ty::PseudoCanonicalInput<'tcx, (ty::Instance<'tcx>, &'tcx ty::List<Ty<'tcx>>)>
     ) -> Result<&'tcx rustc_target::callconv::FnAbi<'tcx, Ty<'tcx>>, &'tcx ty::layout::FnAbiError<'tcx>> {
         desc { "computing call ABI of `{}`", key.value.0 }
-    }
-
-    query dylib_dependency_formats(_: CrateNum)
-                                    -> &'tcx [(CrateNum, LinkagePreference)] {
-        desc { "getting dylib dependency formats of crate" }
-        separate_provide_extern
-    }
-
-    query dependency_formats(_: ()) -> &'tcx Arc<crate::middle::dependency_format::Dependencies> {
-        arena_cache
-        desc { "getting the linkage format of all dependencies" }
     }
 
     query is_compiler_builtins(_: CrateNum) -> bool {

@@ -38,7 +38,7 @@ use rustc_middle::util::Providers;
 use rustc_serialize::opaque::FileEncoder;
 use rustc_session::config::mitigation_coverage::DeniedPartialMitigation;
 use rustc_session::config::{SymbolManglingVersion, TargetModifier};
-use rustc_session::cstore::{CrateDepKind, ForeignModule, LinkagePreference, NativeLib};
+use rustc_session::cstore::{CrateDepKind, ForeignModule, NativeLib};
 use rustc_span::edition::Edition;
 use rustc_span::hygiene::{ExpnIndex, MacroKind, SyntaxContextKey};
 use rustc_span::{self, ExpnData, ExpnHash, ExpnId, Ident, Span, Symbol};
@@ -262,7 +262,6 @@ pub(crate) struct CrateRoot {
     externally_implementable_items: LazyArray<EiiMapEncodedKeyValue>,
 
     crate_deps: LazyArray<CrateDep>,
-    dylib_dependency_formats: LazyArray<Option<LinkagePreference>>,
     lib_features: LazyArray<(Symbol, FeatureStability)>,
     stability_implications: LazyArray<(Symbol, Symbol)>,
     lang_items: LazyArray<(DefIndex, LangItem)>,

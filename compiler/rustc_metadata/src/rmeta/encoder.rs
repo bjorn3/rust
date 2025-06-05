@@ -17,7 +17,6 @@ use rustc_hir::definitions::DefPathData;
 use rustc_hir::find_attr;
 use rustc_hir_pretty::id_to_string;
 use rustc_middle::dep_graph::WorkProductId;
-use rustc_middle::middle::dependency_format::Linkage;
 use rustc_middle::mir::interpret;
 use rustc_middle::query::Providers;
 use rustc_middle::traits::specialization_graph;
@@ -622,8 +621,7 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
         let externally_implementable_items = stat!("externally-implementable-items", || self
             .encode_externally_implementable_items());
 
-        let (crate_deps, dylib_dependency_formats) =
-            stat!("dep", || (self.encode_crate_deps(), self.encode_dylib_dependency_formats()));
+        let crate_deps = stat!("dep", || self.encode_crate_deps());
 
         let lib_features = stat!("lib-features", || self.encode_lib_features());
 
@@ -751,7 +749,6 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
                 symbol_mangling_version: tcx.sess.opts.get_symbol_mangling_version(),
 
                 crate_deps,
-                dylib_dependency_formats,
                 lib_features,
                 stability_implications,
                 lang_items,
@@ -2284,22 +2281,6 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
         empty_proc_macro!(self);
 
         self.lazy_array(exported_symbols.iter().cloned())
-    }
-
-    fn encode_dylib_dependency_formats(&mut self) -> LazyArray<Option<LinkagePreference>> {
-        empty_proc_macro!(self);
-        let formats = self.tcx.dependency_formats(());
-        if let Some(arr) = formats.get(&CrateType::Dylib) {
-            return self.lazy_array(arr.iter().skip(1 /* skip LOCAL_CRATE */).map(
-                |slot| match *slot {
-                    Linkage::NotLinked | Linkage::IncludedFromDylib => None,
-
-                    Linkage::Dynamic => Some(LinkagePreference::RequireDynamic),
-                    Linkage::Static => Some(LinkagePreference::RequireStatic),
-                },
-            ));
-        }
-        LazyArray::default()
     }
 }
 
