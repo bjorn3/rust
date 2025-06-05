@@ -1772,17 +1772,6 @@ rustc_queries! {
         desc { "computing call ABI of `{}`", key.value.0 }
     }
 
-    query dylib_dependency_formats(_: CrateNum)
-                                    -> &'tcx [(CrateNum, LinkagePreference)] {
-        desc { "getting dylib dependency formats of crate" }
-        separate_provide_extern
-    }
-
-    query dependency_formats(_: ()) -> &'tcx Arc<crate::middle::dependency_format::Dependencies> {
-        arena_cache
-        desc { "getting the linkage format of all dependencies" }
-    }
-
     query is_compiler_builtins(_: CrateNum) -> bool {
         fatal_cycle
         desc { "checking if the crate is_compiler_builtins" }

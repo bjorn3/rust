@@ -262,7 +262,6 @@ pub(crate) struct CrateRoot {
     has_default_lib_allocator: bool,
 
     crate_deps: LazyArray<CrateDep>,
-    dylib_dependency_formats: LazyArray<Option<LinkagePreference>>,
     lib_features: LazyArray<(Symbol, FeatureStability)>,
     stability_implications: LazyArray<(Symbol, Symbol)>,
     lang_items: LazyArray<(DefIndex, LangItem)>,

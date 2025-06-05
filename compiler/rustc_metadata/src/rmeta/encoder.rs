@@ -620,8 +620,7 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
         // We have already encoded some things. Get their combined size from the current position.
         stats.push(("preamble", self.position()));
 
-        let (crate_deps, dylib_dependency_formats) =
-            stat!("dep", || (self.encode_crate_deps(), self.encode_dylib_dependency_formats()));
+        let crate_deps = stat!("dep", || self.encode_crate_deps());
 
         let lib_features = stat!("lib-features", || self.encode_lib_features());
 
@@ -749,7 +748,6 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
                 symbol_mangling_version: tcx.sess.opts.get_symbol_mangling_version(),
 
                 crate_deps,
-                dylib_dependency_formats,
                 lib_features,
                 stability_implications,
                 lang_items,
@@ -2224,22 +2222,6 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
                 })
                 .cloned(),
         )
-    }
-
-    fn encode_dylib_dependency_formats(&mut self) -> LazyArray<Option<LinkagePreference>> {
-        empty_proc_macro!(self);
-        let formats = self.tcx.dependency_formats(());
-        if let Some(arr) = formats.get(&CrateType::Dylib) {
-            return self.lazy_array(arr.iter().skip(1 /* skip LOCAL_CRATE */).map(
-                |slot| match *slot {
-                    Linkage::NotLinked | Linkage::IncludedFromDylib => None,
-
-                    Linkage::Dynamic => Some(LinkagePreference::RequireDynamic),
-                    Linkage::Static => Some(LinkagePreference::RequireStatic),
-                },
-            ));
-        }
-        LazyArray::default()
     }
 }
 

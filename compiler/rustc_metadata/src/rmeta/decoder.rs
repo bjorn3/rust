@@ -814,8 +814,8 @@ impl MetadataBlob {
                     )?;
 
                     writeln!(out, "=External Dependencies=")?;
-                    let dylib_dependency_formats =
-                        root.dylib_dependency_formats.decode(self).collect::<Vec<_>>();
+                    //let dylib_dependency_formats =
+                    //    root.dylib_dependency_formats.decode(self).collect::<Vec<_>>();
                     for (i, dep) in root.crate_deps.decode(self).enumerate() {
                         let CrateDep { name, extra_filename, hash, host_hash, kind, is_private } =
                             dep;
@@ -825,11 +825,10 @@ impl MetadataBlob {
                             out,
                             "{number} {name}{extra_filename} hash {hash} host_hash {host_hash:?} kind {kind:?} {privacy}{linkage}",
                             privacy = if is_private { "private" } else { "public" },
-                            linkage = if dylib_dependency_formats.is_empty() {
-                                String::new()
-                            } else {
-                                format!(" linkage {:?}", dylib_dependency_formats[i])
-                            }
+                            linkage = //if dylib_dependency_formats.is_empty() {
+                                String::new() //} else {
+                                              //    format!(" linkage {:?}", dylib_dependency_formats[i])
+                                              //}
                         )?;
                     }
                     write!(out, "\n")?;
@@ -1481,18 +1480,6 @@ impl<'a> CrateMetadataRef<'a> {
 
     fn get_foreign_modules(self, sess: &'a Session) -> impl Iterator<Item = ForeignModule> {
         self.root.foreign_modules.decode((self, sess))
-    }
-
-    fn get_dylib_dependency_formats<'tcx>(
-        self,
-        tcx: TyCtxt<'tcx>,
-    ) -> &'tcx [(CrateNum, LinkagePreference)] {
-        tcx.arena.alloc_from_iter(
-            self.root.dylib_dependency_formats.decode(self).enumerate().flat_map(|(i, link)| {
-                let cnum = CrateNum::new(i + 1); // We skipped LOCAL_CRATE when encoding
-                link.map(|link| (self.cnum_map[cnum], link))
-            }),
-        )
     }
 
     fn get_missing_lang_items<'tcx>(self, tcx: TyCtxt<'tcx>) -> &'tcx [LangItem] {

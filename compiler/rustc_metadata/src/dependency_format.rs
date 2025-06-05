@@ -176,7 +176,7 @@ fn calculate_type(tcx: TyCtxt<'_>, ty: CrateType) -> DependencyList {
 
         // Find all libraries statically linked to upstream dylibs.
         for &cnum in all_dylibs() {
-            let deps = tcx.dylib_dependency_formats(cnum);
+            let deps: Vec<(CrateNum, _)> = vec![]; //tcx.dylib_dependency_formats(cnum);
             for &(depnum, style) in deps.iter() {
                 if let RequireStatic = style {
                     upstream_in_dylibs.insert(depnum);
@@ -201,7 +201,7 @@ fn calculate_type(tcx: TyCtxt<'_>, ty: CrateType) -> DependencyList {
         let name = tcx.crate_name(cnum);
         info!("adding dylib: {}", name);
         add_library(tcx, cnum, RequireDynamic, &mut formats, &mut unavailable_as_static);
-        let deps = tcx.dylib_dependency_formats(cnum);
+        let deps = vec![]; //tcx.dylib_dependency_formats(cnum);
         for &(depnum, style) in deps.iter() {
             info!("adding {:?}: {}", style, tcx.crate_name(depnum));
             add_library(tcx, depnum, style, &mut formats, &mut unavailable_as_static);
