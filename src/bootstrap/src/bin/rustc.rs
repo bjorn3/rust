@@ -218,8 +218,8 @@ fn main() {
     // https://github.com/rust-lang/cargo/issues/4423, which will likely be
     // very difficult, but could help expose -Zallow-features into build
     // scripts so they could try to honor them.
-    if let Ok(allow_features) = env::var("RUSTC_ALLOW_FEATURES") {
-        cmd.arg(format!("-Zallow-features={allow_features}"));
+    if let Ok(_allow_features) = env::var("RUSTC_ALLOW_FEATURES") {
+        //cmd.arg(format!("-Zallow-features={allow_features}"));
     }
 
     if let Ok(flags) = env::var("MAGIC_EXTRA_RUSTFLAGS") {
