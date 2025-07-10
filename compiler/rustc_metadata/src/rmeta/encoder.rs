@@ -1749,7 +1749,7 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
                 .resolutions(())
                 .ambig_module_children
                 .get(&local_def_id)
-                .map_or_default(|v| &v[..]);
+                .map_or_else(Default::default, |v| &v[..]);
             record_defaulted_array!(self.tables.ambig_module_children[def_id] <-
                 ambig_module_children);
         }

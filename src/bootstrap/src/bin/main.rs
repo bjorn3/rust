@@ -5,8 +5,8 @@
 //! parent directory, and otherwise documentation can be found throughout the `build`
 //! directory in each respective module.
 
-use std::fs::{self, OpenOptions, TryLockError};
-use std::io::{self, BufRead, BufReader, IsTerminal, Read, Write};
+use std::fs::{self, OpenOptions};
+use std::io::{self, BufRead, BufReader, IsTerminal, Write};
 use std::path::Path;
 use std::str::FromStr;
 use std::time::Instant;
@@ -39,34 +39,37 @@ fn main() {
     let config = Config::parse(flags);
 
     let mut build_lock;
+    let mut build_lock_guard;
 
     if !config.bypass_bootstrap_lock {
         // Display PID of process holding the lock
         // PID will be stored in a lock file
         let lock_path = config.out.join("lock");
-        build_lock = t!(fs::OpenOptions::new()
-            .read(true)
+        let pid = fs::read_to_string(&lock_path);
+
+        build_lock = fd_lock::RwLock::new(t!(fs::OpenOptions::new()
             .write(true)
             .create(true)
             .truncate(false)
-            .open(&lock_path));
-        t!(build_lock.try_lock().or_else(|e| {
-            if let TryLockError::Error(e) = e {
-                return Err(e);
+            .open(&lock_path)));
+        build_lock_guard = match build_lock.try_write() {
+            Ok(lock) => {
+                lock
             }
-            let mut pid = String::new();
-            t!(build_lock.read_to_string(&mut pid));
-            // #135972: We can reach this point when the lock has been taken,
-            // but the locker has not yet written its PID to the file
-            if !pid.is_empty() {
-                println!("WARNING: build directory locked by process {pid}, waiting for lock");
-            } else {
-                println!("WARNING: build directory locked, waiting for lock");
+            err => {
+                drop(err);
+                // #135972: We can reach this point when the lock has been taken,
+                // but the locker has not yet written its PID to the file
+                if let Some(pid) = pid.ok().filter(|pid| !pid.is_empty()) {
+                    println!("WARNING: build directory locked by process {pid}, waiting for lock");
+                } else {
+                    println!("WARNING: build directory locked, waiting for lock");
+                }
+                t!(build_lock.write())
             }
-            build_lock.lock()
-        }));
-        t!(build_lock.set_len(0));
-        t!(build_lock.write_all(process::id().to_string().as_bytes()));
+        };
+        t!(build_lock_guard.set_len(0));
+        t!(build_lock_guard.write(process::id().to_string().as_ref()));
     }
 
     // check_version warnings are not printed during setup, or during CI

@@ -4,12 +4,13 @@ use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::hash::{BuildHasher, Hash};
-use std::marker::{PhantomData, PointeeSized};
+use std::marker::PhantomData;
 use std::num::NonZero;
 use std::path;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use rustc_backports::PointeeSized;
 use rustc_hashes::{Hash64, Hash128};
 use smallvec::{Array, SmallVec};
 use thin_vec::ThinVec;

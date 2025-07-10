@@ -5,7 +5,6 @@
 #![feature(iter_intersperse)]
 #![feature(iter_order_by)]
 #![feature(never_type)]
-#![feature(trim_prefix_suffix)]
 // tidy-alphabetical-end
 
 mod _match;

@@ -2739,7 +2739,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 
                     // If this is a floating point literal that ends with '.',
                     // get rid of it to stop this from becoming a member access.
-                    let snippet = snippet.trim_suffix('.');
+                    let snippet = snippet.strip_suffix('.').unwrap_or(&snippet);
                     err.span_suggestion(
                         lit.span,
                         format!(
