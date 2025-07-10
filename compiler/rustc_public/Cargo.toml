@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 # tidy-alphabetical-start
 rustc_abi = { path = "../rustc_abi" }
+rustc_backports = { path = "../rustc_backports" }
 rustc_hir = { path = "../rustc_hir" }
 rustc_middle = { path = "../rustc_middle" }
 rustc_public_bridge = { path = "../rustc_public_bridge" }

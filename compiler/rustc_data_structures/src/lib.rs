@@ -19,7 +19,6 @@
 #![feature(ascii_char_variants)]
 #![feature(assert_matches)]
 #![feature(auto_traits)]
-#![feature(cfg_select)]
 #![feature(core_intrinsics)]
 #![feature(dropck_eyepatch)]
 #![feature(extend_one)]
@@ -31,7 +30,6 @@
 #![feature(ptr_alignment_type)]
 #![feature(rustc_attrs)]
 #![feature(rustdoc_internals)]
-#![feature(sized_hierarchy)]
 #![feature(test)]
 #![feature(thread_id_value)]
 #![feature(type_alias_impl_trait)]
@@ -42,6 +40,7 @@ use std::fmt;
 
 pub use atomic_ref::AtomicRef;
 pub use ena::{snapshot_vec, undo_log, unify};
+pub use rustc_backports::PointeeSized;
 pub use rustc_index::static_assert_size;
 
 pub mod aligned;

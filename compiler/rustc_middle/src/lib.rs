@@ -27,8 +27,8 @@
 // tidy-alphabetical-start
 #![allow(internal_features)]
 #![allow(rustc::diagnostic_outside_of_impl)]
-#![allow(rustc::direct_use_of_rustc_type_ir)]
 #![allow(rustc::untranslatable_diagnostic)]
+#![cfg_attr(not(bootstrap), allow(rustc::direct_use_of_rustc_type_ir))]
 #![doc(html_root_url = "https://doc.rust-lang.org/nightly/nightly-rustc/")]
 #![doc(rust_logo)]
 #![feature(allocator_api)]
@@ -54,7 +54,6 @@
 #![feature(round_char_boundary)]
 #![feature(rustc_attrs)]
 #![feature(rustdoc_internals)]
-#![feature(sized_hierarchy)]
 #![feature(try_blocks)]
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_residual)]

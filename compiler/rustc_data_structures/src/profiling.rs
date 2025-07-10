@@ -951,7 +951,7 @@ fn get_thread_id() -> u32 {
 }
 
 // Memory reporting
-cfg_select! {
+rustc_backports::cfg_match! {
     windows => {
         pub fn get_resident_set_size() -> Option<usize> {
             use windows::{

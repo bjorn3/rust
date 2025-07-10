@@ -11,6 +11,7 @@ indexmap = { version = "2.0.0" }
 itoa = "1.0"
 md5 = { package = "md-5", version = "0.10.0" }
 rustc_arena = { path = "../rustc_arena" }
+rustc_backports = { path = "../rustc_backports" }
 rustc_data_structures = { path = "../rustc_data_structures" }
 rustc_hashes = { path = "../rustc_hashes" }
 rustc_index = { path = "../rustc_index" }

@@ -20,7 +20,6 @@
 )]
 #![doc(rust_logo)]
 #![feature(rustdoc_internals)]
-#![feature(sized_hierarchy)]
 // tidy-alphabetical-end
 
 use std::cell::RefCell;

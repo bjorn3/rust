@@ -8,9 +8,10 @@
 
 use std::hash::Hash;
 use std::intrinsics;
-use std::marker::{DiscriminantKind, PointeeSized};
+use std::marker::DiscriminantKind;
 
 use rustc_abi::{FieldIdx, VariantIdx};
+use rustc_backports::PointeeSized;
 use rustc_data_structures::fx::FxHashMap;
 use rustc_hir::def_id::LocalDefId;
 use rustc_serialize::{Decodable, Encodable};

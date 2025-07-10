@@ -10,13 +10,14 @@ use std::cmp::Ordering;
 use std::env::VarError;
 use std::ffi::OsStr;
 use std::hash::{Hash, Hasher};
-use std::marker::{PhantomData, PointeeSized};
+use std::marker::PhantomData;
 use std::ops::{Bound, Deref};
 use std::sync::{Arc, OnceLock};
 use std::{fmt, iter, mem};
 
 use rustc_abi::{ExternAbi, FieldIdx, Layout, LayoutData, TargetDataLayout, VariantIdx};
 use rustc_ast as ast;
+use rustc_backports::PointeeSized;
 use rustc_data_structures::defer;
 use rustc_data_structures::fingerprint::Fingerprint;
 use rustc_data_structures::fx::FxHashMap;
