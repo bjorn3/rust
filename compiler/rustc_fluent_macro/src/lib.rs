@@ -4,6 +4,7 @@
 #![doc(html_root_url = "https://doc.rust-lang.org/nightly/nightly-rustc/")]
 #![doc(rust_logo)]
 #![feature(proc_macro_diagnostic)]
+#![cfg_attr(bootstrap, feature(proc_macro_span))]
 #![feature(rustdoc_internals)]
 #![feature(track_path)]
 // tidy-alphabetical-end
