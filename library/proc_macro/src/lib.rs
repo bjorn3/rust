@@ -1473,9 +1473,9 @@ impl Literal {
 
                 unescape_c_str(symbol, |_span, res| match res {
                     Ok(MixedUnit::Char(c)) => {
-                        buf.extend_from_slice(c.get().encode_utf8(&mut [0; 4]).as_bytes())
+                        buf.extend_from_slice(c.encode_utf8(&mut [0; 4]).as_bytes())
                     }
-                    Ok(MixedUnit::HighByte(b)) => buf.push(b.get()),
+                    Ok(MixedUnit::HighByte(b)) => buf.push(b),
                     Err(err) => {
                         if err.is_fatal() {
                             error = Some(ConversionErrorKind::FailedToUnescape(err));

@@ -9,6 +9,7 @@ rustc_abi = { path = "../rustc_abi" }
 rustc_hir = { path = "../rustc_hir" }
 rustc_middle = { path = "../rustc_middle" }
 rustc_public_bridge = { path = "../rustc_public_bridge" }
+rustc_serialize = { path = "../rustc_serialize" }
 rustc_session = { path = "../rustc_session" }
 rustc_span = { path = "../rustc_span" }
 rustc_target = { path = "../rustc_target" }

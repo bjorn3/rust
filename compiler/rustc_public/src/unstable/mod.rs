@@ -4,13 +4,12 @@
 //! any sort of conversion and usage of internal rustc code. So we
 //! restrict the usage of internal items to be inside this module.
 
-use std::marker::PointeeSized;
-
 use rustc_hir::def::DefKind;
 use rustc_middle::ty::{List, Ty, TyCtxt};
 use rustc_middle::{mir, ty};
 use rustc_public_bridge::Tables;
 use rustc_public_bridge::context::CompilerCtxt;
+use rustc_serialize::PointeeSized;
 
 use super::compiler_interface::BridgeTys;
 use crate::{CtorKind, ItemKind};
