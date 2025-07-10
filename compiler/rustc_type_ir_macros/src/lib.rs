@@ -1,3 +1,5 @@
+#![cfg_attr(bootstrap, feature(let_chains))]
+
 use quote::{ToTokens, quote};
 use syn::visit_mut::VisitMut;
 use syn::{Attribute, parse_quote};

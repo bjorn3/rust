@@ -3,6 +3,7 @@
 #![cfg_attr(bootstrap, feature(track_path))]
 #![cfg_attr(not(bootstrap), feature(proc_macro_tracked_path))]
 #![feature(proc_macro_diagnostic)]
+#![cfg_attr(bootstrap, feature(proc_macro_span))]
 // tidy-alphabetical-end
 
 use proc_macro::TokenStream;
