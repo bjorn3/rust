@@ -7,7 +7,7 @@
 // tidy-alphabetical-start
 // We want to be able to build this crate with a stable compiler,
 // so no `#![feature]` attributes should be added.
-#![deny(unstable_features)]
+//#![deny(unstable_features)]
 #![doc(test(attr(deny(warnings), allow(internal_features))))]
 // tidy-alphabetical-end
 

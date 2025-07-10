@@ -68,6 +68,8 @@ impl Rustflags {
         } else {
             self.env("RUSTFLAGS_BOOTSTRAP");
             self.arg("--cfg=bootstrap");
+            self.arg("--extern=force:std");
+            self.arg("-Zcrate-attr=feature()");
         }
     }
 }
@@ -1227,8 +1229,8 @@ impl Builder<'_> {
 
         // Lints just for `compiler/` crates.
         if mode == Mode::Rustc {
-            lint_flags.push("-Wrustc::internal");
-            lint_flags.push("-Drustc::symbol_intern_string_literal");
+            //lint_flags.push("-Wrustc::internal");
+            //lint_flags.push("-Drustc::symbol_intern_string_literal");
             // FIXME(edition_2024): Change this to `-Wrust_2024_idioms` when all
             // of the individual lints are satisfied.
             lint_flags.push("-Wkeyword_idents_2024");

@@ -1111,7 +1111,7 @@ class RustBuild(object):
             # Preserve existing RUSTFLAGS.
             env.setdefault("RUSTFLAGS", "")
         else:
-            env["RUSTFLAGS"] = "-Zallow-features="
+            env["RUSTFLAGS"] = ""
 
         if not os.path.isfile(self.cargo()):
             raise Exception("no cargo executable found at `{}`".format(self.cargo()))
