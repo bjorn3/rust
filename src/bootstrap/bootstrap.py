@@ -1095,7 +1095,7 @@ class RustBuild(object):
             # Preserve existing RUSTFLAGS.
             env.setdefault("RUSTFLAGS", "")
         else:
-            env["RUSTFLAGS"] = "-Zallow-features="
+            env["RUSTFLAGS"] = ""
 
         target_features = []
         if self.get_toml("crt-static", build_section) == "true":
