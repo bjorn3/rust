@@ -575,6 +575,7 @@ impl Builder<'_> {
             }
             rustflags.env("RUSTFLAGS_BOOTSTRAP");
             rustflags.arg("--cfg=bootstrap");
+            rustflags.arg("-Zcrate-attr=feature(let_chains)");
         }
 
         if cmd_kind == Kind::Clippy {

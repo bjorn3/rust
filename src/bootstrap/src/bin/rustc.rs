@@ -15,6 +15,8 @@
 //! switching compilers for the bootstrap and for build scripts will probably
 //! never get replaced.
 
+#![feature(let_chains)]
+
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
