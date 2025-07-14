@@ -592,6 +592,7 @@ pub fn check(root: &Path, cargo: &Path, bless: bool, bad: &mut bool) {
 
         let mut cmd = cargo_metadata::MetadataCommand::new();
         cmd.cargo_path(cargo)
+            .current_dir(root.join(workspace))
             .manifest_path(root.join(workspace).join("Cargo.toml"))
             .features(cargo_metadata::CargoOpt::AllFeatures)
             .other_options(vec!["--locked".to_owned()]);

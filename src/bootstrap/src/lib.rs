@@ -55,7 +55,7 @@ pub use utils::change_tracker::{
 };
 pub use utils::helpers::PanicTracker;
 
-use crate::core::build_steps::vendor::VENDOR_DIR;
+use crate::core::build_steps::vendor::{VENDOR_DIR, VENDOR_STDLIB_DIR};
 
 const LLVM_TOOLS: &[&str] = &[
     "llvm-cov",      // used to generate coverage report
@@ -871,8 +871,12 @@ impl Build {
     }
 
     /// Path to the vendored Rust crates.
-    fn vendored_crates_path(&self) -> Option<PathBuf> {
-        if self.config.vendor { Some(self.src.join(VENDOR_DIR)) } else { None }
+    fn vendored_crates_path(&self) -> Option<(PathBuf, PathBuf)> {
+        if self.config.vendor {
+            Some((self.src.join(VENDOR_DIR), self.src.join(VENDOR_STDLIB_DIR)))
+        } else {
+            None
+        }
     }
 
     /// Returns the path to `FileCheck` binary for the specified target

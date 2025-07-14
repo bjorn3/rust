@@ -1,7 +1,8 @@
 //! Handles the vendoring process for the bootstrap system.
 //!
 //! This module ensures that all required Cargo dependencies are gathered
-//! and stored in the `<src>/<VENDOR_DIR>` directory.
+//! and stored in the `<src>/<VENDOR_DIR>` and `<src>/<VENDOR_LIBRARY_DIR>`
+//! directories.
 use std::path::PathBuf;
 
 use crate::core::build_steps::tool::SUBMODULES_FOR_RUSTBOOK;
@@ -10,6 +11,9 @@ use crate::utils::exec::command;
 
 /// The name of the directory where vendored dependencies are stored.
 pub const VENDOR_DIR: &str = "vendor";
+
+/// The name of the directory where vendored standard library dependencies are stored.
+pub const VENDOR_STDLIB_DIR: &str = "library/vendor";
 
 /// Returns the cargo workspaces to vendor for `x vendor` and dist tarballs.
 ///
@@ -22,7 +26,6 @@ pub fn default_paths_to_vendor(builder: &Builder<'_>) -> Vec<(PathBuf, Vec<&'sta
         ("src/tools/rust-analyzer/Cargo.toml", vec![]),
         ("compiler/rustc_codegen_cranelift/Cargo.toml", vec![]),
         ("compiler/rustc_codegen_gcc/Cargo.toml", vec![]),
-        ("library/Cargo.toml", vec![]),
         ("src/bootstrap/Cargo.toml", vec![]),
         ("src/tools/rustbook/Cargo.toml", SUBMODULES_FOR_RUSTBOOK.into()),
         ("src/tools/rustc-perf/Cargo.toml", vec!["src/tools/rustc-perf"]),
@@ -48,6 +51,8 @@ pub(crate) struct Vendor {
     pub(crate) root_dir: PathBuf,
     /// The target directory for storing vendored dependencies if different from root_dir.
     pub(crate) output_dir: Option<PathBuf>,
+    /// Only vendor library/
+    pub(crate) stdlib_only: bool,
 }
 
 impl Step for Vendor {
@@ -65,6 +70,7 @@ impl Step for Vendor {
             versioned_dirs: run.builder.config.cmd.vendor_versioned_dirs(),
             root_dir: run.builder.src.clone(),
             output_dir: None,
+            stdlib_only: false,
         });
     }
 
@@ -75,6 +81,53 @@ impl Step for Vendor {
     fn run(self, builder: &Builder<'_>) {
         builder.info(&format!("Vendoring sources to {:?}", self.root_dir));
 
+        if !self.stdlib_only {
+            let mut cmd = command(&builder.initial_cargo);
+            cmd.arg("vendor");
+
+            if self.versioned_dirs {
+                cmd.arg("--versioned-dirs");
+            }
+
+            let to_vendor = default_paths_to_vendor(builder);
+            // These submodules must be present for `x vendor` to work.
+            for (_, submodules) in &to_vendor {
+                for submodule in submodules {
+                    builder.build.require_submodule(submodule, None);
+                }
+            }
+
+            // Sync these paths by default.
+            for (p, _) in &to_vendor {
+                cmd.arg("--sync").arg(p);
+            }
+
+            // Also sync explicitly requested paths.
+            for sync_arg in self.sync_args {
+                cmd.arg("--sync").arg(sync_arg);
+            }
+
+            // Will read the libstd Cargo.toml
+            // which uses the unstable `public-dependency` feature.
+            cmd.env("RUSTC_BOOTSTRAP", "1");
+            cmd.env("RUSTC", &builder.initial_rustc);
+
+            cmd.current_dir(&self.root_dir).arg(if let Some(output_dir) = &self.output_dir {
+                output_dir.join(VENDOR_DIR)
+            } else {
+                // Make sure to use a relative path here to ensure dist tarballs
+                // can be unpacked to a different drectory.
+                VENDOR_DIR.into()
+            });
+
+            let config = cmd.run_capture_stdout(builder);
+
+            let cargo_config_dir =
+                self.output_dir.as_ref().unwrap_or(&self.root_dir).join(".cargo");
+            builder.create_dir(&cargo_config_dir);
+            builder.create(&cargo_config_dir.join("config.toml"), &config.stdout());
+        }
+
         let mut cmd = command(&builder.initial_cargo);
         cmd.arg("vendor");
 
@@ -82,42 +135,26 @@ impl Step for Vendor {
             cmd.arg("--versioned-dirs");
         }
 
-        let to_vendor = default_paths_to_vendor(builder);
-        // These submodules must be present for `x vendor` to work.
-        for (_, submodules) in &to_vendor {
-            for submodule in submodules {
-                builder.build.require_submodule(submodule, None);
-            }
-        }
-
-        // Sync these paths by default.
-        for (p, _) in &to_vendor {
-            cmd.arg("--sync").arg(p);
-        }
-
-        // Also sync explicitly requested paths.
-        for sync_arg in self.sync_args {
-            cmd.arg("--sync").arg(sync_arg);
-        }
-
         // Will read the libstd Cargo.toml
         // which uses the unstable `public-dependency` feature.
         cmd.env("RUSTC_BOOTSTRAP", "1");
         cmd.env("RUSTC", &builder.initial_rustc);
 
-        cmd.current_dir(&self.root_dir).arg(if let Some(output_dir) = &self.output_dir {
-            output_dir.join(VENDOR_DIR)
-        } else {
-            // Make sure to use a relative path here to ensure dist tarballs
-            // can be unpacked to a different drectory.
-            VENDOR_DIR.into()
-        });
+        cmd.current_dir(&self.root_dir.join("library")).arg(
+            if let Some(output_dir) = &self.output_dir {
+                output_dir.join("vendor")
+            } else {
+                // Make sure to use a relative path here to ensure dist tarballs
+                // can be unpacked to a different drectory.
+                "vendor".into()
+            },
+        );
 
-        let config = cmd.run_capture_stdout(builder);
+        let config_stdlib = cmd.run_capture_stdout(builder);
 
-        // Write .cargo/config.toml
-        let cargo_config_dir = self.output_dir.unwrap_or(self.root_dir).join(".cargo");
+        let cargo_config_dir =
+            self.output_dir.as_ref().unwrap_or(&self.root_dir).join("library").join(".cargo");
         builder.create_dir(&cargo_config_dir);
-        builder.create(&cargo_config_dir.join("config.toml"), &config.stdout());
+        builder.create(&cargo_config_dir.join("config.toml"), &config_stdlib.stdout());
     }
 }

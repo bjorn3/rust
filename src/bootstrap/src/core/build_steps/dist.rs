@@ -1016,6 +1016,15 @@ impl Step for Src {
             &dst_src,
         );
 
+        // Vendor all Cargo dependencies
+        builder.ensure(Vendor {
+            sync_args: vec![],
+            versioned_dirs: true,
+            root_dir: builder.src.clone(),
+            output_dir: None,
+            stdlib_only: true,
+        });
+
         tarball.generate()
     }
 
@@ -1143,6 +1152,7 @@ impl Step for PlainSourceTarball {
                 versioned_dirs: true,
                 root_dir: plain_dst_src.into(),
                 output_dir: None,
+                stdlib_only: false,
             });
         }
 

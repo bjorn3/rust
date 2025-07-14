@@ -495,6 +495,10 @@ fn compiler_rt_for_profiler(builder: &Builder<'_>) -> PathBuf {
 /// Configure cargo to compile the standard library, adding appropriate env vars
 /// and such.
 pub fn std_cargo(builder: &Builder<'_>, target: TargetSelection, stage: u32, cargo: &mut Cargo) {
+    // Run cargo from the standard library source root so it can find .cargo/config.
+    // This matters when using vendoring.
+    cargo.current_dir(&builder.src.join("library"));
+
     // rustc already ensures that it builds with the minimum deployment
     // target, so ideally we shouldn't need to do anything here.
     //

@@ -979,9 +979,14 @@ impl Builder<'_> {
 
         if self.config.rust_remap_debuginfo {
             let mut env_var = OsString::new();
-            if let Some(vendor) = self.build.vendored_crates_path() {
+            if let Some((vendor, vendor_stdlib)) = self.build.vendored_crates_path() {
+                // FIXME handle mapping back in rustc
                 env_var.push(vendor);
                 env_var.push("=/rust/deps");
+                // Might work automatically due to the existing stdlib source remapping
+                //env_var.push("\t");
+                //env_var.push(vendor_stdlib);
+                //env_var.push("=/rust/deps");
             } else {
                 let registry_src = t!(home::cargo_home()).join("registry").join("src");
                 for entry in t!(std::fs::read_dir(registry_src)) {

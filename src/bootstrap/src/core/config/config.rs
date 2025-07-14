@@ -932,7 +932,9 @@ impl Config {
         config.vendor = vendor.unwrap_or(
             config.rust_info.is_from_tarball()
                 && config.src.join("vendor").exists()
-                && config.src.join(".cargo/config.toml").exists(),
+                && config.src.join(".cargo/config.toml").exists()
+                && config.src.join("library/vendor").exists()
+                && config.src.join("library/.cargo/config.toml").exists(),
         );
 
         if !is_user_configured_rust_channel && config.rust_info.is_from_tarball() {
