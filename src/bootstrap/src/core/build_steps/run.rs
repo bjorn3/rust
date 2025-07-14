@@ -12,7 +12,9 @@ use clap_complete::{Generator, shells};
 use crate::core::build_steps::dist::distdir;
 use crate::core::build_steps::test;
 use crate::core::build_steps::tool::{self, RustcPrivateCompilers, SourceType, Tool};
-use crate::core::build_steps::vendor::{VENDOR_DIR, Vendor, default_paths_to_vendor};
+use crate::core::build_steps::vendor::{
+    VENDOR_DIR, VENDOR_STDLIB_DIR, Vendor, default_paths_to_vendor,
+};
 use crate::core::builder::{Builder, Kind, RunConfig, ShouldRun, Step, StepMetadata};
 use crate::core::config::TargetSelection;
 use crate::core::config::flags::{get_completion, top_level_help};
@@ -261,18 +263,21 @@ impl Step for GenerateCopyright {
             .collect::<Vec<_>>()
             .join(",");
 
-        let vendored_sources = if let Some(path) = builder.vendored_crates_path() {
-            path
-        } else {
-            let cache_dir = builder.out.join("tmp").join("generate-copyright-vendor");
-            builder.ensure(Vendor {
-                sync_args: Vec::new(),
-                versioned_dirs: true,
-                root_dir: builder.src.clone(),
-                output_dir: Some(cache_dir.clone()),
-            });
-            cache_dir.join(VENDOR_DIR)
-        };
+        // FIXME vendor library dependencies
+        let (vendored_sources, vendored_stdlib_sources) =
+            if let Some(paths) = builder.vendored_crates_path() {
+                paths
+            } else {
+                let cache_dir = builder.out.join("tmp").join("generate-copyright-vendor");
+                builder.ensure(Vendor {
+                    sync_args: Vec::new(),
+                    versioned_dirs: true,
+                    root_dir: builder.src.clone(),
+                    output_dir: Some(cache_dir.clone()),
+                    stdlib_only: false,
+                });
+                (cache_dir.join(VENDOR_DIR), cache_dir.join(VENDOR_STDLIB_DIR))
+            };
 
         let _guard = builder.group("generate-copyright");
 

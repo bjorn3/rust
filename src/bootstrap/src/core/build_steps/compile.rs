@@ -511,6 +511,10 @@ pub fn std_cargo(
     cargo: &mut Cargo,
     crates: &[String],
 ) {
+    // Run cargo from the standard library source root so it can find .cargo/config.
+    // This matters when using vendoring.
+    cargo.current_dir(&builder.src.join("library"));
+
     // rustc already ensures that it builds with the minimum deployment
     // target, so ideally we shouldn't need to do anything here.
     //

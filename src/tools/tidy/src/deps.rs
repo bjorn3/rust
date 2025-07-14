@@ -686,6 +686,7 @@ pub fn check(root: &Path, cargo: &Path, bless: bool, diag_ctx: DiagCtx) {
 
         let mut cmd = cargo_metadata::MetadataCommand::new();
         cmd.cargo_path(cargo)
+            .current_dir(root.join(path))
             .manifest_path(root.join(path).join("Cargo.toml"))
             .features(cargo_metadata::CargoOpt::AllFeatures)
             .other_options(vec!["--locked".to_owned()]);

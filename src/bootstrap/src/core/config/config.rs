@@ -1248,7 +1248,9 @@ impl Config {
         let vendor = build_vendor.unwrap_or(
             rust_info.is_from_tarball()
                 && src.join("vendor").exists()
-                && src.join(".cargo/config.toml").exists(),
+                && src.join(".cargo/config.toml").exists()
+                && src.join("library/vendor").exists()
+                && src.join("library/.cargo/config.toml").exists(),
         );
         let verbose_tests = rust_verbose_tests.unwrap_or(exec_ctx.is_verbose());
 
