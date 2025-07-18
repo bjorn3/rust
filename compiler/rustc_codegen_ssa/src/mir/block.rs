@@ -13,7 +13,7 @@ use rustc_middle::{bug, span_bug};
 use rustc_session::config::OptLevel;
 use rustc_span::Span;
 use rustc_span::source_map::Spanned;
-use rustc_target::callconv::{ArgAbi, CastTarget, FnAbi, PassMode};
+use rustc_target::callconv::{ArgAbi, ArgAttributes, CastTarget, FnAbi, PassMode};
 use tracing::{debug, info};
 
 use super::operand::OperandRef;
@@ -1014,7 +1014,8 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         {
             let mut llargs = Vec::with_capacity(args.len());
 
-            let return_dest = if destination.ty(&self.mir.local_decls, bx.tcx()).ty.is_unit() {
+            let dest_ty = destination.ty(&self.mir.local_decls, bx.tcx()).ty;
+            let return_dest = if dest_ty.is_unit() {
                 ReturnDest::Nothing
             } else if let Some(index) = destination.as_local() {
                 match self.locals[index] {
@@ -1049,6 +1050,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                     "{:?}",
                     op.layout,
                 );
+
                 match op.val {
                     Immediate(_) => llargs.push(op.immediate()),
                     Ref(op_place_val) => {
@@ -1086,7 +1088,15 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             }
 
             if let Some((ret_dest, target)) = destination {
-                self.store_return(bx, ret_dest, &fn_abi.ret, llret);
+                self.store_return(
+                    bx,
+                    ret_dest,
+                    &ArgAbi {
+                        layout: bx.layout_of(dest_ty),
+                        mode: PassMode::Direct(ArgAttributes::new()),
+                    },
+                    llret,
+                );
                 return helper.funclet_br(self, bx, target, mergeable_succ);
             } else {
                 bx.unreachable();
