@@ -31,6 +31,7 @@
 #![feature(iter_order_by)]
 #![feature(rustc_attrs)]
 #![feature(rustdoc_internals)]
+#![cfg_attr(bootstrap, feature(trait_upcasting))]
 #![feature(try_blocks)]
 // tidy-alphabetical-end
 

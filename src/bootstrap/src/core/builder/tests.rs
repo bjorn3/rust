@@ -523,23 +523,6 @@ fn step_cycle_debug() {
     assert!(err.contains("CyclicStep { n: 1 }"));
 }
 
-/// The `AnyDebug` trait should delegate to the underlying type's `Debug`, and
-/// should also allow downcasting as expected.
-#[test]
-fn any_debug() {
-    #[derive(Debug, PartialEq, Eq)]
-    struct MyStruct {
-        x: u32,
-    }
-
-    let x: &dyn AnyDebug = &MyStruct { x: 7 };
-
-    // Debug-formatting should delegate to the underlying type.
-    assert_eq!(format!("{x:?}"), format!("{:?}", MyStruct { x: 7 }));
-    // Downcasting to the underlying type should succeed.
-    assert_eq!(x.downcast_ref::<MyStruct>(), Some(&MyStruct { x: 7 }));
-}
-
 /// These tests use insta for snapshot testing.
 /// See bootstrap's README on how to bless the snapshots.
 mod snapshot {

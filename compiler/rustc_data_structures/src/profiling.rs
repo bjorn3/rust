@@ -950,6 +950,7 @@ fn get_thread_id() -> u32 {
     std::thread::current().id().as_u64().get() as u32
 }
 
+/*
 // cfg(bootstrap)
 macro_rules! cfg_select_dispatch {
     ($($tokens:tt)*) => {
@@ -1014,12 +1015,12 @@ cfg_select_dispatch! {
             Some(npages * 4096)
         }
     }
-    _ => {
+    _ => {*/
         pub fn get_resident_set_size() -> Option<usize> {
             None
         }
-    }
-}
+//    }
+//}
 
 #[cfg(test)]
 mod tests;

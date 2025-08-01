@@ -619,13 +619,13 @@ pub trait MachineStopType: Any + fmt::Debug + Send {
     fn add_args(self: Box<Self>, adder: &mut dyn FnMut(DiagArgName, DiagArgValue));
 }
 
-impl dyn MachineStopType {
+/*impl dyn MachineStopType {
     #[inline(always)]
     pub fn downcast_ref<T: Any>(&self) -> Option<&T> {
         let x: &dyn Any = self;
         x.downcast_ref()
     }
-}
+}*/
 
 #[derive(Debug)]
 pub enum InterpErrorKind<'tcx> {

@@ -103,7 +103,15 @@ impl Arena {
     #[allow(clippy::mut_from_ref)] // arena allocator
     pub(crate) fn alloc_str<'a>(&'a self, string: &str) -> &'a mut str {
         let alloc = self.alloc_raw(string.len());
-        let bytes = alloc.write_copy_of_slice(string.as_bytes());
+        let bytes = {
+            // SAFETY: &[T] and &[MaybeUninit<T>] have the same layout
+            let uninit_src: &[MaybeUninit<_>] = unsafe { std::mem::transmute(string.as_bytes()) };
+
+            alloc.copy_from_slice(uninit_src);
+
+            // SAFETY: Valid elements have just been copied into `self` so it is initialized
+            unsafe { &mut *(alloc as *mut _ as *mut [_]) }
+        };
 
         // SAFETY: we convert from `&str` to `&[u8]`, clone it into the arena,
         // and immediately convert the clone back to `&str`.

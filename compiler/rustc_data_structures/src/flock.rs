@@ -4,18 +4,32 @@
 //! green/native threading. This is just a bare-bones enough solution for
 //! librustdoc, it is not production quality at all.
 
-// cfg(bootstrap)
-macro_rules! cfg_select_dispatch {
-    ($($tokens:tt)*) => {
-        #[cfg(bootstrap)]
-        cfg_match! { $($tokens)* }
-
-        #[cfg(not(bootstrap))]
-        cfg_select! { $($tokens)* }
-    };
+#[cfg(bootstrap)]
+cfg_match! {
+    cfg(target_os = "linux") => {
+        mod linux;
+        use linux as imp;
+    }
+    cfg(target_os = "redox") => {
+        mod linux;
+        use linux as imp;
+    }
+    cfg(unix) => {
+        mod unix;
+        use unix as imp;
+    }
+    cfg(windows) => {
+        mod windows;
+        use self::windows as imp;
+    }
+    _ => {
+        mod unsupported;
+        use unsupported as imp;
+    }
 }
 
-cfg_select_dispatch! {
+#[cfg(not(bootstrap))]
+cfg_select! {
     target_os = "linux" => {
         mod linux;
         use linux as imp;

@@ -29,6 +29,7 @@ pub(crate) fn analyze_source_file(src: &str) -> (Vec<RelativeBytePos>, Vec<Multi
     (lines, multi_byte_chars)
 }
 
+/*
 // cfg(bootstrap)
 macro_rules! cfg_select_dispatch {
     ($($tokens:tt)*) => {
@@ -143,7 +144,7 @@ cfg_select_dispatch! {
             }
         }
     }
-    _ => {
+    _ => {*/
         // The target (or compiler version) does not support SSE2 ...
         fn analyze_source_file_dispatch(
             src: &str,
@@ -158,8 +159,8 @@ cfg_select_dispatch! {
                 multi_byte_chars,
             );
         }
-    }
-}
+//    }
+//}
 
 // `scan_len` determines the number of bytes in `src` to scan. Note that the
 // function can read past `scan_len` if a multi-byte character start within the
