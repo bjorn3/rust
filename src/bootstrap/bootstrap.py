@@ -1131,7 +1131,6 @@ class RustBuild(object):
             "build",
             "--manifest-path",
             os.path.join(self.rust_root, "src/bootstrap/Cargo.toml"),
-            "-Zroot-dir=" + self.rust_root,
         ]
         args.extend("--verbose" for _ in range(self.verbose))
 

@@ -3165,7 +3165,6 @@ impl<'tcx> TyCtxt<'tcx> {
     /// Emit a lint at the appropriate level for a hir node, with an associated span.
     ///
     /// [`lint_level`]: rustc_middle::lint::lint_level#decorate-signature
-    #[rustc_lint_diagnostics]
     #[track_caller]
     pub fn node_span_lint(
         self,
@@ -3225,7 +3224,6 @@ impl<'tcx> TyCtxt<'tcx> {
     /// Emit a lint at the appropriate level for a hir node.
     ///
     /// [`lint_level`]: rustc_middle::lint::lint_level#decorate-signature
-    #[rustc_lint_diagnostics]
     #[track_caller]
     pub fn node_lint(
         self,

@@ -33,7 +33,7 @@ tracing = "0.1"
 # tidy-alphabetical-end
 
 [dependencies.hashbrown]
-version = "0.15.2"
+version = "=0.15.1"
 default-features = false
 features = ["nightly"] # for may_dangle
 

@@ -173,12 +173,12 @@ impl<'tcx> TypeFolder<TyCtxt<'tcx>> for CanonicalInstantiator<'tcx> {
         let c_args = &self.var_values[..=index];
 
         if let Some(c) = self.tcx.clauses_cache.lock().get(&(c, c_args)) {
-            c
-        } else {
-            let folded = c.super_fold_with(self);
-            self.tcx.clauses_cache.lock().insert((c, c_args), folded);
-            folded
+           return c;
         }
+
+        let folded = c.super_fold_with(self);
+        self.tcx.clauses_cache.lock().insert((c, c_args), folded);
+        folded
     }
 }
 

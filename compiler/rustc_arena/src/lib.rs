@@ -24,6 +24,7 @@
 #![feature(never_type)]
 #![feature(rustc_attrs)]
 #![feature(rustdoc_internals)]
+#![cfg_attr(bootstrap, feature(strict_provenance))]
 #![feature(unwrap_infallible)]
 // tidy-alphabetical-end
 
