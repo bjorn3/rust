@@ -1,7 +1,10 @@
 use std::fmt;
 use std::marker::PhantomData;
 use std::ops::{Index, IndexMut, RangeBounds};
+#[cfg(not(bootstrap))]
 use std::slice::GetDisjointMutError::*;
+#[cfg(bootstrap)]
+use std::slice::GetManyMutError::*;
 use std::slice::{self, SliceIndex};
 
 use crate::{Idx, IndexVec, IntoSliceIdx};
@@ -131,10 +134,25 @@ impl<I: Idx, T> IndexSlice<I, T> {
         self.raw.get_mut(index.into_slice_idx())
     }
 
+    #[inline]
+    #[cfg(bootstrap)]
+    pub fn pick2_mut(&mut self, a: I, b: I) -> (&mut T, &mut T) {
+        let (ai, bi) = (a.index(), b.index());
+
+        match self.raw.get_many_mut([ai, bi]) {
+            Ok([a, b]) => (a, b),
+            Err(OverlappingIndices) => panic!("Indices {ai:?} and {bi:?} are not disjoint!"),
+            Err(IndexOutOfBounds) => {
+                panic!("Some indices among ({ai:?}, {bi:?}) are out of bounds")
+            }
+        }
+    }
+
     /// Returns mutable references to two distinct elements, `a` and `b`.
     ///
     /// Panics if `a == b` or if some of them are out of bounds.
     #[inline]
+    #[cfg(not(bootstrap))]
     pub fn pick2_mut(&mut self, a: I, b: I) -> (&mut T, &mut T) {
         let (ai, bi) = (a.index(), b.index());
 
@@ -147,10 +165,27 @@ impl<I: Idx, T> IndexSlice<I, T> {
         }
     }
 
+    #[inline]
+    #[cfg(bootstrap)]
+    pub fn pick3_mut(&mut self, a: I, b: I, c: I) -> (&mut T, &mut T, &mut T) {
+        let (ai, bi, ci) = (a.index(), b.index(), c.index());
+
+        match self.raw.get_many_mut([ai, bi, ci]) {
+            Ok([a, b, c]) => (a, b, c),
+            Err(OverlappingIndices) => {
+                panic!("Indices {ai:?}, {bi:?} and {ci:?} are not disjoint!")
+            }
+            Err(IndexOutOfBounds) => {
+                panic!("Some indices among ({ai:?}, {bi:?}, {ci:?}) are out of bounds")
+            }
+        }
+    }
+
     /// Returns mutable references to three distinct elements.
     ///
     /// Panics if the elements are not distinct or if some of them are out of bounds.
     #[inline]
+    #[cfg(not(bootstrap))]
     pub fn pick3_mut(&mut self, a: I, b: I, c: I) -> (&mut T, &mut T, &mut T) {
         let (ai, bi, ci) = (a.index(), b.index(), c.index());
 

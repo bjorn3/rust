@@ -1076,7 +1076,7 @@ pub(crate) fn codegen(
                 let input =
                     unsafe { slice::from_raw_parts(input_ptr as *const u8, input_len as usize) };
 
-                let Ok(input) = str::from_utf8(input) else { return 0 };
+                let Ok(input) = std::str::from_utf8(input) else { return 0 };
 
                 let output = unsafe {
                     slice::from_raw_parts_mut(output_ptr as *mut u8, output_len as usize)

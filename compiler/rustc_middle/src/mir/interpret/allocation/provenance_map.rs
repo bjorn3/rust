@@ -2,8 +2,7 @@
 //! representation for the common case where PTR_SIZE consecutive bytes have the same provenance.
 
 use std::cmp;
-use std::ops::{Range, RangeBounds};
-use std::range::Bound;
+use std::ops::{Bound, Range, RangeBounds};
 
 use rustc_abi::{HasDataLayout, Size};
 use rustc_data_structures::sorted_map::SortedMap;

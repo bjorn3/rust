@@ -143,7 +143,7 @@ fn parse_recursive<'a>(buf: &'a [u8], ctx: Context) -> MdStream<'a> {
             // We found something: push our WIP and then push the found tree
             let prev_buf = &wip_buf[..(wip_buf.len() - loop_buf.len())];
             if !prev_buf.is_empty() {
-                let prev_str = str::from_utf8(prev_buf).unwrap();
+                let prev_str = std::str::from_utf8(prev_buf).unwrap();
                 stream.push(MdTree::PlainText(prev_str));
             }
             stream.push(tree);
@@ -155,7 +155,7 @@ fn parse_recursive<'a>(buf: &'a [u8], ctx: Context) -> MdStream<'a> {
             loop_buf = &loop_buf[1..];
             // If we are at the end and haven't found anything, just push plain text
             if loop_buf.is_empty() && !wip_buf.is_empty() {
-                let final_str = str::from_utf8(wip_buf).unwrap();
+                let final_str = std::str::from_utf8(wip_buf).unwrap();
                 stream.push(MdTree::PlainText(final_str));
             }
         };
@@ -180,7 +180,7 @@ where
     let ignore_esc = matches!(opts, ParseOpt::TrimNoEsc);
     let trim = matches!(opts, ParseOpt::TrimNoEsc);
     let (txt, rest) = parse_with_end_pat(&buf[start_pat.len()..], end_pat, ignore_esc)?;
-    let mut txt = str::from_utf8(txt).unwrap();
+    let mut txt = std::str::from_utf8(txt).unwrap();
     if trim {
         txt = txt.trim();
     }
@@ -191,7 +191,7 @@ where
 fn parse_codeinline(buf: &[u8]) -> ParseResult<'_> {
     let seps = buf.iter().take_while(|ch| **ch == b'`').count();
     let (txt, rest) = parse_with_end_pat(&buf[seps..], &buf[..seps], true)?;
-    Some((MdTree::CodeInline(str::from_utf8(txt).unwrap()), rest))
+    Some((MdTree::CodeInline(std::str::from_utf8(txt).unwrap()), rest))
 }
 
 /// Parse a codeblock. Accounts for >3 backticks and language specification
@@ -206,7 +206,7 @@ fn parse_codeblock(buf: &[u8]) -> Parsed<'_> {
 
     let lang = if next_ws_idx > 0 {
         // Munch the lang
-        let tmp = str::from_utf8(&working[..next_ws_idx]).unwrap();
+        let tmp = std::str::from_utf8(&working[..next_ws_idx]).unwrap();
         working = &working[next_ws_idx..];
         Some(tmp)
     } else {
@@ -227,7 +227,7 @@ fn parse_codeblock(buf: &[u8]) -> Parsed<'_> {
     }
 
     let (txt, rest) = found.unwrap_or((working, &[]));
-    let txt = str::from_utf8(txt).unwrap().trim_matches('\n');
+    let txt = std::str::from_utf8(txt).unwrap().trim_matches('\n');
 
     (MdTree::CodeBlock { txt, lang }, rest)
 }
@@ -291,7 +291,7 @@ fn unordered_list_start(mut buf: &[u8]) -> bool {
 /// parsed number and offset of character after the dot.
 fn ord_list_start(buf: &[u8]) -> Option<(u16, usize)> {
     let pos = buf.iter().take(10).position(|ch| *ch == b'.')?;
-    let n = str::from_utf8(&buf[..pos]).ok()?;
+    let n =std::str::from_utf8(&buf[..pos]).ok()?;
     if !buf.get(pos + 1)?.is_ascii_whitespace() {
         return None;
     }
@@ -306,11 +306,11 @@ fn parse_any_link(buf: &[u8], can_be_def: bool) -> ParseResult<'_> {
         return None;
     }
 
-    let disp = str::from_utf8(bracketed).unwrap();
+    let disp =std::str::from_utf8(bracketed).unwrap();
     match (can_be_def, rest[0]) {
         (true, b':') => {
             let (link, tmp) = parse_to_newline(&rest[1..]);
-            let link = str::from_utf8(link).unwrap().trim();
+            let link =std::str::from_utf8(link).unwrap().trim();
             Some((MdTree::LinkDef { id: disp, link }, tmp))
         }
         (_, b'(') => parse_simple_pat(rest, b"(", b")", ParseOpt::TrimNoEsc, |link| MdTree::Link {

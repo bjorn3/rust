@@ -171,7 +171,7 @@ impl fmt::Display for LitKind {
             }
             LitKind::ByteStr(ref byte_sym, StrStyle::Raw(n)) => {
                 // Unwrap because raw byte string literals can only contain ASCII.
-                let symbol = str::from_utf8(byte_sym.as_byte_str()).unwrap();
+                let symbol = std::str::from_utf8(byte_sym.as_byte_str()).unwrap();
                 write!(
                     f,
                     "br{delim}\"{string}\"{delim}",
@@ -184,7 +184,7 @@ impl fmt::Display for LitKind {
             }
             LitKind::CStr(ref bytes, StrStyle::Raw(n)) => {
                 // This can only be valid UTF-8.
-                let symbol = str::from_utf8(bytes.as_byte_str()).unwrap();
+                let symbol = std::str::from_utf8(bytes.as_byte_str()).unwrap();
                 write!(f, "cr{delim}\"{symbol}\"{delim}", delim = "#".repeat(n as usize),)?;
             }
             LitKind::Int(n, ty) => {

@@ -237,7 +237,7 @@ pub(crate) unsafe fn create_module<'ll>(
 
         let llvm_data_layout = unsafe { llvm::LLVMGetDataLayoutStr(llmod) };
         let llvm_data_layout =
-            str::from_utf8(unsafe { CStr::from_ptr(llvm_data_layout) }.to_bytes())
+            std::str::from_utf8(unsafe { CStr::from_ptr(llvm_data_layout) }.to_bytes())
                 .expect("got a non-UTF8 data-layout from LLVM");
 
         if target_data_layout != llvm_data_layout {

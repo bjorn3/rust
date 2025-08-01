@@ -92,7 +92,7 @@ where
     assert!(result.is_ok());
 
     let bytes = output.lock().unwrap();
-    let actual_output = str::from_utf8(&bytes).unwrap();
+    let actual_output =std::str::from_utf8(&bytes).unwrap();
     println!("expected output:\n------\n{}------", expected_output);
     println!("actual output:\n------\n{}------", actual_output);
 
@@ -226,7 +226,7 @@ fn test_harness(
             let expected_output = &expected_output[1..];
 
             let bytes = output.lock().unwrap();
-            let actual_output = str::from_utf8(&bytes).unwrap();
+            let actual_output =std::str::from_utf8(&bytes).unwrap();
             println!("expected output:\n------\n{}------", expected_output);
             println!("actual output:\n------\n{}------", actual_output);
 

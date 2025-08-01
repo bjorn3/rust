@@ -198,7 +198,7 @@ impl<S> Encode<S> for &str {
 
 impl<'a, S> Decode<'a, '_, S> for &'a str {
     fn decode(r: &mut Reader<'a>, s: &mut S) -> Self {
-        str::from_utf8(<&[u8]>::decode(r, s)).unwrap()
+        std::str::from_utf8(<&[u8]>::decode(r, s)).unwrap()
     }
 }
 

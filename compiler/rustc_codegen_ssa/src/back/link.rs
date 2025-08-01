@@ -919,7 +919,7 @@ fn link_natively(
             // Hide some progress messages from link.exe that we don't care about.
             // See https://github.com/chromium/chromium/blob/bfa41e41145ffc85f041384280caf2949bb7bd72/build/toolchain/win/tool_wrapper.py#L144-L146
             if is_msvc_link_exe {
-                if let Ok(str) = str::from_utf8(&prog.stdout) {
+                if let Ok(str) = std::str::from_utf8(&prog.stdout) {
                     let mut output = String::with_capacity(str.len());
                     for line in stdout.lines() {
                         if line.starts_with("   Creating library")
@@ -1109,7 +1109,7 @@ fn strip_with_external_utility(sess: &Session, util: &str, out_filename: &Path, 
 }
 
 fn escape_string(s: &[u8]) -> String {
-    match str::from_utf8(s) {
+    match std::str::from_utf8(s) {
         Ok(s) => s.to_owned(),
         Err(_) => format!("Non-UTF-8 output: {}", s.escape_ascii()),
     }
@@ -1128,7 +1128,7 @@ fn escape_linker_output(s: &[u8], flavour: LinkerFlavor) -> String {
     if flavour != LinkerFlavor::Msvc(Lld::No) {
         return escape_string(s);
     }
-    match str::from_utf8(s) {
+    match std::str::from_utf8(s) {
         Ok(s) => return s.to_owned(),
         Err(_) => match win::locale_byte_str_to_string(s, win::oem_code_page()) {
             Some(s) => s,

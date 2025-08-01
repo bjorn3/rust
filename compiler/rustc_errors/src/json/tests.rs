@@ -62,7 +62,7 @@ fn test_positions(code: &str, span: (u32, u32), expected_output: SpanTestData) {
         DiagCtxt::new(Box::new(je)).handle().span_err(span, "foo");
 
         let bytes = output.lock().unwrap();
-        let actual_output = str::from_utf8(&bytes).unwrap();
+        let actual_output = std::str::from_utf8(&bytes).unwrap();
         let actual_output: TestData = serde_json::from_str(actual_output).unwrap();
         let spans = actual_output.spans;
         assert_eq!(spans.len(), 1);

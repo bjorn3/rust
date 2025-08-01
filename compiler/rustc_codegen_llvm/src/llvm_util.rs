@@ -619,7 +619,7 @@ fn get_host_cpu_name() -> &'static str {
         assert!(!ptr.is_null());
         slice::from_raw_parts(ptr, len)
     };
-    str::from_utf8(slice).expect("host CPU name should be UTF-8")
+    std::str::from_utf8(slice).expect("host CPU name should be UTF-8")
 }
 
 /// If the given string is `"native"`, returns the host CPU name according to

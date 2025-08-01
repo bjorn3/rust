@@ -3052,7 +3052,7 @@ impl Interner {
     fn get_str(&self, symbol: Symbol) -> &str {
         let byte_str = self.get_inner(symbol.0.as_usize());
         // SAFETY: known to be a UTF8 string because it's a `Symbol`.
-        unsafe { str::from_utf8_unchecked(byte_str) }
+        unsafe {std::str::from_utf8_unchecked(byte_str) }
     }
 
     /// Get the symbol as a string.
