@@ -10,6 +10,7 @@
 #![feature(if_let_guard)]
 #![feature(negative_impls)]
 #![feature(rustdoc_internals)]
+#![cfg_attr(bootstrap, feature(strict_provenance))]
 #![feature(string_from_utf8_lossy_owned)]
 #![feature(trait_alias)]
 #![feature(try_blocks)]

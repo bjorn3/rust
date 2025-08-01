@@ -240,7 +240,6 @@ type FluentId = Cow<'static, str>;
 /// message so messages of this type must be combined with a `DiagMessage` (using
 /// `DiagMessage::with_subdiagnostic_message`) before rendering. However, subdiagnostics from
 /// the `Subdiagnostic` derive refer to Fluent identifiers directly.
-#[rustc_diagnostic_item = "SubdiagMessage"]
 pub enum SubdiagMessage {
     /// Non-translatable diagnostic message.
     Str(Cow<'static, str>),
@@ -283,7 +282,6 @@ impl From<Cow<'static, str>> for SubdiagMessage {
 ///
 /// Intended to be removed once diagnostics are entirely translatable.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Encodable, Decodable)]
-#[rustc_diagnostic_item = "DiagMessage"]
 pub enum DiagMessage {
     /// Non-translatable diagnostic message.
     Str(Cow<'static, str>),

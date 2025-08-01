@@ -121,6 +121,16 @@ impl Parse for Newtype {
             quote! {
                 #gate_rustc_only
                 impl ::std::iter::Step for #name {
+                    #[cfg(bootstrap)]
+                    #[inline]
+                    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
+                        <usize as ::std::iter::Step>::steps_between(
+                            &Self::index(*start),
+                            &Self::index(*end),
+                        )
+                    }
+
+                    #[cfg(not(bootstrap))]
                     #[inline]
                     fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
                         <usize as ::std::iter::Step>::steps_between(

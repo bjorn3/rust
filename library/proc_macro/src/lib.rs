@@ -27,6 +27,7 @@
 #![feature(panic_can_unwind)]
 #![feature(restricted_std)]
 #![feature(rustc_attrs)]
+#![cfg_attr(bootstrap, feature(strict_provenance))]
 #![feature(stmt_expr_attributes)]
 #![feature(extend_one)]
 #![recursion_limit = "256"]

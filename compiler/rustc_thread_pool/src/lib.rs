@@ -62,6 +62,7 @@
 //! succeed.
 
 #![cfg_attr(test, allow(unused_crate_dependencies))]
+#![cfg_attr(bootstrap, feature(exposed_provenance))]
 #![warn(rust_2018_idioms)]
 
 use std::any::Any;
