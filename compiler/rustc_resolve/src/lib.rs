@@ -21,6 +21,7 @@
 #![feature(iter_intersperse)]
 #![feature(rustc_attrs)]
 #![feature(rustdoc_internals)]
+#![cfg_attr(bootstrap, feature(trait_upcasting))]
 #![recursion_limit = "256"]
 // tidy-alphabetical-end
 

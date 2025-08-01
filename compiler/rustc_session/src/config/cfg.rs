@@ -422,6 +422,21 @@ impl CheckCfg {
             if self.exhaustive_values {
                 // Get all values map at once otherwise it would be costly.
                 // (8 values * 220 targets ~= 1760 times, at the time of writing this comment).
+                #[cfg(bootstrap)]
+                let [
+                    Some(values_target_abi),
+                    Some(values_target_arch),
+                    Some(values_target_endian),
+                    Some(values_target_env),
+                    Some(values_target_family),
+                    Some(values_target_os),
+                    Some(values_target_pointer_width),
+                    Some(values_target_vendor),
+                ] = self.expecteds.get_many_mut(VALUES)
+                else {
+                    panic!("unable to get all the check-cfg values buckets");
+                };
+                #[cfg(not(bootstrap))]
                 let [
                     Some(values_target_abi),
                     Some(values_target_arch),

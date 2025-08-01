@@ -34,6 +34,7 @@ use std::mem::{self, MaybeUninit};
 use std::ptr::{self, NonNull};
 use std::{cmp, intrinsics, slice};
 
+use rustc_backports::prelude::*;
 use smallvec::SmallVec;
 
 /// This calls the passed function while ensuring it won't be inlined into the caller.
