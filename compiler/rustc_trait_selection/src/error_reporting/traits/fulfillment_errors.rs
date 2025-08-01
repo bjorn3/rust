@@ -2024,13 +2024,12 @@ impl<'a, 'tcx> TypeErrCtxt<'a, 'tcx> {
                                 let mut previously_seen_dids: FxHashSet<DefId> = Default::default();
                                 previously_seen_dids.insert(did);
                                 while let Some(&parent) = parent_map.get(&did)
-                                    && let hash_set::Entry::Vacant(v) =
-                                        previously_seen_dids.entry(parent)
+                                    && !previously_seen_dids.contains(&parent)
                                 {
                                     if self.tcx.is_doc_hidden(did) {
                                         return false;
                                     }
-                                    v.insert();
+                                    previously_seen_dids.insert(parent);
                                     did = parent;
                                 }
                             }

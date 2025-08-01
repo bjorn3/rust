@@ -987,7 +987,7 @@ impl<'tcx> InferCtxt<'tcx> {
         let ty_sub_vid = self.sub_unification_table_root_var(ty_vid);
         let inner = &mut *self.inner.borrow_mut();
         let mut type_variables = inner.type_variable_storage.with_log(&mut inner.undo_log);
-        inner.opaque_type_storage.iter_opaque_types().any(|(_, hidden_ty)| {
+        let res = inner.opaque_type_storage.iter_opaque_types().any(|(_, hidden_ty)| {
             if let ty::Infer(ty::TyVar(hidden_vid)) = *hidden_ty.ty.kind() {
                 let opaque_sub_vid = type_variables.sub_unification_table_root_var(hidden_vid);
                 if opaque_sub_vid == ty_sub_vid {
@@ -996,7 +996,8 @@ impl<'tcx> InferCtxt<'tcx> {
             }
 
             false
-        })
+        });
+        res
     }
 
     /// Searches for an opaque type key whose hidden type is related to `ty_vid`.

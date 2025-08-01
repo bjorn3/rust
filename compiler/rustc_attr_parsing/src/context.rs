@@ -764,6 +764,7 @@ pub enum ShouldEmit {
 }
 
 impl ShouldEmit {
+    #[cfg_attr(bootstrap, allow(rustc::diagnostic_outside_of_impl))]
     pub(crate) fn emit_err(&self, diag: Diag<'_>) -> ErrorGuaranteed {
         match self {
             ShouldEmit::EarlyFatal { .. } if diag.level() == Level::DelayedBug => diag.emit(),

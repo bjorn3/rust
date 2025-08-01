@@ -649,7 +649,8 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
         assert!(!fn_abi.ret.is_indirect());
         let fn_ty = fn_abi.llvm_type(self);
 
-        let fn_ptr = if let Some(&llfn) = self.intrinsic_instances.borrow().get(&instance) {
+        let llfn = self.intrinsic_instances.borrow().get(&instance).map(|llfn| *llfn);
+        let fn_ptr = if let Some(llfn) = llfn {
             llfn
         } else {
             let sym = tcx.symbol_name(instance).name;

@@ -69,7 +69,7 @@ impl Rustflags {
             self.env("RUSTFLAGS_BOOTSTRAP");
             self.arg("--cfg=bootstrap");
             self.arg("--extern=force:std");
-            self.arg("-Zcrate-attr=feature(cell_update,const_cell,debug_closure_helpers,extract_if,integer_sign_cast,iter_chain,let_chains,maybe_uninit_slice,maybe_uninit_write_slice,map_many_mut,new_zeroed_alloc,round_char_boundary,strict_overflow_ops,trait_upcasting,unbounded_shifts,unsigned_is_multiple_of)");
+            self.arg("-Zcrate-attr=feature(cell_update,const_cell,debug_closure_helpers,exposed_provenance,extract_if,integer_sign_cast,iter_chain,let_chains,maybe_uninit_slice,maybe_uninit_write_slice,map_many_mut,new_zeroed_alloc,round_char_boundary,strict_overflow_ops,strict_provenance,trait_upcasting,unbounded_shifts,unsigned_is_multiple_of)");
         }
     }
 }
@@ -510,11 +510,6 @@ impl Builder<'_> {
         let out_dir = self.stage_out(compiler, mode);
         cargo.env("CARGO_TARGET_DIR", &out_dir);
 
-        // Set this unconditionally. Cargo silently ignores `CARGO_BUILD_WARNINGS` when `-Z
-        // warnings` isn't present, which is hard to debug, and it's not worth the effort to keep
-        // them in sync.
-        cargo.arg("-Zwarnings");
-
         // Bootstrap makes a lot of assumptions about the artifacts produced in the target
         // directory. If users override the "build directory" using `build-dir`
         // (https://doc.rust-lang.org/nightly/cargo/reference/unstable.html#build-dir), then
@@ -833,9 +828,6 @@ impl Builder<'_> {
         };
 
         cargo.arg("-j").arg(self.jobs().to_string());
-
-        // Make cargo emit diagnostics relative to the rustc src dir.
-        cargo.arg(format!("-Zroot-dir={}", self.src.display()));
 
         if self.config.compile_time_deps {
             // Build only build scripts and proc-macros for rust-analyzer when requested.

@@ -1121,7 +1121,6 @@ class RustBuild(object):
             "--jobs=" + self.jobs,
             "--manifest-path",
             os.path.join(self.rust_root, "src/bootstrap/Cargo.toml"),
-            "-Zroot-dir=" + self.rust_root,
         ]
         # verbose cargo output is very noisy, so only enable it with -vv
         args.extend("--verbose" for _ in range(self.verbose - 1))
@@ -1144,7 +1143,6 @@ class RustBuild(object):
         else:
             deny_warnings = self.warnings == "deny"
         if deny_warnings:
-            args += ["-Zwarnings"]
             env["CARGO_BUILD_WARNINGS"] = "deny"
 
         # Add RUSTFLAGS_BOOTSTRAP to RUSTFLAGS for bootstrap compilation.
