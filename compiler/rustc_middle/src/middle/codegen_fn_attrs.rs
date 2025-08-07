@@ -230,7 +230,10 @@ impl CodegenFnAttrs {
             linkage: None,
             import_linkage: None,
             link_section: None,
-            sanitizers: SanitizerFnAttrs::default(),
+            sanitizers: SanitizerFnAttrs {
+                disabled: SanitizerSet::empty(),
+                rtsan_setting: RtsanSetting::Caller,
+            },
             instruction_set: None,
             alignment: None,
             patchable_function_entry: None,
@@ -272,8 +275,8 @@ pub struct SanitizerFnAttrs {
     pub rtsan_setting: RtsanSetting,
 }
 
-impl const Default for SanitizerFnAttrs {
+impl Default for SanitizerFnAttrs {
     fn default() -> Self {
-        Self { disabled: SanitizerSet::empty(), rtsan_setting: RtsanSetting::default() }
+        Self { disabled: SanitizerSet::empty(), rtsan_setting: RtsanSetting::Caller }
     }
 }

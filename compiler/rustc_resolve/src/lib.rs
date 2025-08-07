@@ -11,7 +11,6 @@
 #![feature(arbitrary_self_types)]
 #![feature(assert_matches)]
 #![feature(box_patterns)]
-#![feature(const_default)]
 #![feature(const_trait_impl)]
 #![feature(control_flow_into_value)]
 #![feature(decl_macro)]
@@ -1129,7 +1128,7 @@ pub struct Resolver<'ra, 'tcx> {
     tcx: TyCtxt<'tcx>,
 
     /// Item with a given `LocalDefId` was defined during macro expansion with ID `ExpnId`.
-    expn_that_defined: UnordMap<LocalDefId, ExpnId> = Default::default(),
+    expn_that_defined: UnordMap<LocalDefId, ExpnId> = UnordMap::new(),
 
     graph_root: Module<'ra>,
 
@@ -1140,8 +1139,8 @@ pub struct Resolver<'ra, 'tcx> {
     extern_prelude: FxIndexMap<Macros20NormalizedIdent, ExternPreludeEntry<'ra>>,
 
     /// N.B., this is used only for better diagnostics, not name resolution itself.
-    field_names: LocalDefIdMap<Vec<Ident>> = Default::default(),
-    field_defaults: LocalDefIdMap<Vec<Symbol>> = Default::default(),
+    field_names: LocalDefIdMap<Vec<Ident>> = UnordMap::new(),
+    field_defaults: LocalDefIdMap<Vec<Symbol>> = UnordMap::new(),
 
     /// Span of the privacy modifier in fields of an item `DefId` accessible with dot syntax.
     /// Used for hints during error reporting.
@@ -1155,26 +1154,26 @@ pub struct Resolver<'ra, 'tcx> {
 
     // Spans for local variables found during pattern resolution.
     // Used for suggestions during error reporting.
-    pat_span_map: NodeMap<Span> = Default::default(),
+    pat_span_map: NodeMap<Span> = UnordMap::new(),
 
     /// Resolutions for nodes that have a single resolution.
-    partial_res_map: NodeMap<PartialRes> = Default::default(),
+    partial_res_map: NodeMap<PartialRes> = UnordMap::new(),
     /// Resolutions for import nodes, which have multiple resolutions in different namespaces.
-    import_res_map: NodeMap<PerNS<Option<Res>>> = Default::default(),
+    import_res_map: NodeMap<PerNS<Option<Res>>> = UnordMap::new(),
     /// An import will be inserted into this map if it has been used.
     import_use_map: FxHashMap<Import<'ra>, Used> = default::fx_hash_map(),
     /// Resolutions for labels (node IDs of their corresponding blocks or loops).
-    label_res_map: NodeMap<NodeId> = Default::default(),
+    label_res_map: NodeMap<NodeId> = UnordMap::new(),
     /// Resolutions for lifetimes.
-    lifetimes_res_map: NodeMap<LifetimeRes> = Default::default(),
+    lifetimes_res_map: NodeMap<LifetimeRes> = UnordMap::new(),
     /// Lifetime parameters that lowering will have to introduce.
-    extra_lifetime_params_map: NodeMap<Vec<(Ident, NodeId, LifetimeRes)>> = Default::default(),
+    extra_lifetime_params_map: NodeMap<Vec<(Ident, NodeId, LifetimeRes)>> = UnordMap::new(),
 
     /// `CrateNum` resolutions of `extern crate` items.
-    extern_crate_map: UnordMap<LocalDefId, CrateNum> = Default::default(),
-    module_children: LocalDefIdMap<Vec<ModChild>> = Default::default(),
-    ambig_module_children: LocalDefIdMap<Vec<AmbigModChild>> = Default::default(),
-    trait_map: NodeMap<Vec<TraitCandidate>> = Default::default(),
+    extern_crate_map: UnordMap<LocalDefId, CrateNum> = UnordMap::new(),
+    module_children: LocalDefIdMap<Vec<ModChild>> = UnordMap::new(),
+    ambig_module_children: LocalDefIdMap<Vec<AmbigModChild>> = UnordMap::new(),
+    trait_map: NodeMap<Vec<TraitCandidate>> = UnordMap::new(),
 
     /// A map from nodes to anonymous modules.
     /// Anonymous modules are pseudo-modules that are implicitly created around items
@@ -1190,7 +1189,7 @@ pub struct Resolver<'ra, 'tcx> {
     ///
     /// There will be an anonymous module created around `g` with the ID of the
     /// entry block for `f`.
-    block_map: NodeMap<Module<'ra>> = Default::default(),
+    block_map: NodeMap<Module<'ra>> = UnordMap::new(),
     /// A fake module that contains no definition and no prelude. Used so that
     /// some AST passes can generate identifiers that only resolve to local or
     /// lang items.
@@ -1280,7 +1279,7 @@ pub struct Resolver<'ra, 'tcx> {
     /// Table for mapping struct IDs into struct constructor IDs,
     /// it's not used during normal resolution, only for better error reporting.
     /// Also includes of list of each fields visibility
-    struct_constructors: LocalDefIdMap<(Res, Visibility<DefId>, Vec<Visibility<DefId>>)> = Default::default(),
+    struct_constructors: LocalDefIdMap<(Res, Visibility<DefId>, Vec<Visibility<DefId>>)> = UnordMap::new(),
 
     lint_buffer: LintBuffer,
 
@@ -1299,8 +1298,8 @@ pub struct Resolver<'ra, 'tcx> {
 
     /// Amount of lifetime parameters for each item in the crate.
     item_generics_num_lifetimes: FxHashMap<LocalDefId, usize> = default::fx_hash_map(),
-    delegation_fn_sigs: LocalDefIdMap<DelegationFnSig> = Default::default(),
-    delegation_infos: LocalDefIdMap<DelegationInfo> = Default::default(),
+    delegation_fn_sigs: LocalDefIdMap<DelegationFnSig> = UnordMap::new(),
+    delegation_infos: LocalDefIdMap<DelegationInfo> = UnordMap::new(),
 
     main_def: Option<MainDefinition> = None,
     trait_impls: FxIndexMap<DefId, Vec<LocalDefId>>,
@@ -1317,7 +1316,7 @@ pub struct Resolver<'ra, 'tcx> {
     effective_visibilities: EffectiveVisibilities,
     doc_link_resolutions: FxIndexMap<LocalDefId, DocLinkResMap>,
     doc_link_traits_in_scope: FxIndexMap<LocalDefId, Vec<DefId>>,
-    all_macro_rules: UnordSet<Symbol> = Default::default(),
+    all_macro_rules: UnordSet<Symbol> = UnordSet::new(),
 
     /// Invocation ids of all glob delegations.
     glob_delegation_invoc_ids: FxHashSet<LocalExpnId> = default::fx_hash_set(),

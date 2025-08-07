@@ -18,7 +18,6 @@
 #![feature(assert_matches)]
 #![feature(auto_traits)]
 #![feature(cfg_select)]
-#![feature(const_default)]
 #![feature(const_trait_impl)]
 #![feature(core_intrinsics)]
 #![feature(dropck_eyepatch)]

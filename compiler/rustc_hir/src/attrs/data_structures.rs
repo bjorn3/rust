@@ -415,7 +415,7 @@ pub struct DebugVisualizer {
 
 #[derive(Clone, Copy, Debug, Decodable, Encodable, Eq, PartialEq)]
 #[derive(HashStable_Generic, PrintAttribute)]
-#[derive_const(Default)]
+#[derive(Default)]
 pub enum RtsanSetting {
     Nonblocking,
     Blocking,

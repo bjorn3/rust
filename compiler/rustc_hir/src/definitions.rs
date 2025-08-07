@@ -104,7 +104,7 @@ pub struct DisambiguatorState {
 
 impl DisambiguatorState {
     pub const fn new() -> Self {
-        Self { next: Default::default() }
+        Self { next: UnordMap::new() }
     }
 
     /// Creates a `DisambiguatorState` where the next allocated `(LocalDefId, DefPathData)` pair
