@@ -1054,7 +1054,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 );
 
                 match op.val {
-                    Immediate(_) | Pair(..) => llargs.push(op.immediate_or_packed_pair(bx)),
+                    Immediate(_) => llargs.push(op.immediate()),
                     Ref(op_place_val) => {
                         let mut llval = op_place_val.llval;
                         // We can't use `PlaceRef::load` here because the argument
@@ -1072,7 +1072,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                         }
                         llargs.push(llval);
                     }
-                    ZeroSized => bug!(),
+                    ZeroSized | Pair(..) => bug!(),
                 }
             }
 
