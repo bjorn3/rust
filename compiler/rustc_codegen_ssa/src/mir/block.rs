@@ -1038,38 +1038,41 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             for arg in args {
                 let op = self.codegen_operand(bx, &arg.node);
 
-                if !op.layout.ty.is_unit() {
-                    assert!(
-                        matches!(
-                            op.layout.backend_repr,
-                            BackendRepr::Scalar(_)
-                                | BackendRepr::SimdVector { .. }
-                                | BackendRepr::Memory { .. }
-                        ),
-                        "{:?}",
-                        op.layout,
-                    );
-                    match op.val {
-                        Immediate(_) | Pair(..) => llargs.push(op.immediate_or_packed_pair(bx)),
-                        Ref(op_place_val) => {
-                            let mut llval = op_place_val.llval;
-                            // We can't use `PlaceRef::load` here because the argument
-                            // may have a type we don't treat as immediate, but the ABI
-                            // used for this call is passing it by-value. In that case,
-                            // the load would just produce `OperandValue::Ref` instead
-                            // of the `OperandValue::Immediate` we need for the call.
-                            llval = bx.load(bx.backend_type(op.layout), llval, op_place_val.align);
-                            if let BackendRepr::Scalar(scalar) = op.layout.backend_repr {
-                                if scalar.is_bool() {
-                                    bx.range_metadata(llval, WrappingRange { start: 0, end: 1 });
-                                }
-                                // We store bools as `i8` so we need to truncate to `i1`.
-                                llval = bx.to_immediate_scalar(llval, scalar);
+                if op.layout.ty.is_unit() {
+                    continue;
+                }
+
+                assert!(
+                    matches!(
+                        op.layout.backend_repr,
+                        BackendRepr::Scalar(_)
+                            | BackendRepr::SimdVector { .. }
+                            | BackendRepr::Memory { .. }
+                    ),
+                    "{:?}",
+                    op.layout,
+                );
+
+                match op.val {
+                    Immediate(_) | Pair(..) => llargs.push(op.immediate_or_packed_pair(bx)),
+                    Ref(op_place_val) => {
+                        let mut llval = op_place_val.llval;
+                        // We can't use `PlaceRef::load` here because the argument
+                        // may have a type we don't treat as immediate, but the ABI
+                        // used for this call is passing it by-value. In that case,
+                        // the load would just produce `OperandValue::Ref` instead
+                        // of the `OperandValue::Immediate` we need for the call.
+                        llval = bx.load(bx.backend_type(op.layout), llval, op_place_val.align);
+                        if let BackendRepr::Scalar(scalar) = op.layout.backend_repr {
+                            if scalar.is_bool() {
+                                bx.range_metadata(llval, WrappingRange { start: 0, end: 1 });
                             }
-                            llargs.push(llval);
+                            // We store bools as `i8` so we need to truncate to `i1`.
+                            llval = bx.to_immediate_scalar(llval, scalar);
                         }
-                        ZeroSized => bug!(),
+                        llargs.push(llval);
                     }
+                    ZeroSized => bug!(),
                 }
             }
 
