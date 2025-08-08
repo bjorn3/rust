@@ -6,7 +6,7 @@
 #![doc(rust_logo)]
 #![feature(assert_matches)]
 #![feature(box_patterns)]
-#![feature(file_buffered)]
+#![cfg_attr(bootstrap, feature(control_flow_enum))]
 #![feature(if_let_guard)]
 #![feature(negative_impls)]
 #![feature(never_type)]

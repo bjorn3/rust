@@ -62,6 +62,7 @@ This API is completely unstable and subject to change.
 #![doc(html_root_url = "https://doc.rust-lang.org/nightly/nightly-rustc/")]
 #![doc(rust_logo)]
 #![feature(assert_matches)]
+#![cfg_attr(bootstrap, feature(control_flow_enum))]
 #![feature(debug_closure_helpers)]
 #![feature(gen_blocks)]
 #![feature(if_let_guard)]

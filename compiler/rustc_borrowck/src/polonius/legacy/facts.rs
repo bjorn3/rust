@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::Debug;
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{BufWriter, Write};
 use std::path::Path;
 
 use polonius_engine::{AllFacts, Atom, Output};
@@ -129,7 +129,7 @@ impl<'w> FactWriter<'w> {
         T: FactRow,
     {
         let file = &self.dir.join(file_name);
-        let mut file = File::create_buffered(file)?;
+        let mut file = BufWriter::new(File::create(file)?);
         for row in rows {
             row.write(&mut file, self.location_table)?;
         }

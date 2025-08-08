@@ -799,7 +799,7 @@ impl<'a> Linker for GccLinker<'a> {
         if self.sess.target.is_like_darwin {
             // Write a plain, newline-separated list of symbols
             let res: io::Result<()> = try {
-                let mut f = File::create_buffered(&path)?;
+                let mut f = std::io::BufWriter::new(File::create(&path)?);
                 for (sym, _) in symbols {
                     debug!("  _{sym}");
                     writeln!(f, "_{sym}")?;
@@ -811,7 +811,7 @@ impl<'a> Linker for GccLinker<'a> {
             self.link_arg("-exported_symbols_list").link_arg(path);
         } else if self.sess.target.is_like_windows {
             let res: io::Result<()> = try {
-                let mut f = File::create_buffered(&path)?;
+                let mut f = std::io::BufWriter::new(File::create(&path)?);
 
                 // .def file similar to MSVC one but without LIBRARY section
                 // because LD doesn't like when it's empty
@@ -830,7 +830,7 @@ impl<'a> Linker for GccLinker<'a> {
             self.link_arg(path);
         } else if crate_type == CrateType::Executable && !self.sess.target.is_like_solaris {
             let res: io::Result<()> = try {
-                let mut f = File::create_buffered(&path)?;
+                let mut f = std::io::BufWriter::new(File::create(&path)?);
                 writeln!(f, "{{")?;
                 for (sym, _) in symbols {
                     debug!(sym);
@@ -845,7 +845,7 @@ impl<'a> Linker for GccLinker<'a> {
         } else {
             // Write an LD version script
             let res: io::Result<()> = try {
-                let mut f = File::create_buffered(&path)?;
+                let mut f = std::io::BufWriter::new(File::create(&path)?);
                 writeln!(f, "{{")?;
                 if !symbols.is_empty() {
                     writeln!(f, "  global:")?;
@@ -1124,7 +1124,7 @@ impl<'a> Linker for MsvcLinker<'a> {
 
         let path = tmpdir.join("lib.def");
         let res: io::Result<()> = try {
-            let mut f = File::create_buffered(&path)?;
+            let mut f = std::io::BufWriter::new(File::create(&path)?);
 
             // Start off with the standard module name header and then go
             // straight to exports.
@@ -1737,7 +1737,7 @@ impl<'a> Linker for AixLinker<'a> {
     ) {
         let path = tmpdir.join("list.exp");
         let res: io::Result<()> = try {
-            let mut f = File::create_buffered(&path)?;
+            let mut f = std::io::BufWriter::new(File::create(&path)?);
             // FIXME: use llvm-nm to generate export list.
             for (symbol, _) in symbols {
                 debug!("  _{symbol}");
@@ -2129,7 +2129,7 @@ impl<'a> Linker for BpfLinker<'a> {
     ) {
         let path = tmpdir.join("symbols");
         let res: io::Result<()> = try {
-            let mut f = File::create_buffered(&path)?;
+            let mut f = std::io::BufWriter::new(File::create(&path)?);
             for (sym, _) in symbols {
                 writeln!(f, "{sym}")?;
             }

@@ -10,6 +10,7 @@
     test(attr(allow(unused_variables), deny(warnings)))
 )]
 #![doc(rust_logo)]
+#![cfg_attr(bootstrap, feature(const_option))]
 #![feature(core_intrinsics)]
 #![feature(min_specialization)]
 #![feature(never_type)]

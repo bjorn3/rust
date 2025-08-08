@@ -247,7 +247,7 @@ fn xcrun_show_sdk_path(
 
     // It is fine to do lossy conversion here, non-UTF-8 paths are quite rare on macOS nowadays
     // (only possible with the HFS+ file system), and we only use it for error messages.
-    let stderr = String::from_utf8_lossy_owned(output.stderr);
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
     if !stderr.is_empty() {
         debug!(stderr, "original xcrun stderr");
     }
@@ -267,7 +267,7 @@ fn xcrun_show_sdk_path(
     } else {
         // Output both stdout and stderr, since shims of `xcrun` (such as the one provided by
         // nixpkgs), do not always use stderr for errors.
-        let stdout = String::from_utf8_lossy_owned(output.stdout).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
         Err(XcrunError::Unsuccessful {
             sdk_name,
             command_formatted: format!("{cmd:?}"),

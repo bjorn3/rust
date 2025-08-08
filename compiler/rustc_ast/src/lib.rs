@@ -13,6 +13,8 @@
 #![doc(rust_logo)]
 #![feature(array_windows)]
 #![feature(associated_type_defaults)]
+#![cfg_attr(bootstrap, feature(const_mut_refs))]
+#![cfg_attr(bootstrap, feature(const_option))]
 #![feature(box_patterns)]
 #![feature(if_let_guard)]
 #![feature(macro_metavar_expr)]

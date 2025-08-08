@@ -14,6 +14,7 @@
 // tidy-alphabetical-start
 #![allow(internal_features)]
 #![doc(rust_logo)]
+#![cfg_attr(bootstrap, feature(const_option))]
 #![feature(rustdoc_internals)]
 // tidy-alphabetical-end
 
