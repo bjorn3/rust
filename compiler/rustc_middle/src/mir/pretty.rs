@@ -326,9 +326,9 @@ pub fn create_dump_file<'tcx>(
             )
         })?;
     }
-    fs::File::create_buffered(&file_path).map_err(|e| {
+    fs::File::create(&file_path).map_err(|e| {
         io::Error::new(e.kind(), format!("IO error creating MIR dump file: {file_path:?}; {e}"))
-    })
+    }).map(io::BufWriter::new)
 }
 
 ///////////////////////////////////////////////////////////////////////////

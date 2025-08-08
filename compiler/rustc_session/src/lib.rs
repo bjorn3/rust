@@ -2,6 +2,7 @@
 #![allow(internal_features)]
 #![cfg_attr(bootstrap, feature(map_many_mut))]
 #![feature(iter_intersperse)]
+#![cfg_attr(bootstrap, feature(option_get_or_insert_default))]
 #![feature(rustc_attrs)]
 // To generate CodegenOptionsTargetModifiers and UnstableOptionsTargetModifiers enums
 // with macro_rules, it is necessary to use recursive mechanic ("Incremental TT Munchers").

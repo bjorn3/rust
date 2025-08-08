@@ -756,7 +756,7 @@ fn write_out_deps(tcx: TyCtxt<'_>, outputs: &OutputFilenames, out_filenames: &[P
                 write_deps_to_file(&mut file)?;
             }
             OutFileName::Real(ref path) => {
-                let mut file = fs::File::create_buffered(path)?;
+                let mut file = BufWriter::new(fs::File::create(path)?);
                 write_deps_to_file(&mut file)?;
             }
         }
@@ -864,7 +864,7 @@ pub fn write_interface<'tcx>(tcx: TyCtxt<'tcx>) {
         &tcx.sess.psess.attr_id_generator,
     );
     let export_output = tcx.output_filenames(()).interface_path();
-    let mut file = fs::File::create_buffered(export_output).unwrap();
+    let mut file = BufWriter::new(fs::File::create(export_output).unwrap());
     if let Err(err) = write!(file, "{}", krate) {
         tcx.dcx().fatal(format!("error writing interface file: {}", err));
     }

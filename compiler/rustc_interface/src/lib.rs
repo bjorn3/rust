@@ -1,6 +1,5 @@
 // tidy-alphabetical-start
 #![feature(decl_macro)]
-#![feature(file_buffered)]
 #![feature(iter_intersperse)]
 #![feature(try_blocks)]
 // tidy-alphabetical-end

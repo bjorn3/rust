@@ -5,7 +5,6 @@
 #![deny(missing_docs)]
 #![doc(html_root_url = "https://doc.rust-lang.org/nightly/nightly-rustc/")]
 #![doc(rust_logo)]
-#![feature(file_buffered)]
 #![feature(rustdoc_internals)]
 // tidy-alphabetical-end
 

@@ -21,6 +21,7 @@
 #![feature(rustdoc_internals)]
 #![feature(staged_api)]
 #![feature(allow_internal_unstable)]
+#![cfg_attr(bootstrap, feature(const_refs_to_static))]
 #![feature(decl_macro)]
 #![feature(maybe_uninit_write_slice)]
 #![feature(negative_impls)]
