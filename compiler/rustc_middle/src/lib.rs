@@ -40,7 +40,6 @@
 #![feature(decl_macro)]
 #![feature(discriminant_kind)]
 #![feature(extern_types)]
-#![feature(file_buffered)]
 #![feature(gen_blocks)]
 #![feature(if_let_guard)]
 #![feature(intra_doc_pointers)]

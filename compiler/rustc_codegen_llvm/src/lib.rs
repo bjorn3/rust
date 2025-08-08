@@ -7,7 +7,6 @@
 // tidy-alphabetical-start
 #![feature(assert_matches)]
 #![feature(extern_types)]
-#![feature(file_buffered)]
 #![feature(if_let_guard)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(iter_intersperse)]

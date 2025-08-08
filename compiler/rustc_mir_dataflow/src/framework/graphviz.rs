@@ -55,7 +55,7 @@ where
                 if let Some(parent) = path.parent() {
                     fs::create_dir_all(parent)?;
                 }
-                fs::File::create_buffered(&path)?
+                io::BufWriter::new(fs::File::create(&path)?)
             }
 
             None => {

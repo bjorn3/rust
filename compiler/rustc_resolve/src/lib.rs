@@ -2670,7 +2670,7 @@ mod ref_mut {
     }
 
     impl<T: Copy> CmCell<T> {
-        pub(crate) const fn get(&self) -> T {
+        pub(crate) fn get(&self) -> T {
             self.0.get()
         }
 
