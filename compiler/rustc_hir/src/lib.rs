@@ -8,6 +8,7 @@
 #![feature(closure_track_caller)]
 #![feature(debug_closure_helpers)]
 #![feature(exhaustive_patterns)]
+#![cfg_attr(bootstrap, feature(is_none_or))]
 #![feature(negative_impls)]
 #![feature(never_type)]
 #![feature(rustc_attrs)]

@@ -10,6 +10,7 @@
 #![cfg_attr(not(bootstrap), allow(rustc::direct_use_of_rustc_type_ir))]
 #![cfg_attr(bootstrap, feature(const_option))]
 #![cfg_attr(bootstrap, feature(extract_if))]
+#![cfg_attr(bootstrap, feature(is_none_or))]
 // tidy-alphabetical-end
 
 pub mod canonicalizer;

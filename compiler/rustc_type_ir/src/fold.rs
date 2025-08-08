@@ -307,6 +307,7 @@ impl<I: Interner, T: TypeFoldable<I>> TypeFoldable<I> for Arc<T> {
     fn fold_with<F: TypeFolder<I>>(self, folder: &mut F) -> Self {
         match fold_arc::<T, Infallible>(self, |t| Ok(t.fold_with(folder))) {
             Ok(t) => t,
+            Err(_) => unreachable!(),
         }
     }
 }

@@ -2,7 +2,6 @@
 #![allow(internal_features)]
 #![allow(rustc::diagnostic_outside_of_impl)]
 #![cfg_attr(bootstrap, feature(strict_overflow_ops))]
-#![cfg_attr(bootstrap, feature(unsigned_is_multiple_of))]
 #![doc(rust_logo)]
 #![feature(array_try_map)]
 #![feature(assert_matches)]

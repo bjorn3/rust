@@ -9,6 +9,7 @@
 )]
 #![cfg_attr(feature = "nightly", allow(internal_features))]
 #![cfg_attr(not(bootstrap), allow(rustc::direct_use_of_rustc_type_ir))]
+#![cfg_attr(bootstrap, feature(is_none_or))]
 // tidy-alphabetical-end
 
 extern crate self as rustc_type_ir;

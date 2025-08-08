@@ -1,6 +1,5 @@
 // tidy-alphabetical-start
 #![allow(internal_features)]
-#![cfg_attr(bootstrap, feature(unsigned_is_multiple_of))]
 #![feature(assert_matches)]
 #![feature(core_intrinsics)]
 #![feature(min_specialization)]

@@ -30,6 +30,7 @@
 #![feature(negative_impls)]
 #![feature(never_type)]
 #![feature(ptr_alignment_type)]
+#![cfg_attr(bootstrap, feature(raw_ref_op))]
 #![feature(rustc_attrs)]
 #![feature(rustdoc_internals)]
 #![cfg_attr(bootstrap, feature(strict_provenance))]

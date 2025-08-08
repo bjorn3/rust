@@ -12,9 +12,9 @@
 #![doc(html_root_url = "https://doc.rust-lang.org/nightly/nightly-rustc/")]
 #![doc(rust_logo)]
 #![feature(debug_closure_helpers)]
+#![cfg_attr(bootstrap, feature(is_none_or))]
 #![feature(iter_intersperse)]
 #![feature(rustdoc_internals)]
-#![cfg_attr(bootstrap, feature(unsigned_is_multiple_of))]
 // tidy-alphabetical-end
 
 use std::path::{Path, PathBuf};
