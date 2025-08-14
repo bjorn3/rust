@@ -255,7 +255,7 @@ pub(crate) fn target_machine_factory(
 
     let debuginfo_compression = match sess.opts.unstable_opts.debuginfo_compression {
         config::DebugInfoCompression::None => llvm::CompressionKind::None,
-        config::DebugInfoCompression::Zlib => {
+        config::DebugInfoCompression::Zlib => unsafe {
             if llvm::LLVMRustLLVMHasZlibCompression() {
                 llvm::CompressionKind::Zlib
             } else {
@@ -263,7 +263,7 @@ pub(crate) fn target_machine_factory(
                 llvm::CompressionKind::None
             }
         }
-        config::DebugInfoCompression::Zstd => {
+        config::DebugInfoCompression::Zstd => unsafe {
             if llvm::LLVMRustLLVMHasZstdCompression() {
                 llvm::CompressionKind::Zstd
             } else {
@@ -1119,7 +1119,7 @@ pub(crate) fn codegen(
             // binaries. So we must clone the module to produce the asm output
             // if we are also producing object code.
             let llmod = if let EmitObj::ObjectCode(_) = config.emit_obj {
-                llvm::LLVMCloneModule(llmod)
+                unsafe { llvm::LLVMCloneModule(llmod) }
             } else {
                 llmod
             };
@@ -1303,7 +1303,7 @@ fn embed_bitcode(
 
         llvm::set_section(llglobal, bitcode_section_name(cgcx));
         llvm::set_linkage(llglobal, llvm::Linkage::PrivateLinkage);
-        llvm::LLVMSetGlobalConstant(llglobal, llvm::TRUE);
+        unsafe { llvm::LLVMSetGlobalConstant(llglobal, llvm::TRUE); }
 
         let llconst = common::bytes_in_context(llcx, &[]);
         let llglobal = llvm::add_global(llmod, common::val_ty(llconst), c"rustc.embedded.cmdline");

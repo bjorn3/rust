@@ -61,7 +61,7 @@ impl<'ll, CX: Borrow<SCx<'ll>>> GenericCx<'ll, CX> {
 
     ///x Creates an integer type with the given number of bits, e.g., i24
     pub(crate) fn type_ix(&self, num_bits: u64) -> &'ll Type {
-        llvm::LLVMIntTypeInContext(self.llcx(), num_bits as c_uint)
+        unsafe { llvm::LLVMIntTypeInContext(self.llcx(), num_bits as c_uint) }
     }
 
     pub(crate) fn type_vector(&self, ty: &'ll Type, len: u64) -> &'ll Type {
@@ -213,7 +213,7 @@ impl<'ll, CX: Borrow<SCx<'ll>>> BaseTypeCodegenMethods for GenericCx<'ll, CX> {
     }
 
     fn type_kind(&self, ty: &'ll Type) -> TypeKind {
-        llvm::LLVMGetTypeKind(ty).to_rust().to_generic()
+        unsafe { llvm::LLVMGetTypeKind(ty).to_rust().to_generic() }
     }
 
     fn type_ptr(&self) -> &'ll Type {
@@ -268,7 +268,7 @@ pub(crate) fn llvm_type_ptr_in_address_space<'ll>(
     llcx: &'ll llvm::Context,
     addr_space: AddressSpace,
 ) -> &'ll Type {
-    llvm::LLVMPointerTypeInContext(llcx, addr_space.0)
+    unsafe { llvm::LLVMPointerTypeInContext(llcx, addr_space.0) }
 }
 
 impl<'ll, 'tcx> LayoutTypeCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
@@ -309,13 +309,13 @@ impl<'ll, 'tcx> LayoutTypeCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 impl<'ll, 'tcx> TypeMembershipCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     fn add_type_metadata(&self, function: &'ll Value, typeid: &[u8]) {
         let typeid_metadata = self.create_metadata(typeid);
-        let v = [llvm::LLVMValueAsMetadata(self.const_usize(0)), typeid_metadata];
+        let v = unsafe { [llvm::LLVMValueAsMetadata(self.const_usize(0)), typeid_metadata] };
         self.global_add_metadata_node(function, llvm::MD_type, &v);
     }
 
     fn set_type_metadata(&self, function: &'ll Value, typeid: &[u8]) {
         let typeid_metadata = self.create_metadata(typeid);
-        let v = [llvm::LLVMValueAsMetadata(self.const_usize(0)), typeid_metadata];
+        let v = unsafe { [llvm::LLVMValueAsMetadata(self.const_usize(0)), typeid_metadata] };
         self.global_set_metadata_node(function, llvm::MD_type, &v);
     }
 
@@ -324,12 +324,12 @@ impl<'ll, 'tcx> TypeMembershipCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn add_kcfi_type_metadata(&self, function: &'ll Value, kcfi_typeid: u32) {
-        let kcfi_type_metadata = [llvm::LLVMValueAsMetadata(self.const_u32(kcfi_typeid))];
+        let kcfi_type_metadata = unsafe { [llvm::LLVMValueAsMetadata(self.const_u32(kcfi_typeid))] };
         self.global_add_metadata_node(function, llvm::MD_kcfi_type, &kcfi_type_metadata);
     }
 
     fn set_kcfi_type_metadata(&self, function: &'ll Value, kcfi_typeid: u32) {
-        let kcfi_type_metadata = [llvm::LLVMValueAsMetadata(self.const_u32(kcfi_typeid))];
+        let kcfi_type_metadata = unsafe { [llvm::LLVMValueAsMetadata(self.const_u32(kcfi_typeid))] };
         self.global_set_metadata_node(function, llvm::MD_kcfi_type, &kcfi_type_metadata);
     }
 }

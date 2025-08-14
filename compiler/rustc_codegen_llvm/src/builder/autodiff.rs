@@ -351,7 +351,7 @@ pub(crate) fn generate_enzyme_call<'ll, 'tcx>(
         enzyme_ty,
     );
 
-    let num_args = llvm::LLVMCountParams(&fn_to_diff);
+    let num_args = unsafe { llvm::LLVMCountParams(&fn_to_diff) };
     let mut args = Vec::with_capacity(num_args as usize + 1);
     args.push(fn_to_diff);
 

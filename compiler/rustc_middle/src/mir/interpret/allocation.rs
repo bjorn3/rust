@@ -74,11 +74,13 @@ impl AllocBytes for Box<[u8]> {
     }
 
     fn as_mut_ptr(&mut self) -> *mut u8 {
-        Box::as_mut_ptr(self).cast()
+        // Inline Box::as_mut_ptr to avoid rustc 1.81 misinterpreting this as a self-recursive call
+        std::ptr::addr_of_mut!(**self).cast()
     }
 
     fn as_ptr(&self) -> *const u8 {
-        Box::as_ptr(self).cast()
+        // Inline Box::as_ptr to avoid rustc 1.81 misinterpreting this as a self-recursive call
+        std::ptr::addr_of!(**self).cast()
     }
 }
 

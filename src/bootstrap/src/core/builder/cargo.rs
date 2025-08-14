@@ -69,7 +69,7 @@ impl Rustflags {
             self.env("RUSTFLAGS_BOOTSTRAP");
             self.arg("--cfg=bootstrap");
             self.arg("--extern=force:std");
-            self.arg("-Zcrate-attr=feature(cell_update,const_mut_refs,const_option,const_refs_to_static,control_flow_enum,debug_closure_helpers,exposed_provenance,extract_if,integer_sign_cast,iter_chain,let_chains,maybe_uninit_slice,maybe_uninit_write_slice,map_many_mut,new_zeroed_alloc,option_get_or_insert_default,round_char_boundary,strict_overflow_ops,strict_provenance,trait_upcasting,unbounded_shifts,unsigned_is_multiple_of)");
+            self.arg("-Zcrate-attr=feature(cell_update,const_mut_refs,const_option,const_refs_to_static,control_flow_enum,debug_closure_helpers,exposed_provenance,extract_if,integer_sign_cast,is_none_or,is_sorted,iter_repeat_n,iter_chain,let_chains,maybe_uninit_slice,maybe_uninit_write_slice,map_many_mut,new_uninit,option_get_or_insert_default,precise_capturing,raw_ref_op,round_char_boundary,strict_overflow_ops,strict_provenance,trait_upcasting,unsafe_attributes)");
         }
     }
 }

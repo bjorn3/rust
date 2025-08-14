@@ -783,9 +783,18 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
                     // Note that the `unbounded_sh{l,r}`s are needed only in case we are using this on
                     // `u128xN` and `inv_shift_bits == 128`.
                     let result_bits = if is_left {
-                        (left << shift_bits) | right.unbounded_shr(inv_shift_bits)
+                        (left << shift_bits)
+                            | (if inv_shift_bits < u128::BITS {
+                                unsafe { right.unchecked_shr(inv_shift_bits) }
+                            } else {
+                                0
+                            })
                     } else {
-                        left.unbounded_shl(inv_shift_bits) | (right >> shift_bits)
+                        (if inv_shift_bits < u128::BITS {
+                            unsafe { left.unchecked_shl(inv_shift_bits) }
+                        } else {
+                            0
+                        }) | (right >> shift_bits)
                     };
                     let (result, _overflow) = ScalarInt::truncate_from_uint(result_bits, elem_size);
 

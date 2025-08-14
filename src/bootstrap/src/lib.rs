@@ -17,9 +17,9 @@
 //! also check out the `src/bootstrap/README.md` file for more information.
 #![cfg_attr(test, allow(unused))]
 #![feature(io_error_more)]
+#![feature(is_none_or)]
 #![feature(let_chains)]
 #![feature(trait_upcasting)]
-#![feature(unsigned_is_multiple_of)]
 
 use std::cell::Cell;
 use std::collections::{BTreeSet, HashMap, HashSet};

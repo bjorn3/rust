@@ -160,7 +160,7 @@ fn create_wrapper_function(
             .map(|(i, _)| llvm::get_param(llfn, i as c_uint))
             .collect::<Vec<_>>();
         let ret = bx.call(ty, callee, &args, None);
-        llvm::LLVMSetTailCall(ret, TRUE);
+        unsafe { llvm::LLVMSetTailCall(ret, TRUE); }
         if output.is_some() {
             bx.ret(ret);
         } else {

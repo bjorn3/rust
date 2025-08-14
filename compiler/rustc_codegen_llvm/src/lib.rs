@@ -340,7 +340,7 @@ impl CodegenBackend for LlvmCodegenBackend {
     }
 
     fn has_zstd(&self) -> bool {
-        llvm::LLVMRustLLVMHasZstdCompression()
+        unsafe { llvm::LLVMRustLLVMHasZstdCompression() }
     }
 
     fn target_config(&self, sess: &Session) -> TargetConfig {

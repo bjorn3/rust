@@ -57,6 +57,14 @@ impl<T> Default for &List<T> {
     }
 }
 
+#[cfg(bootstrap)]
+extern "C" {
+    /// A dummy type used to force `List` to be unsized while not requiring
+    /// references to it be wide pointers.
+    type OpaqueListContents;
+}
+
+#[cfg(not(bootstrap))]
 unsafe extern "C" {
     /// A dummy type used to force `List` to be unsized while not requiring
     /// references to it be wide pointers.

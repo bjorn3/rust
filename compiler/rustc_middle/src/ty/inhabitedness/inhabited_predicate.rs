@@ -53,14 +53,13 @@ impl<'tcx> InhabitedPredicate<'tcx> {
         module_def_id: DefId,
         reveal_opaque: &impl Fn(OpaqueTypeKey<'tcx>) -> Option<Ty<'tcx>>,
     ) -> bool {
-        let Ok(result) = self.apply_inner::<!>(
+        self.apply_inner::<!>(
             tcx,
             typing_env,
             &mut Default::default(),
             &|id| Ok(tcx.is_descendant_of(module_def_id, id)),
             reveal_opaque,
-        );
-        result
+        ).unwrap()
     }
 
     /// Same as `apply`, but returns `None` if self contains a module predicate
@@ -71,11 +70,9 @@ impl<'tcx> InhabitedPredicate<'tcx> {
     /// Same as `apply`, but `NotInModule(_)` predicates yield `false`. That is,
     /// privately uninhabited types are considered always uninhabited.
     pub fn apply_ignore_module(self, tcx: TyCtxt<'tcx>, typing_env: TypingEnv<'tcx>) -> bool {
-        let Ok(result) =
-            self.apply_inner::<!>(tcx, typing_env, &mut Default::default(), &|_| Ok(true), &|_| {
-                None
-            });
-        result
+        self.apply_inner::<!>(tcx, typing_env, &mut Default::default(), &|_| Ok(true), &|_| {
+            None
+        }).unwrap()
     }
 
     #[instrument(level = "debug", skip(tcx, typing_env, in_module, reveal_opaque), ret)]

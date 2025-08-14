@@ -409,9 +409,9 @@ impl<'ll> CodegenCx<'ll, '_> {
 
     fn codegen_static_item(&mut self, def_id: DefId) {
         assert!(
-            llvm::LLVMGetInitializer(
+            unsafe { llvm::LLVMGetInitializer(
                 self.instances.borrow().get(&Instance::mono(self.tcx, def_id)).unwrap()
-            )
+            ) }
             .is_none()
         );
         let attrs = self.tcx.codegen_fn_attrs(def_id);
@@ -565,8 +565,10 @@ impl<'ll> CodegenCx<'ll, '_> {
         llvm::set_initializer(g, llval);
         llvm::set_linkage(g, llvm::Linkage::PrivateLinkage);
         llvm::set_section(g, c"__TEXT,__cstring,cstring_literals");
-        llvm::LLVMSetGlobalConstant(g, llvm::TRUE);
-        llvm::LLVMSetUnnamedAddress(g, llvm::UnnamedAddr::Global);
+        unsafe {
+            llvm::LLVMSetGlobalConstant(g, llvm::TRUE);
+            llvm::LLVMSetUnnamedAddress(g, llvm::UnnamedAddr::Global);
+        }
         self.add_compiler_used_global(g);
 
         g
@@ -688,8 +690,10 @@ impl<'ll> CodegenCx<'ll, '_> {
                 _ => unreachable!(),
             },
         );
-        llvm::LLVMSetGlobalConstant(methname_g, llvm::TRUE);
-        llvm::LLVMSetUnnamedAddress(methname_g, llvm::UnnamedAddr::Global);
+        unsafe {
+            llvm::LLVMSetGlobalConstant(methname_g, llvm::TRUE);
+            llvm::LLVMSetUnnamedAddress(methname_g, llvm::UnnamedAddr::Global);
+        }
         self.add_compiler_used_global(methname_g);
 
         // See Clang's `CGObjCMac::EmitSelectorAddr`:

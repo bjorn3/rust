@@ -768,14 +768,14 @@ impl<'ll> SimpleCx<'ll> {
         llcx: &'ll llvm::Context,
         pointer_size: Size,
     ) -> Self {
-        let isize_ty = llvm::LLVMIntTypeInContext(llcx, pointer_size.bits() as c_uint);
+        let isize_ty = unsafe { llvm::LLVMIntTypeInContext(llcx, pointer_size.bits() as c_uint) };
         Self(SCx { llmod, llcx, isize_ty }, PhantomData)
     }
 }
 
 impl<'ll, CX: Borrow<SCx<'ll>>> GenericCx<'ll, CX> {
     pub(crate) fn get_metadata_value(&self, metadata: &'ll Metadata) -> &'ll Value {
-        llvm::LLVMMetadataAsValue(self.llcx(), metadata)
+        unsafe { llvm::LLVMMetadataAsValue(self.llcx(), metadata) }
     }
 
     pub(crate) fn get_const_int(&self, ty: &'ll Type, val: u64) -> &'ll Value {
@@ -1043,7 +1043,7 @@ impl<'ll, CX: Borrow<SCx<'ll>>> GenericCx<'ll, CX> {
         md: &'ll Metadata,
     ) {
         let node = self.get_metadata_value(md);
-        llvm::LLVMSetMetadata(val, kind_id, node);
+        unsafe { llvm::LLVMSetMetadata(val, kind_id, node) };
     }
 
     /// Helper method for the sequence of calls:

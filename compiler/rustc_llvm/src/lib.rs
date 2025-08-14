@@ -7,6 +7,15 @@ use std::{ptr, slice};
 
 use libc::size_t;
 
+#[cfg(bootstrap)]
+extern "C" {
+    /// Opaque type that allows C++ code to write bytes to a Rust-side buffer,
+    /// in conjunction with `RawRustStringOstream`. Use this as `&RustString`
+    /// (Rust) and `RustStringRef` (C++) in FFI signatures.
+    pub type RustString;
+}
+
+#[cfg(not(bootstrap))]
 unsafe extern "C" {
     /// Opaque type that allows C++ code to write bytes to a Rust-side buffer,
     /// in conjunction with `RawRustStringOstream`. Use this as `&RustString`
@@ -75,9 +84,16 @@ pub fn initialize_available_targets() {
         ($cfg:meta, $($method:ident),*) => { {
             #[cfg($cfg)]
             fn init() {
+                #[cfg(bootstrap)]
+                extern "C" {
+                    $(fn $method();)*
+                }
+
+                #[cfg(not(bootstrap))]
                 unsafe extern "C" {
                     $(fn $method();)*
                 }
+
                 unsafe {
                     $($method();)*
                 }

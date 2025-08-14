@@ -196,7 +196,7 @@ pub(crate) fn SetUniqueComdat(llmod: &Module, val: &Value) {
 }
 
 pub(crate) fn set_unnamed_address(global: &Value, unnamed: UnnamedAddr) {
-    LLVMSetUnnamedAddress(global, unnamed);
+    unsafe { LLVMSetUnnamedAddress(global, unnamed); }
 }
 
 pub(crate) fn set_thread_local_mode(global: &Value, mode: ThreadLocalMode) {
@@ -236,7 +236,7 @@ pub(crate) fn set_initializer(llglobal: &Value, constant_val: &Value) {
 }
 
 pub(crate) fn set_global_constant(llglobal: &Value, is_constant: bool) {
-    LLVMSetGlobalConstant(llglobal, is_constant.to_llvm_bool());
+    unsafe { LLVMSetGlobalConstant(llglobal, is_constant.to_llvm_bool()); }
 }
 
 pub(crate) fn get_linkage(llglobal: &Value) -> Linkage {
@@ -270,7 +270,7 @@ pub(crate) fn set_alignment(llglobal: &Value, align: Align) {
 }
 
 pub(crate) fn set_externally_initialized(llglobal: &Value, is_ext_init: bool) {
-    LLVMSetExternallyInitialized(llglobal, is_ext_init.to_llvm_bool());
+    unsafe { LLVMSetExternallyInitialized(llglobal, is_ext_init.to_llvm_bool()) };
 }
 
 /// Get the `name`d comdat from `llmod` and assign it to `llglobal`.

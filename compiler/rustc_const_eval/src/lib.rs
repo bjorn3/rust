@@ -8,6 +8,7 @@
 #![feature(slice_ptr_get)]
 #![feature(trait_alias)]
 #![feature(try_blocks)]
+#![feature(unchecked_shifts)]
 #![feature(yeet_expr)]
 #![warn(unqualified_local_imports)]
 // tidy-alphabetical-end
