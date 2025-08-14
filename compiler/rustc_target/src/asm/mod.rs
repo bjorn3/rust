@@ -324,6 +324,9 @@ impl InlineAsmReg {
             Self::Msp430(r) => r.name(),
             Self::M68k(r) => r.name(),
             Self::CSKY(r) => r.name(),
+            Self::Nvptx(r) => r.name(),
+            Self::SpirV(r) => r.name(),
+            Self::Wasm(r) => r.name(),
             Self::Err => "<reg>",
         }
     }
@@ -345,6 +348,9 @@ impl InlineAsmReg {
             Self::Msp430(r) => InlineAsmRegClass::Msp430(r.reg_class()),
             Self::M68k(r) => InlineAsmRegClass::M68k(r.reg_class()),
             Self::CSKY(r) => InlineAsmRegClass::CSKY(r.reg_class()),
+            Self::Nvptx(r) => InlineAsmRegClass::Nvptx(r.reg_class()),
+            Self::SpirV(r) => InlineAsmRegClass::SpirV(r.reg_class()),
+            Self::Wasm(r) => InlineAsmRegClass::Wasm(r.reg_class()),
             Self::Err => InlineAsmRegClass::Err,
         }
     }
@@ -415,6 +421,9 @@ impl InlineAsmReg {
             Self::Msp430(r) => r.validate(arch, reloc_model, target_features, target, is_clobber),
             Self::M68k(r) => r.validate(arch, reloc_model, target_features, target, is_clobber),
             Self::CSKY(r) => r.validate(arch, reloc_model, target_features, target, is_clobber),
+            Self::Nvptx(r) => r.validate(arch, reloc_model, target_features, target, is_clobber),
+            Self::SpirV(r) => r.validate(arch, reloc_model, target_features, target, is_clobber),
+            Self::Wasm(r) => r.validate(arch, reloc_model, target_features, target, is_clobber),
             Self::Err => unreachable!(),
         }
     }
@@ -443,6 +452,9 @@ impl InlineAsmReg {
             Self::Msp430(r) => r.emit(out, arch, modifier),
             Self::M68k(r) => r.emit(out, arch, modifier),
             Self::CSKY(r) => r.emit(out, arch, modifier),
+            Self::Nvptx(r) => unreachable!(),
+            Self::SpirV(r) => unreachable!(),
+            Self::Wasm(r) => unreachable!(),
             Self::Err => unreachable!("Use of InlineAsmReg::Err"),
         }
     }
@@ -464,6 +476,9 @@ impl InlineAsmReg {
             Self::Msp430(_) => cb(self),
             Self::M68k(_) => cb(self),
             Self::CSKY(_) => cb(self),
+            Self::Nvptx(_) => cb(self),
+            Self::SpirV(_) => cb(self),
+            Self::Wasm(_) => cb(self),
             Self::Err => unreachable!("Use of InlineAsmReg::Err"),
         }
     }

@@ -164,7 +164,7 @@ pub(crate) fn add_unnamed_global<'ll>(
     l: Linkage,
 ) -> &'ll llvm::Value {
     let llglobal = add_global(cx, name, initializer, l);
-    llvm::LLVMSetUnnamedAddress(llglobal, llvm::UnnamedAddr::Global);
+    unsafe { llvm::LLVMSetUnnamedAddress(llglobal, llvm::UnnamedAddr::Global); }
     llglobal
 }
 

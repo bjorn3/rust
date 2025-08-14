@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::fmt::{Display, from_fn};
+use std::fmt::{self, Display};
 use std::num::ParseIntError;
 use std::str::FromStr;
 
@@ -253,19 +253,33 @@ impl OSVersion {
     }
 
     pub fn fmt_pretty(self) -> impl Display {
-        let Self { major, minor, patch } = self;
-        from_fn(move |f| {
-            write!(f, "{major}.{minor}")?;
-            if patch != 0 {
-                write!(f, ".{patch}")?;
+        struct D(OSVersion);
+
+        impl Display for D {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                let OSVersion { major, minor, patch } = self.0;
+                write!(f, "{major}.{minor}")?;
+                if patch != 0 {
+                    write!(f, ".{patch}")?;
+                }
+                Ok(())
             }
-            Ok(())
-        })
+        }
+
+        D(self)
     }
 
     pub fn fmt_full(self) -> impl Display {
-        let Self { major, minor, patch } = self;
-        from_fn(move |f| write!(f, "{major}.{minor}.{patch}"))
+        struct D(OSVersion);
+
+        impl Display for D {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                let OSVersion { major, minor, patch } = self.0;
+                write!(f, "{major}.{minor}.{patch}")
+            }
+        }
+
+        D(self)
     }
 
     /// Minimum operating system versions currently supported by `rustc`.

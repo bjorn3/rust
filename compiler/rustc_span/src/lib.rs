@@ -24,6 +24,7 @@
 #![feature(if_let_guard)]
 #![feature(map_try_insert)]
 #![feature(negative_impls)]
+#![cfg_attr(bootstrap, feature(new_uninit))]
 #![feature(read_buf)]
 #![feature(round_char_boundary)]
 #![feature(rustc_attrs)]

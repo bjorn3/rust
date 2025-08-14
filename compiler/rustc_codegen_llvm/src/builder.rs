@@ -103,7 +103,7 @@ impl<'a, 'll, CX: Borrow<SCx<'ll>>> GenericBuilder<'a, 'll, CX> {
     }
 
     pub(crate) fn ret_void(&mut self) {
-        llvm::LLVMBuildRetVoid(self.llbuilder);
+        unsafe { llvm::LLVMBuildRetVoid(self.llbuilder); }
     }
 
     pub(crate) fn ret(&mut self, v: &'ll Value) {
@@ -320,7 +320,7 @@ impl<'a, 'll, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     }
 
     fn ret_void(&mut self) {
-        llvm::LLVMBuildRetVoid(self.llbuilder);
+        unsafe { llvm::LLVMBuildRetVoid(self.llbuilder); }
     }
 
     fn ret(&mut self, v: &'ll Value) {
@@ -378,8 +378,8 @@ impl<'a, 'll, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         // This function handles switch instructions with more than 2 targets and it needs to
         // emit branch weights metadata instead of using the intrinsic.
         // The values 1 and 2000 are the same as the values used by the `llvm.expect` intrinsic.
-        let cold_weight = llvm::LLVMValueAsMetadata(self.cx.const_u32(1));
-        let hot_weight = llvm::LLVMValueAsMetadata(self.cx.const_u32(2000));
+        let cold_weight = unsafe { llvm::LLVMValueAsMetadata(self.cx.const_u32(1)) };
+        let hot_weight = unsafe { llvm::LLVMValueAsMetadata(self.cx.const_u32(2000)) };
         let weight =
             |is_cold: bool| -> &Metadata { if is_cold { cold_weight } else { hot_weight } };
 
@@ -716,9 +716,9 @@ impl<'a, 'll, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         } else if place.layout.is_llvm_immediate() {
             let mut const_llval = None;
             let llty = place.layout.llvm_type(self);
-            if let Some(global) = llvm::LLVMIsAGlobalVariable(place.val.llval) {
-                if llvm::LLVMIsGlobalConstant(global) == llvm::True {
-                    if let Some(init) = llvm::LLVMGetInitializer(global) {
+            if let Some(global) = unsafe { llvm::LLVMIsAGlobalVariable(place.val.llval) } {
+                if unsafe { llvm::LLVMIsGlobalConstant(global) } == llvm::True {
+                    if let Some(init) = unsafe { llvm::LLVMGetInitializer(global) } {
                         if self.val_ty(init) == llty {
                             const_llval = Some(init);
                         }
@@ -1453,7 +1453,7 @@ impl<'a, 'll, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         instance: Option<Instance<'tcx>>,
     ) {
         let call = self.call(llty, fn_attrs, Some(fn_abi), llfn, args, funclet, instance);
-        llvm::LLVMRustSetTailCallKind(call, llvm::TailCallKind::MustTail);
+        unsafe { llvm::LLVMRustSetTailCallKind(call, llvm::TailCallKind::MustTail); }
 
         match &fn_abi.ret.mode {
             PassMode::Ignore | PassMode::Indirect { .. } => self.ret_void(),

@@ -115,6 +115,7 @@ where
                 }
                 dfa
             }
+            Tree::Def(d) => match d {},
         })
     }
 

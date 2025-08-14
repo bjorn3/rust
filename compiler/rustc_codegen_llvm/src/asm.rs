@@ -533,16 +533,16 @@ pub(crate) fn inline_asm_call<'ll>(
         // due to the asm template string coming from a macro. LLVM will
         // default to the first srcloc for lines that don't have an
         // associated srcloc.
-        srcloc.push(llvm::LLVMValueAsMetadata(bx.const_u64(0)));
+        srcloc.push(unsafe { llvm::LLVMValueAsMetadata(bx.const_u64(0)) });
     }
     srcloc.extend(line_spans.iter().map(|span| {
-        llvm::LLVMValueAsMetadata(
+        unsafe { llvm::LLVMValueAsMetadata(
             bx.const_u64(u64::from(span.lo().to_u32()) | (u64::from(span.hi().to_u32()) << 32)),
-        )
+        ) }
     }));
     let md = unsafe { llvm::LLVMMDNodeInContext2(bx.llcx, srcloc.as_ptr(), srcloc.len()) };
     let md = bx.get_metadata_value(md);
-    llvm::LLVMSetMetadata(call, kind, md);
+    unsafe { llvm::LLVMSetMetadata(call, kind, md); }
 
     Some(call)
 }

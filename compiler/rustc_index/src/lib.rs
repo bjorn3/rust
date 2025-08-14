@@ -3,8 +3,8 @@
 #![cfg_attr(feature = "nightly", allow(internal_features))]
 #![cfg_attr(feature = "nightly", feature(extend_one, step_trait, test))]
 #![cfg_attr(feature = "nightly", feature(new_range_api))]
-#![cfg_attr(feature = "nightly", feature(new_zeroed_alloc))]
 #![cfg_attr(bootstrap, feature(get_many_mut))]
+#![cfg_attr(bootstrap, feature(new_uninit))]
 // tidy-alphabetical-end
 
 pub mod bit_set;

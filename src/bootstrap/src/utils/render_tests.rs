@@ -197,7 +197,7 @@ impl<'a> Renderer<'a> {
 
     fn render_test_outcome_terse(&mut self, outcome: Outcome<'_>, test: &TestOutcome) {
         if self.terse_tests_in_line != 0
-            && self.terse_tests_in_line.is_multiple_of(TERSE_TESTS_PER_LINE)
+            && self.terse_tests_in_line % TERSE_TESTS_PER_LINE == 0
         {
             if let Some(total) = self.tests_count {
                 let total = total.to_string();

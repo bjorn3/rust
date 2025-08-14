@@ -5546,6 +5546,12 @@ dependencies = [
 
 [[package]]
 name = "tinystr"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29738eedb4388d9ea620eeab9384884fc3f06f586a2eddb56bedc5885126c7c1"
+
+[[package]]
+name = "tinystr"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9117f5d4db391c1cf6927e7bea3db74b9a1c1add8f7eda9ffd5364f40f57b82f"
@@ -5821,9 +5827,9 @@ dependencies = [
 
 [[package]]
 name = "unic-langid"
-version = "0.9.6"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a28ba52c9b05311f4f6e62d5d9d46f094bd6e84cb8df7b3ef952748d752a7d05"
+checksum = "73328fcd730a030bdb19ddf23e192187a6b01cd98be6d3140622a89129459ce5"
 dependencies = [
  "unic-langid-impl",
  "unic-langid-macros",
@@ -5831,34 +5837,34 @@ dependencies = [
 
 [[package]]
 name = "unic-langid-impl"
-version = "0.9.6"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dce1bf08044d4b7a94028c93786f8566047edc11110595914de93362559bc658"
+checksum = "1a4a8eeaf0494862c1404c95ec2f4c33a2acff5076f64314b465e3ddae1b934d"
 dependencies = [
- "tinystr 0.8.1",
+ "tinystr 0.3.4",
 ]
 
 [[package]]
 name = "unic-langid-macros"
-version = "0.9.6"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5957eb82e346d7add14182a3315a7e298f04e1ba4baac36f7f0dbfedba5fc25"
+checksum = "18f980d6d87e8805f2836d64b4138cc95aa7986fa63b1f51f67d5fbff64dd6e5"
 dependencies = [
  "proc-macro-hack",
- "tinystr 0.8.1",
+ "tinystr 0.3.4",
  "unic-langid-impl",
  "unic-langid-macros-impl",
 ]
 
 [[package]]
 name = "unic-langid-macros-impl"
-version = "0.9.6"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1249a628de3ad34b821ecb1001355bca3940bcb2f88558f1a8bd82e977f75b5"
+checksum = "29396ffd97e27574c3e01368b1a64267d3064969e4848e2e130ff668be9daa9f"
 dependencies = [
  "proc-macro-hack",
  "quote",
- "syn 2.0.104",
+ "syn 1.0.109",
  "unic-langid-impl",
 ]
 

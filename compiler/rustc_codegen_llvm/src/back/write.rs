@@ -926,7 +926,7 @@ pub(crate) fn codegen(
             // binaries. So we must clone the module to produce the asm output
             // if we are also producing object code.
             let llmod = if let EmitObj::ObjectCode(_) = config.emit_obj {
-                llvm::LLVMCloneModule(llmod)
+                unsafe { llvm::LLVMCloneModule(llmod) }
             } else {
                 llmod
             };
@@ -1109,7 +1109,7 @@ fn embed_bitcode(
 
         llvm::set_section(llglobal, bitcode_section_name(cgcx));
         llvm::set_linkage(llglobal, llvm::Linkage::PrivateLinkage);
-        llvm::LLVMSetGlobalConstant(llglobal, llvm::True);
+        unsafe { llvm::LLVMSetGlobalConstant(llglobal, llvm::True); }
 
         let llconst = common::bytes_in_context(llcx, cmdline.as_bytes());
         let llglobal = llvm::add_global(llmod, common::val_ty(llconst), c"rustc.embedded.cmdline");

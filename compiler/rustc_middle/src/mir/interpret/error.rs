@@ -825,6 +825,7 @@ impl<'tcx, T> ops::FromResidual for InterpResult<'tcx, T> {
     #[track_caller]
     fn from_residual(residual: InterpResult<'tcx, convert::Infallible>) -> Self {
         match residual.disarm() {
+            Ok(_) => unreachable!(),
             Err(e) => Self::new(Err(e)),
         }
     }
@@ -846,6 +847,7 @@ impl<'tcx, T, E: Into<InterpErrorInfo<'tcx>>> ops::FromResidual<Result<convert::
     #[inline]
     fn from_residual(residual: Result<convert::Infallible, E>) -> Self {
         match residual {
+            Ok(_) => unreachable!(),
             Err(e) => Self::new(Err(e.into())),
         }
     }

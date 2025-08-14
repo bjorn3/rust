@@ -1582,35 +1582,41 @@ impl<'a> Parser<'a> {
     // Only used when debugging.
     #[allow(unused)]
     pub(crate) fn debug_lookahead(&self, lookahead: usize) -> impl fmt::Debug {
-        fmt::from_fn(move |f| {
-            let mut dbg_fmt = f.debug_struct("Parser"); // or at least, one view of
+        struct D<'a>(&'a Parser<'a>, usize);
 
-            // we don't need N spans, but we want at least one, so print all of prev_token
-            dbg_fmt.field("prev_token", &self.prev_token);
-            let mut tokens = vec![];
-            for i in 0..lookahead {
-                let tok = self.look_ahead(i, |tok| tok.kind);
-                let is_eof = tok == TokenKind::Eof;
-                tokens.push(tok);
-                if is_eof {
-                    // Don't look ahead past EOF.
-                    break;
+        impl fmt::Debug for D<'_> {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                let mut dbg_fmt = f.debug_struct("Parser"); // or at least, one view of
+
+                // we don't need N spans, but we want at least one, so print all of prev_token
+                dbg_fmt.field("prev_token", &self.0.prev_token);
+                let mut tokens = vec![];
+                for i in 0..self.1 {
+                    let tok = self.0.look_ahead(i, |tok| tok.kind);
+                    let is_eof = tok == TokenKind::Eof;
+                    tokens.push(tok);
+                    if is_eof {
+                        // Don't look ahead past EOF.
+                        break;
+                    }
                 }
-            }
-            dbg_fmt.field_with("tokens", |field| field.debug_list().entries(tokens).finish());
-            dbg_fmt.field("approx_token_stream_pos", &self.num_bump_calls);
+                dbg_fmt.field_with("tokens", |field| field.debug_list().entries(tokens).finish());
+                dbg_fmt.field("approx_token_stream_pos", &self.0.num_bump_calls);
 
-            // some fields are interesting for certain values, as they relate to macro parsing
-            if let Some(subparser) = self.subparser_name {
-                dbg_fmt.field("subparser_name", &subparser);
-            }
-            if let Recovery::Forbidden = self.recovery {
-                dbg_fmt.field("recovery", &self.recovery);
-            }
+                // some fields are interesting for certain values, as they relate to macro parsing
+                if let Some(subparser) = self.0.subparser_name {
+                    dbg_fmt.field("subparser_name", &subparser);
+                }
+                if let Recovery::Forbidden = self.0.recovery {
+                    dbg_fmt.field("recovery", &self.0.recovery);
+                }
 
-            // imply there's "more to know" than this view
-            dbg_fmt.finish_non_exhaustive()
-        })
+                // imply there's "more to know" than this view
+                dbg_fmt.finish_non_exhaustive()
+            }
+        }
+
+        D(self, lookahead)
     }
 
     pub fn clear_expected_token_types(&mut self) {

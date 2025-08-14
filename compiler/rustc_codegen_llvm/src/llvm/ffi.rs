@@ -621,7 +621,7 @@ pub(crate) enum ArchiveKind {
     K_AIXBIG,
 }
 
-unsafe extern "C" {
+extern "C" {
     // LLVMRustThinLTOData
     pub(crate) type ThinLTOData;
 
@@ -742,7 +742,7 @@ pub(crate) enum Opcode {
     CatchSwitch = 65,
 }
 
-unsafe extern "C" {
+extern "C" {
     type Opaque;
 }
 #[repr(C)]
@@ -752,7 +752,7 @@ struct InvariantOpaque<'a> {
 }
 
 // Opaque pointer types
-unsafe extern "C" {
+extern "C" {
     pub(crate) type Module;
     pub(crate) type Context;
     pub(crate) type Type;
@@ -767,7 +767,7 @@ unsafe extern "C" {
 pub(crate) struct Builder<'a>(InvariantOpaque<'a>);
 #[repr(C)]
 pub(crate) struct PassManager<'a>(InvariantOpaque<'a>);
-unsafe extern "C" {
+extern "C" {
     pub type TargetMachine;
     pub(crate) type Archive;
 }
@@ -775,7 +775,7 @@ unsafe extern "C" {
 pub(crate) struct ArchiveIterator<'a>(InvariantOpaque<'a>);
 #[repr(C)]
 pub(crate) struct ArchiveChild<'a>(InvariantOpaque<'a>);
-unsafe extern "C" {
+extern "C" {
     pub(crate) type Twine;
     pub(crate) type DiagnosticInfo;
     pub(crate) type SMDiagnostic;
@@ -788,7 +788,7 @@ pub(crate) struct OperandBundle<'a>(InvariantOpaque<'a>);
 #[repr(C)]
 pub(crate) struct Linker<'a>(InvariantOpaque<'a>);
 
-unsafe extern "C" {
+extern "C" {
     pub(crate) type DiagnosticHandler;
 }
 
@@ -984,7 +984,7 @@ bitflags! {
     }
 }
 
-unsafe extern "C" {
+extern "C" {
     pub(crate) type ModuleBuffer;
 }
 
@@ -1006,7 +1006,7 @@ impl From<MetadataType> for MetadataKindId {
     }
 }
 
-unsafe extern "C" {
+extern "C" {
     // Create and destroy contexts.
     pub(crate) fn LLVMContextDispose(C: &'static mut Context);
     pub(crate) fn LLVMGetMDKindIDInContext(
@@ -1020,7 +1020,7 @@ unsafe extern "C" {
         ModuleID: *const c_char,
         C: &Context,
     ) -> &Module;
-    pub(crate) safe fn LLVMCloneModule(M: &Module) -> &Module;
+    pub(crate) fn LLVMCloneModule(M: &Module) -> &Module;
 
     /// Data layout. See Module::getDataLayout.
     pub(crate) fn LLVMGetDataLayoutStr(M: &Module) -> *const c_char;
@@ -1095,9 +1095,9 @@ unsafe extern "C" {
     pub(crate) fn LLVMGetValueName2(Val: &Value, Length: *mut size_t) -> *const c_char;
     pub(crate) fn LLVMSetValueName2(Val: &Value, Name: *const c_char, NameLen: size_t);
     pub(crate) fn LLVMReplaceAllUsesWith<'a>(OldVal: &'a Value, NewVal: &'a Value);
-    pub(crate) safe fn LLVMSetMetadata<'a>(Val: &'a Value, KindID: MetadataKindId, Node: &'a Value);
+    pub(crate) fn LLVMSetMetadata<'a>(Val: &'a Value, KindID: MetadataKindId, Node: &'a Value);
     pub(crate) fn LLVMGlobalSetMetadata<'a>(Val: &'a Value, KindID: c_uint, Metadata: &'a Metadata);
-    pub(crate) safe fn LLVMValueAsMetadata(Node: &Value) -> &Metadata;
+    pub(crate) fn LLVMValueAsMetadata(Node: &Value) -> &Metadata;
 
     // Operations on constants of any type
     pub(crate) fn LLVMConstNull(Ty: &Type) -> &Value;
@@ -1184,20 +1184,20 @@ unsafe extern "C" {
     pub(crate) fn LLVMGlobalGetValueType(Global: &Value) -> &Type;
 
     // Operations on global variables
-    pub(crate) safe fn LLVMIsAGlobalVariable(GlobalVar: &Value) -> Option<&Value>;
+    pub(crate) fn LLVMIsAGlobalVariable(GlobalVar: &Value) -> Option<&Value>;
     pub(crate) fn LLVMAddGlobal<'a>(M: &'a Module, Ty: &'a Type, Name: *const c_char) -> &'a Value;
     pub(crate) fn LLVMGetNamedGlobal(M: &Module, Name: *const c_char) -> Option<&Value>;
     pub(crate) fn LLVMGetFirstGlobal(M: &Module) -> Option<&Value>;
     pub(crate) fn LLVMGetNextGlobal(GlobalVar: &Value) -> Option<&Value>;
     pub(crate) fn LLVMDeleteGlobal(GlobalVar: &Value);
-    pub(crate) safe fn LLVMGetInitializer(GlobalVar: &Value) -> Option<&Value>;
+    pub(crate) fn LLVMGetInitializer(GlobalVar: &Value) -> Option<&Value>;
     pub(crate) fn LLVMSetInitializer<'a>(GlobalVar: &'a Value, ConstantVal: &'a Value);
-    pub(crate) safe fn LLVMIsThreadLocal(GlobalVar: &Value) -> Bool;
+    pub(crate) fn LLVMIsThreadLocal(GlobalVar: &Value) -> Bool;
     pub(crate) fn LLVMSetThreadLocalMode(GlobalVar: &Value, Mode: ThreadLocalMode);
-    pub(crate) safe fn LLVMIsGlobalConstant(GlobalVar: &Value) -> Bool;
-    pub(crate) safe fn LLVMSetGlobalConstant(GlobalVar: &Value, IsConstant: Bool);
-    pub(crate) safe fn LLVMSetTailCall(CallInst: &Value, IsTailCall: Bool);
-    pub(crate) safe fn LLVMRustSetTailCallKind(CallInst: &Value, Kind: TailCallKind);
+    pub(crate) fn LLVMIsGlobalConstant(GlobalVar: &Value) -> Bool;
+    pub(crate) fn LLVMSetGlobalConstant(GlobalVar: &Value, IsConstant: Bool);
+    pub(crate) fn LLVMSetTailCall(CallInst: &Value, IsTailCall: Bool);
+    pub(crate) fn LLVMRustSetTailCallKind(CallInst: &Value, Kind: TailCallKind);
 
     // Operations on attributes
     pub(crate) fn LLVMCreateStringAttribute(
@@ -1222,7 +1222,7 @@ unsafe extern "C" {
 
     // Operations on parameters
     pub(crate) fn LLVMIsAArgument(Val: &Value) -> Option<&Value>;
-    pub(crate) safe fn LLVMCountParams(Fn: &Value) -> c_uint;
+    pub(crate) fn LLVMCountParams(Fn: &Value) -> c_uint;
     pub(crate) fn LLVMGetParam(Fn: &Value, Index: c_uint) -> &Value;
 
     // Operations on basic blocks
@@ -1265,7 +1265,7 @@ unsafe extern "C" {
     pub(crate) fn LLVMGetCurrentDebugLocation2<'a>(Builder: &Builder<'a>) -> Option<&'a Metadata>;
 
     // Terminators
-    pub(crate) safe fn LLVMBuildRetVoid<'a>(B: &Builder<'a>) -> &'a Value;
+    pub(crate) fn LLVMBuildRetVoid<'a>(B: &Builder<'a>) -> &'a Value;
     pub(crate) fn LLVMBuildRet<'a>(B: &Builder<'a>, V: &'a Value) -> &'a Value;
     pub(crate) fn LLVMBuildBr<'a>(B: &Builder<'a>, Dest: &'a BasicBlock) -> &'a Value;
     pub(crate) fn LLVMBuildCondBr<'a>(
@@ -1735,9 +1735,9 @@ unsafe extern "C" {
         Packed: Bool,
     );
 
-    pub(crate) safe fn LLVMMetadataAsValue<'a>(C: &'a Context, MD: &'a Metadata) -> &'a Value;
+    pub(crate) fn LLVMMetadataAsValue<'a>(C: &'a Context, MD: &'a Metadata) -> &'a Value;
 
-    pub(crate) safe fn LLVMSetUnnamedAddress(Global: &Value, UnnamedAddr: UnnamedAddr);
+    pub(crate) fn LLVMSetUnnamedAddress(Global: &Value, UnnamedAddr: UnnamedAddr);
 
     pub(crate) fn LLVMIsAConstantInt(value_ref: &Value) -> Option<&ConstantInt>;
 
@@ -1795,7 +1795,7 @@ unsafe extern "C" {
 // FIXME(#134001): Audit all `Option` parameters, especially in lists, to check
 // that they really are nullable on the C/C++ side. LLVM doesn't appear to
 // actually document which ones are nullable.
-unsafe extern "C" {
+extern "C" {
     pub(crate) fn LLVMCreateDIBuilder<'ll>(M: &'ll Module) -> *mut DIBuilder<'ll>;
     pub(crate) fn LLVMDisposeDIBuilder<'ll>(Builder: ptr::NonNull<DIBuilder<'ll>>);
 
@@ -1834,7 +1834,7 @@ unsafe extern "C" {
 }
 
 #[link(name = "llvm-wrapper", kind = "static")]
-unsafe extern "C" {
+extern "C" {
     pub(crate) fn LLVMRustInstallErrorHandlers();
     pub(crate) fn LLVMRustDisableSystemDialogsOnCrash();
 

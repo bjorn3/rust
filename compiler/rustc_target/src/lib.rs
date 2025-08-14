@@ -14,7 +14,6 @@
 #![feature(debug_closure_helpers)]
 #![feature(iter_intersperse)]
 #![feature(rustdoc_internals)]
-#![cfg_attr(bootstrap, feature(unsigned_is_multiple_of))]
 // tidy-alphabetical-end
 
 use std::path::{Path, PathBuf};

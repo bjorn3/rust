@@ -639,8 +639,8 @@ pub trait MaybeResult<T> {
 impl<T> MaybeResult<T> for T {
     type Error = !;
 
-    fn from(Ok(x): Result<T, Self::Error>) -> Self {
-        x
+    fn from(x: Result<T, Self::Error>) -> Self {
+        x.unwrap()
     }
     fn to_result(self) -> Result<T, Self::Error> {
         Ok(self)

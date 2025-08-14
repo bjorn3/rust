@@ -19,7 +19,7 @@ use crate::value::Value;
 use crate::{CodegenContext, LlvmCodegenBackend, ModuleLlvm, attributes, llvm};
 
 fn get_params(fnc: &Value) -> Vec<&Value> {
-    let param_num = llvm::LLVMCountParams(fnc) as usize;
+    let param_num = unsafe { llvm::LLVMCountParams(fnc) } as usize;
     let mut fnc_args: Vec<&Value> = vec![];
     fnc_args.reserve(param_num);
     unsafe {
@@ -30,7 +30,7 @@ fn get_params(fnc: &Value) -> Vec<&Value> {
 }
 
 fn has_sret(fnc: &Value) -> bool {
-    let num_args = llvm::LLVMCountParams(fnc) as usize;
+    let num_args = unsafe { llvm::LLVMCountParams(fnc) } as usize;
     if num_args == 0 {
         false
     } else {

@@ -1520,7 +1520,7 @@ impl fmt::Debug for OwnerNodes<'_> {
         f.debug_struct("OwnerNodes")
             // Do not print all the pointers to all the nodes, as it would be unreadable.
             .field("node", &self.nodes[ItemLocalId::ZERO])
-            .field(
+            /*.field(
                 "parents",
                 &fmt::from_fn(|f| {
                     f.debug_list()
@@ -1529,7 +1529,7 @@ impl fmt::Debug for OwnerNodes<'_> {
                         }))
                         .finish()
                 }),
-            )
+            )*/
             .field("bodies", &self.bodies)
             .field("opt_hash_including_bodies", &self.opt_hash_including_bodies)
             .finish()

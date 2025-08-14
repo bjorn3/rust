@@ -397,9 +397,9 @@ impl<'ll> CodegenCx<'ll, '_> {
 
     fn codegen_static_item(&mut self, def_id: DefId) {
         assert!(
-            llvm::LLVMGetInitializer(
+            unsafe { llvm::LLVMGetInitializer(
                 self.instances.borrow().get(&Instance::mono(self.tcx, def_id)).unwrap()
-            )
+            ) }
             .is_none()
         );
         let attrs = self.tcx.codegen_fn_attrs(def_id);

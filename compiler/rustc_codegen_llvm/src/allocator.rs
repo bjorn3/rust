@@ -186,7 +186,7 @@ fn create_wrapper_function(
             .map(|(i, _)| llvm::get_param(llfn, i as c_uint))
             .collect::<Vec<_>>();
         let ret = bx.call(ty, callee, &args, None);
-        llvm::LLVMSetTailCall(ret, True);
+        unsafe { llvm::LLVMSetTailCall(ret, True); }
         if output.is_some() {
             bx.ret(ret);
         } else {

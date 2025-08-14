@@ -22,6 +22,7 @@
 #![feature(dropck_eyepatch)]
 #![feature(maybe_uninit_slice)]
 #![feature(never_type)]
+#![cfg_attr(bootstrap, feature(new_uninit))]
 #![feature(rustc_attrs)]
 #![feature(rustdoc_internals)]
 #![cfg_attr(bootstrap, feature(strict_provenance))]

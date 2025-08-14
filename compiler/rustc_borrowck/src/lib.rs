@@ -2,7 +2,6 @@
 
 // tidy-alphabetical-start
 #![allow(internal_features)]
-#![cfg_attr(bootstrap, feature(unsigned_is_multiple_of))]
 #![doc(rust_logo)]
 #![feature(assert_matches)]
 #![feature(box_patterns)]

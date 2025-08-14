@@ -6,6 +6,7 @@
 #![feature(assert_matches)]
 #![feature(box_patterns)]
 #![feature(if_let_guard)]
+#![cfg_attr(bootstrap, feature(iter_repeat_n))]
 #![feature(try_blocks)]
 // tidy-alphabetical-end
 

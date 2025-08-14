@@ -2507,40 +2507,45 @@ macro_rules! sty_debug_print {
 
 impl<'tcx> TyCtxt<'tcx> {
     pub fn debug_stats(self) -> impl fmt::Debug {
-        fmt::from_fn(move |fmt| {
-            sty_debug_print!(
-                fmt,
-                self,
-                Adt,
-                Array,
-                Slice,
-                RawPtr,
-                Ref,
-                FnDef,
-                FnPtr,
-                UnsafeBinder,
-                Placeholder,
-                Coroutine,
-                CoroutineWitness,
-                Dynamic,
-                Closure,
-                CoroutineClosure,
-                Tuple,
-                Bound,
-                Param,
-                Infer,
-                Alias,
-                Pat,
-                Foreign
-            )?;
+        struct D<'tcx>(TyCtxt<'tcx>);
 
-            writeln!(fmt, "GenericArgs interner: #{}", self.interners.args.len())?;
-            writeln!(fmt, "Region interner: #{}", self.interners.region.len())?;
-            writeln!(fmt, "Const Allocation interner: #{}", self.interners.const_allocation.len())?;
-            writeln!(fmt, "Layout interner: #{}", self.interners.layout.len())?;
+        impl fmt::Debug for D<'_> {
+            fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+                sty_debug_print!(
+                    fmt,
+                    self.0,
+                    Adt,
+                    Array,
+                    Slice,
+                    RawPtr,
+                    Ref,
+                    FnDef,
+                    FnPtr,
+                    UnsafeBinder,
+                    Placeholder,
+                    Coroutine,
+                    CoroutineWitness,
+                    Dynamic,
+                    Closure,
+                    CoroutineClosure,
+                    Tuple,
+                    Bound,
+                    Param,
+                    Infer,
+                    Alias,
+                    Pat,
+                    Foreign
+                )?;
 
-            Ok(())
-        })
+                writeln!(fmt, "GenericArgs interner: #{}", self.0.interners.args.len())?;
+                writeln!(fmt, "Region interner: #{}", self.0.interners.region.len())?;
+                writeln!(fmt, "Const Allocation interner: #{}", self.0.interners.const_allocation.len())?;
+                writeln!(fmt, "Layout interner: #{}", self.0.interners.layout.len())?;
+
+                Ok(())
+            }
+        }
+        D(self)
     }
 }
 

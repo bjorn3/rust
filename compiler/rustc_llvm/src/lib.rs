@@ -11,7 +11,7 @@ use std::{ptr, slice};
 
 use libc::size_t;
 
-unsafe extern "C" {
+extern "C" {
     /// Opaque type that allows C++ code to write bytes to a Rust-side buffer,
     /// in conjunction with `RawRustStringOstream`. Use this as `&RustString`
     /// (Rust) and `RustStringRef` (C++) in FFI signatures.
@@ -62,7 +62,7 @@ impl RustStringInner {
 /// This function is implemented in `rustc_llvm` so that the C++ code in this
 /// crate can link to it directly, without an implied link-time dependency on
 /// `rustc_codegen_llvm`.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn LLVMRustStringWriteImpl(
     buf: &RustString,
     slice_ptr: *const u8, // Same ABI as `*const c_char`
@@ -79,7 +79,7 @@ pub fn initialize_available_targets() {
         ($cfg:meta, $($method:ident),*) => { {
             #[cfg($cfg)]
             fn init() {
-                unsafe extern "C" {
+                extern "C" {
                     $(fn $method();)*
                 }
                 unsafe {
