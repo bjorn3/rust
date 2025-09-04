@@ -395,6 +395,7 @@ enum MaybeLtoModules<B: WriteBackendMethods> {
     FatLto {
         cgcx: CodegenContext,
         needs_fat_lto: Vec<FatLtoInput<B>>,
+        allocator_module: Option<CompiledModule>,
     },
     ThinLto {
         cgcx: CodegenContext,
@@ -1725,15 +1726,11 @@ fn start_executing_work<B: WriteBackendMethods>(
             assert!(compiled_modules.is_empty());
             assert!(needs_thin_lto.is_empty());
 
-            if let Some(allocator_module) = allocator_module.take() {
-                needs_fat_lto.push(FatLtoInput::InMemory(allocator_module));
-            }
+            let allocator_module = allocator_module.map(|allocator_module| {
+                B::codegen(&cgcx, &prof, &shared_emitter, allocator_module, &allocator_config)
+            });
 
-            for (bitcode_path, wp) in lto_import_only_modules {
-                needs_fat_lto.push(FatLtoInput::Serialized { name: wp.cgu_name, bitcode_path })
-            }
-
-            return Ok(MaybeLtoModules::FatLto { cgcx, needs_fat_lto });
+            return Ok(MaybeLtoModules::FatLto { cgcx, needs_fat_lto, allocator_module });
         } else if !needs_thin_lto.is_empty() || !lto_import_only_modules.is_empty() {
             assert!(compiled_modules.is_empty());
             assert!(needs_fat_lto.is_empty());
@@ -1742,27 +1739,9 @@ fn start_executing_work<B: WriteBackendMethods>(
                 needs_thin_lto.push(ThinLtoInput::Green { wp, bitcode_path })
             }
 
-            let allocator_module = if let Some(allocator_module) = allocator_module {
-                if cgcx.lto == Lto::ThinLocal {
-                    Some(B::codegen(
-                        &cgcx,
-                        &prof,
-                        &shared_emitter,
-                        allocator_module,
-                        &allocator_config,
-                    ))
-                } else {
-                    let thin_buffer = B::serialize_module(allocator_module.module_llvm, true);
-                    needs_thin_lto.push(ThinLtoInput::Red {
-                        name: allocator_module.name,
-                        buffer: SerializedModule::Local(thin_buffer),
-                    });
-
-                    None
-                }
-            } else {
-                None
-            };
+            let allocator_module = allocator_module.map(|allocator_module| {
+                B::codegen(&cgcx, &prof, &shared_emitter, allocator_module, &allocator_config)
+            });
 
             return Ok(MaybeLtoModules::ThinLto { cgcx, needs_thin_lto, allocator_module });
         }
@@ -2145,7 +2124,7 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
 
                 compiled_modules
             }
-            MaybeLtoModules::FatLto { cgcx, needs_fat_lto } => {
+            MaybeLtoModules::FatLto { cgcx, needs_fat_lto, allocator_module } => {
                 let tm_factory = self.backend.target_machine_factory(sess);
 
                 // FIXME cache local pre-LTO bitcode
@@ -2160,7 +2139,7 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
                         &crate_info.each_linked_rlib_file_for_lto,
                         needs_fat_lto,
                     )],
-                    allocator_module: None,
+                    allocator_module,
                 }
             }
             MaybeLtoModules::ThinLto { cgcx, needs_thin_lto, allocator_module } => {
