@@ -1,7 +1,6 @@
 use std::collections::hash_map::Entry::*;
 
 use rustc_abi::{CanonAbi, X86Call};
-use rustc_ast::expand::allocator::{AllocatorKind, NO_ALLOC_SHIM_IS_UNSTABLE, global_fn_name};
 use rustc_data_structures::unord::UnordMap;
 use rustc_hir as hir;
 use rustc_hir::def::DefKind;
@@ -19,13 +18,10 @@ use rustc_middle::util::Providers;
 use rustc_session::config::CrateType;
 use rustc_session::cstore::CrateDepKind;
 use rustc_span::Span;
-use rustc_symbol_mangling::mangle_internal_symbol;
 use rustc_target::spec::{Arch, Os, TlsModel};
 use tracing::debug;
 
 use crate::SymbolExport;
-use crate::back::symbol_export;
-use crate::base::allocator_shim_contents;
 
 fn threshold(tcx: TyCtxt<'_>) -> SymbolExportLevel {
     crates_export_threshold(tcx.crate_types())
@@ -529,28 +525,6 @@ pub(crate) fn provide(providers: &mut Providers) {
     providers.extern_queries.is_reachable_non_generic = is_reachable_non_generic_provider_extern;
     providers.extern_queries.upstream_monomorphizations_for =
         upstream_monomorphizations_for_provider;
-}
-
-pub(crate) fn allocator_shim_symbols(
-    tcx: TyCtxt<'_>,
-    kind: AllocatorKind,
-) -> impl Iterator<Item = (String, SymbolExportKind)> {
-    allocator_shim_contents(tcx, kind)
-        .into_iter()
-        .map(move |method| mangle_internal_symbol(tcx, global_fn_name(method.name).as_str()))
-        .chain([mangle_internal_symbol(tcx, NO_ALLOC_SHIM_IS_UNSTABLE)])
-        .map(move |symbol_name| {
-            let exported_symbol = ExportedSymbol::NoDefId(SymbolName::new(tcx, &symbol_name));
-
-            (
-                symbol_export::exporting_symbol_name_for_instance_in_crate(
-                    tcx,
-                    exported_symbol,
-                    LOCAL_CRATE,
-                ),
-                SymbolExportKind::Text,
-            )
-        })
 }
 
 fn symbol_export_level(tcx: TyCtxt<'_>, sym_def_id: DefId) -> SymbolExportLevel {

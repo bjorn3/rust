@@ -1762,10 +1762,6 @@ fn start_executing_work<B: WriteBackendMethods>(
                 needs_fat_lto.push(FatLtoInput::InMemory(allocator_module));
             }
 
-            for (bitcode_path, wp) in lto_import_only_modules {
-                needs_fat_lto.push(FatLtoInput::Serialized { name: wp.cgu_name, bitcode_path })
-            }
-
             return Ok(MaybeLtoModules::FatLto { cgcx, needs_fat_lto });
         } else if !needs_thin_lto.is_empty() || !lto_import_only_modules.is_empty() {
             assert!(compiled_modules.is_empty());
@@ -1786,14 +1782,6 @@ fn start_executing_work<B: WriteBackendMethods>(
                     needs_thin_lto,
                 ));
             } else {
-                if let Some(allocator_module) = allocator_module.take() {
-                    let thin_buffer = B::serialize_module(allocator_module.module_llvm, true);
-                    needs_thin_lto.push(ThinLtoInput::Red {
-                        name: allocator_module.name,
-                        buffer: SerializedModule::Local(thin_buffer),
-                    });
-                }
-
                 return Ok(MaybeLtoModules::ThinLto { cgcx, needs_thin_lto });
             }
         }

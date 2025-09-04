@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::{env, iter, mem, str};
 
 use find_msvc_tools;
+use rustc_ast::expand::allocator::{NO_ALLOC_SHIM_IS_UNSTABLE, global_fn_name};
 use rustc_hir::attrs::WindowsSubsystemKind;
 use rustc_hir::def_id::{CrateNum, LOCAL_CRATE};
 use rustc_middle::bug;
@@ -15,6 +16,7 @@ use rustc_middle::middle::exported_symbols::{
 use rustc_middle::ty::{SymbolName, TyCtxt};
 use rustc_session::Session;
 use rustc_session::config::{self, CrateType, DebugInfo, LinkerPluginLto, Lto, OptLevel, Strip};
+use rustc_symbol_mangling::mangle_internal_symbol;
 use rustc_target::spec::{Arch, Cc, CfgAbi, LinkOutputKind, LinkerFlavor, Lld, Os};
 use tracing::{debug, warn};
 
@@ -23,8 +25,7 @@ use super::symbol_export;
 use crate::back::link::{
     find_native_static_library, try_find_native_dynamic_library, try_find_native_static_library,
 };
-use crate::back::symbol_export::allocator_shim_symbols;
-use crate::base::needs_allocator_shim_for_linking;
+use crate::base::{allocator_shim_contents, needs_allocator_shim_for_linking};
 use crate::{SymbolExport, diagnostics};
 
 #[cfg(test)]
@@ -1846,8 +1847,13 @@ fn exported_symbols_for_non_proc_macro(
         && let Some(kind) = tcx.allocator_kind(())
     {
         symbols.extend(
-            allocator_shim_symbols(tcx, kind)
-                .map(|(name, kind)| symbol_export_from_raw_name(tcx, name, kind)),
+            allocator_shim_contents(tcx, kind)
+                .into_iter()
+                .map(move |method| {
+                    mangle_internal_symbol(tcx, global_fn_name(method.name).as_str())
+                })
+                .chain([mangle_internal_symbol(tcx, NO_ALLOC_SHIM_IS_UNSTABLE)])
+                .map(|name| symbol_export_from_raw_name(tcx, name, SymbolExportKind::Text)),
         );
     }
 
