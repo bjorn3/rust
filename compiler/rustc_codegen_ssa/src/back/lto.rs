@@ -12,9 +12,8 @@ use rustc_session::config::Lto;
 use rustc_structures::CrateType;
 use tracing::info;
 
-use crate::back::symbol_export::{self, allocator_shim_symbols, symbol_name_for_instance_in_crate};
+use crate::back::symbol_export::{self, symbol_name_for_instance_in_crate};
 use crate::back::write::CodegenContext;
-use crate::base::allocator_kind_for_codegen;
 use crate::diagnostics::{DynamicLinkingWithLTO, LtoDisallowed, LtoDylib, LtoProcMacro};
 use crate::traits::*;
 
@@ -124,13 +123,6 @@ pub(crate) fn exported_symbols_for_lto(
     for &cnum in each_linked_rlib_for_lto {
         let _timer = tcx.prof.generic_activity("lto_generate_symbols_below_threshold");
         symbols_below_threshold.extend(copy_symbols(cnum));
-    }
-
-    // Mark allocator shim symbols as exported only if they were generated.
-    if export_threshold == SymbolExportLevel::Rust
-        && let Some(kind) = allocator_kind_for_codegen(tcx)
-    {
-        symbols_below_threshold.extend(allocator_shim_symbols(tcx, kind).map(|(name, _kind)| name));
     }
 
     symbols_below_threshold
