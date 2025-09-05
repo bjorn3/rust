@@ -13,7 +13,7 @@ use rustc_codegen_ssa::back::write::{
     CodegenContext, FatLtoInput, SharedEmitter, TargetMachineFactoryFn, ThinLtoInput,
 };
 use rustc_codegen_ssa::traits::*;
-use rustc_codegen_ssa::{CompiledModule, ModuleCodegen, ModuleKind};
+use rustc_codegen_ssa::{CompiledModule, ModuleCodegen};
 use rustc_data_structures::fx::FxHashMap;
 use rustc_data_structures::memmap::Mmap;
 use rustc_data_structures::profiling::SelfProfilerRef;
@@ -215,16 +215,11 @@ fn fat_lto(
     let _timer = prof.generic_activity("LLVM_fat_lto_build_monolithic_module");
     info!("going for a fat lto");
 
-    // Sort out all our lists of incoming modules into two lists.
-    //
-    // * `serialized_modules` (also and argument to this function) contains all
-    //   modules that are serialized in-memory.
-    // * `in_memory` contains modules which are already parsed and in-memory,
-    //   such as from multi-CGU builds.
-    let mut in_memory = Vec::new();
     for module in modules {
         match module {
-            FatLtoInput::InMemory(m) => in_memory.push(m),
+            FatLtoInput::InMemory { name, buffer } => {
+                serialized_modules.push((buffer, CString::new(name).unwrap()))
+            }
             FatLtoInput::Serialized { name, bitcode_path } => {
                 info!("pushing serialized module {:?}", name);
                 serialized_modules.push((
@@ -235,39 +230,18 @@ fn fat_lto(
         }
     }
 
-    // Find the "costliest" module and merge everything into that codegen unit.
-    // All the other modules will be serialized and reparsed into the new
-    // context, so this hopefully avoids serializing and parsing the largest
-    // codegen unit.
-    //
-    // Additionally use a regular module as the base here to ensure that various
-    // file copy operations in the backend work correctly. The only other kind
-    // of module here should be an allocator one, and if your crate is smaller
-    // than the allocator module then the size doesn't really matter anyway.
-    let costliest_module = in_memory
-        .iter()
-        .enumerate()
-        .filter(|&(_, module)| module.kind == ModuleKind::Regular)
-        .map(|(i, module)| {
-            let cost = unsafe { llvm::LLVMRustModuleCost(module.module_llvm.llmod()) };
-            (cost, i)
-        })
-        .max();
-
     // If we found a costliest module, we're good to go. Otherwise all our
     // inputs were serialized which could happen in the case, for example, that
     // all our inputs were incrementally reread from the cache and we're just
     // re-executing the LTO passes. If that's the case deserialize the first
     // module and create a linker with it.
-    let module: ModuleCodegen<ModuleLlvm> = match costliest_module {
-        Some((_cost, i)) => in_memory.remove(i),
-        None => {
-            assert!(!serialized_modules.is_empty(), "must have at least one serialized module");
-            let (buffer, name) = serialized_modules.remove(0);
-            info!("no in-memory regular modules to choose from, parsing {:?}", name);
-            let llvm_module = ModuleLlvm::parse(cgcx, tm_factory, &name, buffer.data(), dcx);
-            ModuleCodegen::new_regular(name.into_string().unwrap(), llvm_module)
-        }
+    let module: ModuleCodegen<ModuleLlvm> = {
+        assert!(!serialized_modules.is_empty(), "must have at least one serialized module");
+        // FIXME ensure this is not the allocator shim
+        let (buffer, name) = serialized_modules.remove(0);
+        info!("no in-memory regular modules to choose from, parsing {:?}", name);
+        let llvm_module = ModuleLlvm::parse(cgcx, tm_factory, &name, buffer.data(), dcx);
+        ModuleCodegen::new_regular(name.into_string().unwrap(), llvm_module)
     };
     {
         let (llcx, llmod) = {
@@ -287,16 +261,6 @@ fn fat_lto(
             CodegenDiagnosticsStage::LTO,
         );
 
-        // For all other modules we codegened we'll need to link them into our own
-        // bitcode. All modules were codegened in their own LLVM context, however,
-        // and we want to move everything to the same LLVM context. Currently the
-        // way we know of to do that is to serialize them to a string and them parse
-        // them later. Not great but hey, that's why it's "fat" LTO, right?
-        for module in in_memory {
-            let buffer = ModuleBuffer::new(module.module_llvm.llmod(), false);
-            let llmod_id = CString::new(&module.name[..]).unwrap();
-            serialized_modules.push((SerializedModule::Local(buffer), llmod_id));
-        }
         // Sort the modules to ensure we produce deterministic results.
         serialized_modules.sort_by(|module1, module2| module1.1.cmp(&module2.1));
 
