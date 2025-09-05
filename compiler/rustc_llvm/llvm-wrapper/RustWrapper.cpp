@@ -1597,11 +1597,6 @@ extern "C" size_t LLVMRustBufferLen(const LLVMRustBuffer *Buffer) {
   return Buffer->data.length();
 }
 
-extern "C" uint64_t LLVMRustModuleCost(LLVMModuleRef M) {
-  auto f = unwrap(M)->functions();
-  return std::distance(std::begin(f), std::end(f));
-}
-
 extern "C" uint64_t LLVMRustModuleInstructionStats(LLVMModuleRef M) {
   return unwrap(M)->getInstructionCount();
 }

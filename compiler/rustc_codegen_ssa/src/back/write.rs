@@ -781,7 +781,7 @@ pub(crate) enum WorkItemResult<B: WriteBackendMethods> {
 
 pub enum FatLtoInput<B: WriteBackendMethods> {
     Serialized { name: String, bitcode_path: PathBuf },
-    InMemory(ModuleCodegen<B::Module>),
+    InMemory { name: String, buffer: SerializedModule<B::ModuleBuffer> },
 }
 
 pub enum ThinLtoInput<B: WriteBackendMethods> {
@@ -864,9 +864,9 @@ fn execute_optimize_work_item<B: WriteBackendMethods>(
             }
             WorkItemResult::NeedsThinLto(module.name, thin_buffer)
         }
-        ComputedLtoType::Fat => match bitcode {
-            Some(path) => {
-                let buffer = B::serialize_module(module.module_llvm, false);
+        ComputedLtoType::Fat => {
+            let buffer = B::serialize_module(module.module_llvm, false);
+            if let Some(path) = bitcode {
                 fs::write(&path, buffer.data()).unwrap_or_else(|e| {
                     panic!("Error writing pre-lto-bitcode file `{}`: {}", path.display(), e);
                 });
@@ -874,9 +874,13 @@ fn execute_optimize_work_item<B: WriteBackendMethods>(
                     name: module.name,
                     bitcode_path: path,
                 })
+            } else {
+                WorkItemResult::NeedsFatLto(FatLtoInput::InMemory {
+                    name: module.name,
+                    buffer: SerializedModule::Local(buffer),
+                })
             }
-            None => WorkItemResult::NeedsFatLto(FatLtoInput::InMemory(module)),
-        },
+        }
     }
 }
 
@@ -1759,7 +1763,13 @@ fn start_executing_work<B: WriteBackendMethods>(
             assert!(needs_thin_lto.is_empty());
 
             if let Some(allocator_module) = allocator_module.take() {
-                needs_fat_lto.push(FatLtoInput::InMemory(allocator_module));
+                needs_fat_lto.push(FatLtoInput::InMemory {
+                    name: allocator_module.name,
+                    buffer: SerializedModule::Local(B::serialize_module(
+                        allocator_module.module_llvm,
+                        false,
+                    )),
+                });
             }
 
             return Ok(MaybeLtoModules::FatLto { cgcx, needs_fat_lto });
@@ -2164,7 +2174,7 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
                 );
 
                 CompiledModules {
-                    modules: vec![do_fat_lto(
+                    modules: vec![do_fat_lto::<B>(
                         sess,
                         &cgcx,
                         shared_emitter,

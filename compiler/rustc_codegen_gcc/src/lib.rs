@@ -316,9 +316,9 @@ impl CodegenBackend for GccCodegenBackend {
     }
 }
 
-fn new_context<'gcc, 'tcx>(tcx: TyCtxt<'tcx>) -> Context<'gcc> {
+fn new_context<'gcc>(sess: &Session) -> Context<'gcc> {
     let context = Context::default();
-    if matches!(tcx.sess.target.arch, Arch::X86 | Arch::X86_64) {
+    if matches!(sess.target.arch, Arch::X86 | Arch::X86_64) {
         context.add_command_line_option("-masm=intel");
     }
     #[cfg(feature = "master")]
@@ -348,7 +348,7 @@ impl ExtraBackendMethods for GccCodegenBackend {
     ) -> Self::Module {
         let lto_supported = self.lto_supported.load(Ordering::SeqCst);
         let mut mods = GccContext {
-            context: Arc::new(SyncContext::new(new_context(tcx))),
+            context: Arc::new(SyncContext::new(new_context(tcx.sess))),
             relocation_model: tcx.sess.relocation_model(),
             lto_mode: LtoMode::None,
             lto_supported,
@@ -445,7 +445,7 @@ impl WriteBackendMethods for GccCodegenBackend {
         each_linked_rlib_for_lto: &[PathBuf],
         modules: Vec<FatLtoInput<Self>>,
     ) -> CompiledModule {
-        back::lto::run_fat(cgcx, &sess.prof, shared_emitter, each_linked_rlib_for_lto, modules)
+        back::lto::run_fat(sess, cgcx, shared_emitter, each_linked_rlib_for_lto, modules)
     }
 
     fn run_thin_lto(

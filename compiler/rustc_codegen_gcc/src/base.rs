@@ -101,7 +101,7 @@ pub fn compile_codegen_unit(
     ) -> ModuleCodegen<GccContext> {
         let cgu = tcx.codegen_unit(cgu_name);
         // Instantiate monomorphizations without filling out definitions yet...
-        let context = new_context(tcx);
+        let context = new_context(tcx.sess);
 
         if tcx.sess.panic_strategy().unwinds() {
             context.add_command_line_option("-fexceptions");
