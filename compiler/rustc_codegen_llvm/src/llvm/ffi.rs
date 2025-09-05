@@ -2616,7 +2616,6 @@ unsafe extern "C" {
     pub(crate) fn LLVMRustBufferPtr(p: &Buffer) -> *const u8;
     pub(crate) fn LLVMRustBufferLen(p: &Buffer) -> usize;
     pub(crate) fn LLVMRustBufferFree(p: &'static mut Buffer);
-    pub(crate) fn LLVMRustModuleCost<'ll>(M: Module<'ll>) -> u64;
     pub(crate) fn LLVMRustModuleInstructionStats<'ll>(M: Module<'ll>) -> u64;
 
     pub(crate) fn LLVMRustModuleSerialize<'ll>(

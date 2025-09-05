@@ -20,13 +20,12 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use gccjit::OutputKind;
 use object::read::archive::ArchiveFile;
 use rustc_codegen_ssa::back::lto::SerializedModule;
 use rustc_codegen_ssa::back::rmeta_link;
 use rustc_codegen_ssa::back::write::{CodegenContext, FatLtoInput, SharedEmitter};
 use rustc_codegen_ssa::traits::*;
-use rustc_codegen_ssa::{CompiledModule, ModuleCodegen, ModuleKind};
+use rustc_codegen_ssa::{CompiledModule, ModuleCodegen};
 use rustc_data_structures::memmap::Mmap;
 use rustc_errors::{DiagCtxt, DiagCtxtHandle};
 use rustc_log::tracing::info;
@@ -36,7 +35,7 @@ use tempfile::{TempDir, tempdir};
 use crate::back::write::{codegen, save_temp_bitcode};
 use crate::diagnostics::LtoBitcodeFromRlib;
 use crate::gcc_util::new_context;
-use crate::{GccCodegenBackend, GccContext, LtoMode, SyncContext, to_gcc_opt_level};
+use crate::{GccCodegenBackend, GccContext, LtoMode, SyncContext};
 
 struct LtoData {
     // FIXME(antoyo): use symbols_below_threshold.
@@ -140,16 +139,11 @@ fn fat_lto(
     let _timer = sess.prof.generic_activity("GCC_fat_lto_build_monolithic_module");
     info!("going for a fat lto");
 
-    // Sort out all our lists of incoming modules into two lists.
-    //
-    // * `serialized_modules` (also and argument to this function) contains all
-    //   modules that are serialized in-memory.
-    // * `in_memory` contains modules which are already parsed and in-memory,
-    //   such as from multi-CGU builds.
-    let mut in_memory = Vec::new();
     for module in modules {
         match module {
-            FatLtoInput::InMemory(m) => in_memory.push(m),
+            FatLtoInput::InMemory { name, buffer } => {
+                serialized_modules.push((buffer, CString::new(name).unwrap()))
+            }
             FatLtoInput::Serialized { name, bitcode_path } => {
                 info!("pushing serialized module {:?}", name);
                 serialized_modules.push((
@@ -160,63 +154,24 @@ fn fat_lto(
         }
     }
 
-    // Find the "costliest" module and merge everything into that codegen unit.
-    // All the other modules will be serialized and reparsed into the new
-    // context, so this hopefully avoids serializing and parsing the largest
-    // codegen unit.
-    //
-    // Additionally use a regular module as the base here to ensure that various
-    // file copy operations in the backend work correctly. The only other kind
-    // of module here should be an allocator one, and if your crate is smaller
-    // than the allocator module then the size doesn't really matter anyway.
-    let costliest_module = in_memory
-        .iter()
-        .enumerate()
-        .filter(|&(_, module)| module.kind == ModuleKind::Regular)
-        .map(|(i, _module)| {
-            //let cost = unsafe { llvm::LLVMRustModuleCost(module.module_llvm.llmod()) };
-            // FIXME(antoyo): compute the cost of a module if GCC allows this.
-            (0, i)
-        })
-        .max();
-
     // If we found a costliest module, we're good to go. Otherwise all our
     // inputs were serialized which could happen in the case, for example, that
     // all our inputs were incrementally reread from the cache and we're just
     // re-executing the LTO passes. If that's the case deserialize the first
     // module and create a linker with it.
-    let mut module: ModuleCodegen<GccContext> = match costliest_module {
-        Some((_cost, i)) => in_memory.remove(i),
-        None => ModuleCodegen::new_regular(
-            "lto_module".to_string(),
-            GccContext {
-                context: Arc::new(SyncContext::new(new_context(sess))),
-                relocation_model: sess.relocation_model(),
-                lto_supported: true,
-                lto_mode: LtoMode::None,
-                temp_dir: None,
-            },
-        ),
-    };
+    let mut module: ModuleCodegen<GccContext> = ModuleCodegen::new_regular(
+        "<lto module>".to_string(),
+        GccContext {
+            context: Arc::new(SyncContext::new(new_context(sess))),
+            relocation_model: sess.relocation_model(),
+            lto_supported: true,
+            lto_mode: LtoMode::None,
+            temp_dir: None,
+        },
+    );
     {
         info!("using {:?} as a base module", module.name);
 
-        // We cannot load and merge GCC contexts in memory like cg_llvm is doing.
-        // Instead, we combine the object files into a single object file.
-        for module in in_memory {
-            let path = tmp_path.path().to_path_buf().join(&module.name);
-            let path = path.to_str().expect("path");
-            let context = &module.module_llvm.context;
-            let config = &cgcx.module_config;
-            // NOTE: we need to set the optimization level here in order for LTO to do its job.
-            context.set_optimization_level(to_gcc_opt_level(config.opt_level));
-            context.add_command_line_option("-flto=auto");
-            context.add_command_line_option("-flto-partition=one");
-            context.compile_to_file(OutputKind::ObjectFile, path);
-            let buffer = ModuleBuffer::new(PathBuf::from(path));
-            let llmod_id = CString::new(&module.name[..]).unwrap();
-            serialized_modules.push((SerializedModule::Local(buffer), llmod_id));
-        }
         // Sort the modules to ensure we produce deterministic results.
         serialized_modules.sort_by(|module1, module2| module1.1.cmp(&module2.1));
 
