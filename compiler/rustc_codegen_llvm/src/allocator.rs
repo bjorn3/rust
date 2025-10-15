@@ -1,7 +1,6 @@
 use libc::c_uint;
 use rustc_ast::expand::allocator::{
-    AllocatorMethod, AllocatorTy, NO_ALLOC_SHIM_IS_UNSTABLE, SpecialAllocatorMethod,
-    default_fn_name, global_fn_name,
+    AllocatorMethod, AllocatorTy, SpecialAllocatorMethod, default_fn_name, global_fn_name,
 };
 use rustc_codegen_ssa::traits::BaseTypeCodegenMethods as _;
 use rustc_middle::bug;
@@ -74,29 +73,8 @@ pub(crate) unsafe fn codegen(
 
         let mut attrs = CodegenFnAttrs::new();
         attrs.flags |= alloc_attr_flag;
-        create_wrapper_function(
-            tcx,
-            &cx,
-            &from_name,
-            Some(&to_name),
-            &args,
-            output,
-            no_return,
-            &attrs,
-        );
+        create_wrapper_function(tcx, &cx, &from_name, &to_name, &args, output, no_return, &attrs);
     }
-
-    // __rust_no_alloc_shim_is_unstable_v2
-    create_wrapper_function(
-        tcx,
-        &cx,
-        &mangle_internal_symbol(tcx, NO_ALLOC_SHIM_IS_UNSTABLE),
-        None,
-        &[],
-        None,
-        false,
-        &CodegenFnAttrs::new(),
-    );
 
     if tcx.sess.opts.debuginfo != DebugInfo::None {
         let dbg_cx = debuginfo::CodegenUnitDebugContext::new(cx.llmod);
@@ -109,7 +87,7 @@ fn create_wrapper_function(
     tcx: TyCtxt<'_>,
     cx: &SimpleCx<'_>,
     from_name: &str,
-    to_name: Option<&str>,
+    to_name: &str,
     args: &[&Type],
     output: Option<&Type>,
     no_return: bool,
@@ -150,35 +128,30 @@ fn create_wrapper_function(
     let llbb = unsafe { llvm::LLVMAppendBasicBlockInContext(cx.llcx, llfn, c"entry".as_ptr()) };
     let mut bx = SBuilder::build(&cx, llbb);
 
-    if let Some(to_name) = to_name {
-        let callee = declare_simple_fn(
-            &cx,
-            to_name,
-            llvm::CallConv::CCallConv,
-            llvm::UnnamedAddr::Global,
-            llvm::Visibility::Hidden,
-            ty,
-        );
-        if let Some(no_return) = no_return {
-            // -> ! DIFlagNoReturn
-            attributes::apply_to_llfn(callee, llvm::AttributePlace::Function, &[no_return]);
-        }
-        llvm::set_visibility(callee, llvm::Visibility::Hidden);
+    let callee = declare_simple_fn(
+        &cx,
+        to_name,
+        llvm::CallConv::CCallConv,
+        llvm::UnnamedAddr::Global,
+        llvm::Visibility::Hidden,
+        ty,
+    );
+    if let Some(no_return) = no_return {
+        // -> ! DIFlagNoReturn
+        attributes::apply_to_llfn(callee, llvm::AttributePlace::Function, &[no_return]);
+    }
+    llvm::set_visibility(callee, llvm::Visibility::Hidden);
 
-        let args = args
-            .iter()
-            .enumerate()
-            .map(|(i, _)| llvm::get_param(llfn, i as c_uint))
-            .collect::<Vec<_>>();
-        let ret = bx.call(ty, callee, &args, None);
-        llvm::LLVMSetTailCall(ret, TRUE);
-        if output.is_some() {
-            bx.ret(ret);
-        } else {
-            bx.ret_void()
-        }
+    let args = args
+        .iter()
+        .enumerate()
+        .map(|(i, _)| llvm::get_param(llfn, i as c_uint))
+        .collect::<Vec<_>>();
+    let ret = bx.call(ty, callee, &args, None);
+    llvm::LLVMSetTailCall(ret, TRUE);
+    if output.is_some() {
+        bx.ret(ret);
     } else {
-        assert!(output.is_none());
         bx.ret_void()
     }
 }

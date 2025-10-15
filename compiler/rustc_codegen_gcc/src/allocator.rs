@@ -1,9 +1,7 @@
 #[cfg(feature = "master")]
 use gccjit::FnAttribute;
 use gccjit::{Context, FunctionType, ToRValue, Type};
-use rustc_ast::expand::allocator::{
-    AllocatorMethod, AllocatorTy, NO_ALLOC_SHIM_IS_UNSTABLE, default_fn_name, global_fn_name,
-};
+use rustc_ast::expand::allocator::{AllocatorMethod, AllocatorTy, default_fn_name, global_fn_name};
 use rustc_middle::bug;
 use rustc_middle::ty::TyCtxt;
 use rustc_symbol_mangling::mangle_internal_symbol;
@@ -55,24 +53,15 @@ pub(crate) unsafe fn codegen(
         let from_name = mangle_internal_symbol(tcx, &global_fn_name(method.name));
         let to_name = mangle_internal_symbol(tcx, &default_fn_name(method.name));
 
-        create_wrapper_function(tcx, context, &from_name, Some(&to_name), &types, output);
+        create_wrapper_function(tcx, context, &from_name, &to_name, &types, output);
     }
-
-    create_wrapper_function(
-        tcx,
-        context,
-        &mangle_internal_symbol(tcx, NO_ALLOC_SHIM_IS_UNSTABLE),
-        None,
-        &[],
-        None,
-    );
 }
 
 fn create_wrapper_function(
     tcx: TyCtxt<'_>,
     context: &Context<'_>,
     from_name: &str,
-    to_name: Option<&str>,
+    to_name: &str,
     types: &[Type<'_>],
     output: Option<Type<'_>>,
 ) {
@@ -103,38 +92,33 @@ fn create_wrapper_function(
 
     let block = func.new_block("entry");
 
-    if let Some(to_name) = to_name {
-        let args: Vec<_> = types
-            .iter()
-            .enumerate()
-            .map(|(index, typ)| context.new_parameter(None, *typ, format!("param{}", index)))
-            .collect();
-        let callee = context.new_function(
-            None,
-            FunctionType::Extern,
-            output.unwrap_or(void),
-            &args,
-            to_name,
-            false,
-        );
-        #[cfg(feature = "master")]
-        callee.add_attribute(FnAttribute::Visibility(gccjit::Visibility::Hidden));
+    let args: Vec<_> = types
+        .iter()
+        .enumerate()
+        .map(|(index, typ)| context.new_parameter(None, *typ, format!("param{}", index)))
+        .collect();
+    let callee = context.new_function(
+        None,
+        FunctionType::Extern,
+        output.unwrap_or(void),
+        &args,
+        to_name,
+        false,
+    );
+    #[cfg(feature = "master")]
+    callee.add_attribute(FnAttribute::Visibility(gccjit::Visibility::Hidden));
 
-        let args = args
-            .iter()
-            .enumerate()
-            .map(|(i, _)| func.get_param(i as i32).to_rvalue())
-            .collect::<Vec<_>>();
-        let ret = context.new_call(None, callee, &args);
-        //llvm::LLVMSetTailCall(ret, True);
-        if output.is_some() {
-            block.end_with_return(None, ret);
-        } else {
-            block.add_eval(None, ret);
-            block.end_with_void_return(None);
-        }
+    let args = args
+        .iter()
+        .enumerate()
+        .map(|(i, _)| func.get_param(i as i32).to_rvalue())
+        .collect::<Vec<_>>();
+    let ret = context.new_call(None, callee, &args);
+    //llvm::LLVMSetTailCall(ret, True);
+    if output.is_some() {
+        block.end_with_return(None, ret);
     } else {
-        assert!(output.is_none());
+        block.add_eval(None, ret);
         block.end_with_void_return(None);
     }
 

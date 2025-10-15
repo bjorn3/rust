@@ -1,7 +1,7 @@
 use std::collections::hash_map::Entry::*;
 
 use rustc_abi::{CanonAbi, X86Call};
-use rustc_ast::expand::allocator::{AllocatorKind, NO_ALLOC_SHIM_IS_UNSTABLE, global_fn_name};
+use rustc_ast::expand::allocator::{AllocatorKind, global_fn_name};
 use rustc_data_structures::unord::UnordMap;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{CrateNum, DefId, DefIdMap, LOCAL_CRATE, LocalDefId};
@@ -499,22 +499,21 @@ pub(crate) fn allocator_shim_symbols(
     tcx: TyCtxt<'_>,
     kind: AllocatorKind,
 ) -> impl Iterator<Item = (String, SymbolExportKind)> {
-    allocator_shim_contents(tcx, kind)
-        .into_iter()
-        .map(move |method| mangle_internal_symbol(tcx, global_fn_name(method.name).as_str()))
-        .chain([mangle_internal_symbol(tcx, NO_ALLOC_SHIM_IS_UNSTABLE)])
-        .map(move |symbol_name| {
-            let exported_symbol = ExportedSymbol::NoDefId(SymbolName::new(tcx, &symbol_name));
+    allocator_shim_contents(tcx, kind).into_iter().map(move |method| {
+        let exported_symbol = ExportedSymbol::NoDefId(SymbolName::new(
+            tcx,
+            &mangle_internal_symbol(tcx, global_fn_name(method.name).as_str()),
+        ));
 
-            (
-                symbol_export::exporting_symbol_name_for_instance_in_crate(
-                    tcx,
-                    exported_symbol,
-                    LOCAL_CRATE,
-                ),
-                SymbolExportKind::Text,
-            )
-        })
+        (
+            symbol_export::exporting_symbol_name_for_instance_in_crate(
+                tcx,
+                exported_symbol,
+                LOCAL_CRATE,
+            ),
+            SymbolExportKind::Text,
+        )
+    })
 }
 
 fn symbol_export_level(tcx: TyCtxt<'_>, sym_def_id: DefId) -> SymbolExportLevel {

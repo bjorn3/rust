@@ -304,13 +304,6 @@ trait EvalContextExtPriv<'tcx>: crate::MiriInterpCxExt<'tcx> {
         // Here we dispatch all the shims for foreign functions. If you have a platform specific
         // shim, add it to the corresponding submodule.
         match link_name.as_str() {
-            // Magic function Rust emits (and not as part of the allocator shim).
-            name if name == this.mangle_internal_symbol(NO_ALLOC_SHIM_IS_UNSTABLE) => {
-                // This is a no-op shim that only exists to prevent making the allocator shims
-                // instantly stable.
-                let [] = this.check_shim_sig_lenient(abi, CanonAbi::Rust, link_name, args)?;
-            }
-
             // Miri-specific extern functions
             "miri_alloc" => {
                 let [size, align] =
