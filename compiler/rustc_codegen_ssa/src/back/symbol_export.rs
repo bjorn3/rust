@@ -1,7 +1,7 @@
 use std::collections::hash_map::Entry::*;
 
 use rustc_abi::{CanonAbi, X86Call};
-use rustc_ast::expand::allocator::{AllocatorKind, global_fn_name};
+use rustc_ast::expand::allocator::global_fn_name;
 use rustc_data_structures::unord::UnordMap;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{CrateNum, DefId, DefIdMap, LOCAL_CRATE, LocalDefId};
@@ -497,9 +497,8 @@ pub(crate) fn provide(providers: &mut Providers) {
 
 pub(crate) fn allocator_shim_symbols(
     tcx: TyCtxt<'_>,
-    kind: AllocatorKind,
 ) -> impl Iterator<Item = (String, SymbolExportKind)> {
-    allocator_shim_contents(tcx, kind).into_iter().map(move |method| {
+    allocator_shim_contents(tcx).into_iter().map(move |method| {
         let exported_symbol = ExportedSymbol::NoDefId(SymbolName::new(
             tcx,
             &mangle_internal_symbol(tcx, global_fn_name(method.name).as_str()),

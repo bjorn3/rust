@@ -850,12 +850,7 @@ impl<'tcx> MiriMachine<'tcx> {
     ) -> FxHashMap<Symbol, Either<Symbol, SpecialAllocatorMethod>> {
         use rustc_codegen_ssa::base::allocator_shim_contents;
 
-        // codegen uses `allocator_kind_for_codegen` here, but that's only needed to deal with
-        // dylibs which we do not support.
-        let Some(kind) = tcx.allocator_kind(()) else {
-            return Default::default();
-        };
-        let methods = allocator_shim_contents(tcx, kind);
+        let methods = allocator_shim_contents(tcx);
         let mut symbols = FxHashMap::default();
         for method in methods {
             let from_name = Symbol::intern(&mangle_internal_symbol(

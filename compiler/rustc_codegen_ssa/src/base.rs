@@ -633,28 +633,27 @@ pub fn collect_debugger_visualizers_transitive(
         .collect::<BTreeSet<_>>()
 }
 
-/// Decide allocator kind to codegen. If `Some(_)` this will be the same as
-/// `tcx.allocator_kind`, but it may be `None` in more cases (e.g. if using
-/// allocator definitions from a dylib dependency).
-pub fn allocator_kind_for_codegen(tcx: TyCtxt<'_>) -> Option<AllocatorKind> {
-    // If the crate doesn't have an `allocator_kind` set then there's definitely
-    // no shim to generate. Otherwise we also check our dependency graph for all
-    // our output crate types. If anything there looks like its a `Dynamic`
-    // linkage for all crate types we may link as, then it's already got an
-    // allocator shim and we'll be using that one instead. If nothing exists
-    // then it's our job to generate the allocator! If crate types disagree
-    // about whether an allocator shim is necessary or not, we generate one
-    // and let needs_allocator_shim_for_linking decide at link time whether or
-    // not to use it for any particular linker invocation.
+/// Decide if any crate type may need the allocator shim to be codegened.
+/// This can return true even when the allocator shim is empty. In that case
+/// you may want to skip generating the allocator shim, but it wouldn't hurt
+/// either.
+pub fn should_codegen_allocator_shim(tcx: TyCtxt<'_>) -> bool {
+    // We check our dependency graph for all our output crate types. If anything
+    // there looks like its a `Dynamic` linkage for all crate types we may link
+    // as, then it's already got an allocator shim and we'll be using that one
+    // instead. If nothing exists then it's our job to generate the allocator
+    // shim! If crate types disagree about whether an allocator shim is necessary
+    // or not, we generate one and let needs_allocator_shim_for_linking decide
+    // at link time whether or not to use it for any particular linker invocation.
     let all_crate_types_any_dynamic_crate = tcx.dependency_formats(()).iter().all(|(_, list)| {
         use rustc_middle::middle::dependency_format::Linkage;
         list.iter().any(|&linkage| linkage == Linkage::Dynamic)
     });
-    if all_crate_types_any_dynamic_crate { None } else { tcx.allocator_kind(()) }
+    !all_crate_types_any_dynamic_crate
 }
 
 /// Decide if this particular crate type needs an allocator shim linked in.
-/// This may return true even when allocator_kind_for_codegen returns false. In
+/// This may return true even when no allocator shim is codegened. In
 /// this case no allocator shim shall be linked.
 pub(crate) fn needs_allocator_shim_for_linking(
     dependency_formats: &Dependencies,
@@ -666,8 +665,12 @@ pub(crate) fn needs_allocator_shim_for_linking(
     !any_dynamic_crate
 }
 
-pub fn allocator_shim_contents(tcx: TyCtxt<'_>, kind: AllocatorKind) -> Vec<AllocatorMethod> {
+pub fn allocator_shim_contents(tcx: TyCtxt<'_>) -> Vec<AllocatorMethod> {
     let mut methods = Vec::new();
+
+    let Some(kind) = tcx.allocator_kind(()) else {
+        return methods;
+    };
 
     if kind == AllocatorKind::Default {
         methods.extend(ALLOCATOR_METHODS.into_iter().copied());
@@ -724,13 +727,13 @@ pub fn codegen_crate<
     }
 
     // Codegen an allocator shim, if necessary.
-    let allocator_module = if let Some(kind) = allocator_kind_for_codegen(tcx) {
+    let allocator_methods = allocator_shim_contents(tcx);
+    let allocator_module = if !allocator_methods.is_empty() {
         let llmod_id =
             cgu_name_builder.build_cgu_name(LOCAL_CRATE, &["crate"], Some("allocator")).to_string();
 
         tcx.sess.time("write_allocator_module", || {
-            let module =
-                backend.codegen_allocator(tcx, &llmod_id, &allocator_shim_contents(tcx, kind));
+            let module = backend.codegen_allocator(tcx, &llmod_id, &allocator_methods);
             Some(ModuleCodegen::new_allocator(llmod_id, module))
         })
     } else {

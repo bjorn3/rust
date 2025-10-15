@@ -13,7 +13,7 @@ use tracing::info;
 
 use crate::back::symbol_export::{self, allocator_shim_symbols, symbol_name_for_instance_in_crate};
 use crate::back::write::CodegenContext;
-use crate::base::allocator_kind_for_codegen;
+use crate::base::should_codegen_allocator_shim;
 use crate::errors::{DynamicLinkingWithLTO, LtoDisallowed, LtoDylib, LtoProcMacro};
 use crate::traits::*;
 
@@ -126,10 +126,8 @@ pub(crate) fn exported_symbols_for_lto(
     }
 
     // Mark allocator shim symbols as exported only if they were generated.
-    if export_threshold == SymbolExportLevel::Rust
-        && let Some(kind) = allocator_kind_for_codegen(tcx)
-    {
-        symbols_below_threshold.extend(allocator_shim_symbols(tcx, kind).map(|(name, _kind)| name));
+    if export_threshold == SymbolExportLevel::Rust && should_codegen_allocator_shim(tcx) {
+        symbols_below_threshold.extend(allocator_shim_symbols(tcx).map(|(name, _kind)| name));
     }
 
     symbols_below_threshold
