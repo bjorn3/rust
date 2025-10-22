@@ -32,6 +32,7 @@ use rustc_data_structures::memmap::Mmap;
 use rustc_data_structures::profiling::SelfProfilerRef;
 use rustc_errors::{DiagCtxt, DiagCtxtHandle};
 use rustc_log::tracing::info;
+use rustc_session::config::{OutputType, RUST_CGU_EXT};
 use tempfile::{TempDir, tempdir};
 
 use crate::back::write::{codegen, save_temp_bitcode};
@@ -60,6 +61,7 @@ fn prepare_lto(each_linked_rlib_for_lto: &[PathBuf], dcx: DiagCtxtHandle<'_>) ->
     // We save off all the bytecode and GCC module file path for later processing
     // with either fat or thin LTO
     let mut upstream_modules = Vec::new();
+    let rcgu_extension = format!(".{RUST_CGU_EXT}.{}", OutputType::Object.extension());
     for path in each_linked_rlib_for_lto {
         let archive_data = unsafe {
             Mmap::map(File::open(path).expect("couldn't open rlib")).expect("couldn't map rlib")
@@ -81,6 +83,7 @@ fn prepare_lto(each_linked_rlib_for_lto: &[PathBuf], dcx: DiagCtxtHandle<'_>) ->
                 Ok(()) => {
                     let buffer = ModuleBuffer::new(path);
                     let module = SerializedModule::Local(buffer);
+                    let name = name.strip_suffix(&rcgu_extension).unwrap();
                     upstream_modules.push((module, CString::new(name).unwrap()));
                 }
                 Err(e) => {

@@ -36,7 +36,7 @@ use rustc_middle::middle::dependency_format::Linkage;
 use rustc_middle::middle::exported_symbols::SymbolExportKind;
 use rustc_session::config::{
     self, CFGuard, CrateType, DebugInfo, LinkerFeaturesCli, OutFileName, OutputFilenames,
-    OutputType, PrintKind, SplitDwarfKind, Strip,
+    OutputType, PrintKind, RUST_CGU_EXT, SplitDwarfKind, Strip,
 };
 use rustc_session::lint::builtin::LINKER_MESSAGES;
 use rustc_session::output::{check_file_is_writeable, invalid_output_for_target, out_filename};
@@ -344,12 +344,11 @@ fn link_rlib<'a>(
                     // normal linkers for the platform. Sometimes this is not possible however.
                     // If it is possible however, placing the metadata object first improves
                     // performance of getting metadata from rlibs.
-                    ab.add_file(&metadata, ArchiveEntryKind::Other);
-                    // Place the rmeta-link member immediately after metadata so consumers
-                    // can find it without iterating the whole archive.
-                    if let Some(file) = &metadata_link_file {
-                        ab.add_file(file, ArchiveEntryKind::Other);
-                    }
+                    ab.add_file_with_name(
+                        METADATA_FILENAME.to_owned(),
+                        &metadata,
+                        ArchiveEntryKind::Other,
+                    );
                     None
                 }
                 MetadataPosition::Last => Some(metadata),
@@ -361,15 +360,19 @@ fn link_rlib<'a>(
 
     for m in &compiled_modules.modules {
         if let Some(obj) = m.object.as_ref() {
-            ab.add_file(obj, ArchiveEntryKind::RustObj);
-        }
-
-        if let Some(obj) = m.global_asm_object.as_ref() {
-            ab.add_file(obj, ArchiveEntryKind::RustObj);
+            ab.add_file_with_name(
+                format!("{}.{RUST_CGU_EXT}.o", m.name),
+                obj,
+                ArchiveEntryKind::RustObj,
+            );
         }
 
         if let Some(dwarf_obj) = m.dwarf_object.as_ref() {
-            ab.add_file(dwarf_obj, ArchiveEntryKind::Other);
+            ab.add_file_with_name(
+                format!("{}.{RUST_CGU_EXT}.dwo", m.name),
+                dwarf_obj,
+                ArchiveEntryKind::Other,
+            );
         }
     }
 
@@ -471,11 +474,16 @@ fn link_rlib<'a>(
         //
         // Basically, all this means is that this code should not move above the
         // code above.
-        ab.add_file(&trailing_metadata, ArchiveEntryKind::Other);
+        ab.add_file_with_name(
+            METADATA_FILENAME.to_owned(),
+            &trailing_metadata,
+            ArchiveEntryKind::Other,
+        );
         // Place the rmeta-link member immediately after metadata so consumers can
         // find it without iterating the whole archive.
         if let Some(file) = &metadata_link_file {
-            ab.add_file(file, ArchiveEntryKind::Other);
+            // FIXME use add_file_with_name
+            ab.add_file_with_name(rmeta_link::FILENAME.to_owned(), file, ArchiveEntryKind::Other);
         }
     }
 

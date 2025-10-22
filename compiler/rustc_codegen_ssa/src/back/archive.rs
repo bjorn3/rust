@@ -322,7 +322,11 @@ pub struct ArchiveSymbols {
 }
 
 pub trait ArchiveBuilder {
-    fn add_file(&mut self, path: &Path, kind: ArchiveEntryKind);
+    fn add_file(&mut self, path: &Path, kind: ArchiveEntryKind) {
+        self.add_file_with_name(path.file_name().unwrap().to_str().unwrap().to_string(), path, kind)
+    }
+
+    fn add_file_with_name(&mut self, filename: String, path: &Path, kind: ArchiveEntryKind);
 
     fn add_archive(&mut self, archive: &Path, kind: AddArchiveKind<'_>) -> io::Result<()>;
 
@@ -532,10 +536,10 @@ impl<'a> ArchiveBuilder for ArArchiveBuilder<'a> {
     }
 
     /// Adds an arbitrary file to this archive
-    fn add_file(&mut self, file: &Path, kind: ArchiveEntryKind) {
+    fn add_file_with_name(&mut self, filename: String, path: &Path, kind: ArchiveEntryKind) {
         self.entries.push((
-            file.file_name().unwrap().to_str().unwrap().to_string().into_bytes(),
-            ArchiveEntry { source: ArchiveEntrySource::File(file.to_owned()), kind },
+            filename.into_bytes(),
+            ArchiveEntry { source: ArchiveEntrySource::File(path.to_owned()), kind },
         ));
     }
 

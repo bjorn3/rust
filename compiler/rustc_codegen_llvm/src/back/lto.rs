@@ -21,7 +21,7 @@ use rustc_errors::{DiagCtxt, DiagCtxtHandle};
 use rustc_hir::attrs::SanitizerSet;
 use rustc_middle::bug;
 use rustc_middle::dep_graph::WorkProduct;
-use rustc_session::config;
+use rustc_session::config::{self, OutputType, RUST_CGU_EXT};
 use tracing::{debug, info};
 
 use crate::back::write::{
@@ -91,6 +91,7 @@ fn prepare_lto(
     // We save off all the bytecode and LLVM module ids for later processing
     // with either fat or thin LTO
     let mut upstream_modules = Vec::new();
+    let rcgu_extension = format!(".{RUST_CGU_EXT}.{}", OutputType::Object.extension());
     for path in each_linked_rlib_for_lto {
         let archive_data = unsafe {
             Mmap::map(std::fs::File::open(&path).expect("couldn't open rlib"))
@@ -114,6 +115,7 @@ fn prepare_lto(
             ) {
                 Ok(data) => {
                     let module = SerializedModule::FromRlib(data.to_vec());
+                    let name = name.strip_suffix(&rcgu_extension).unwrap();
                     upstream_modules.push((module, CString::new(name).unwrap()));
                 }
                 Err(e) => dcx.emit_fatal(e),
