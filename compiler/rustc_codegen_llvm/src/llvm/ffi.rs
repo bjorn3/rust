@@ -155,67 +155,73 @@ pub(crate) enum TailCallKind {
     NoTail = 3,
 }
 
-/// LLVM CallingConv::ID. Should we wrap this?
-///
-/// See <https://github.com/llvm/llvm-project/blob/main/llvm/include/llvm/IR/CallingConv.h>
-#[derive(Copy, Clone, PartialEq, Debug, TryFromU32)]
-#[repr(C)]
-pub(crate) enum CallConv {
-    CCallConv = 0,
-    FastCallConv = 8,
-    ColdCallConv = 9,
-    PreserveMost = 14,
-    PreserveAll = 15,
-    Tail = 18,
-    X86StdcallCallConv = 64,
-    X86FastcallCallConv = 65,
-    ArmAapcsCallConv = 67,
-    Msp430Intr = 69,
-    X86_ThisCall = 70,
-    PtxKernel = 71,
-    X86_64_SysV = 78,
-    X86_64_Win64 = 79,
-    X86_VectorCall = 80,
-    X86_Intr = 83,
-    AvrNonBlockingInterrupt = 84,
-    AvrInterrupt = 85,
-    AmdgpuKernel = 91,
+TryFromU32! {
+    /// LLVM CallingConv::ID. Should we wrap this?
+    ///
+    /// See <https://github.com/llvm/llvm-project/blob/main/llvm/include/llvm/IR/CallingConv.h>
+    #[derive(Copy, Clone, PartialEq, Debug)]
+    #[repr(C)]
+    pub(crate) enum CallConv {
+        CCallConv = 0,
+        FastCallConv = 8,
+        ColdCallConv = 9,
+        PreserveMost = 14,
+        PreserveAll = 15,
+        Tail = 18,
+        X86StdcallCallConv = 64,
+        X86FastcallCallConv = 65,
+        ArmAapcsCallConv = 67,
+        Msp430Intr = 69,
+        X86_ThisCall = 70,
+        PtxKernel = 71,
+        X86_64_SysV = 78,
+        X86_64_Win64 = 79,
+        X86_VectorCall = 80,
+        X86_Intr = 83,
+        AvrNonBlockingInterrupt = 84,
+        AvrInterrupt = 85,
+        AmdgpuKernel = 91,
+    }
 }
 
-/// Must match the layout of `LLVMLinkage`.
-#[derive(Copy, Clone, PartialEq, TryFromU32)]
-#[repr(C)]
-pub(crate) enum Linkage {
-    ExternalLinkage = 0,
-    AvailableExternallyLinkage = 1,
-    LinkOnceAnyLinkage = 2,
-    LinkOnceODRLinkage = 3,
-    #[deprecated = "marked obsolete by LLVM"]
-    LinkOnceODRAutoHideLinkage = 4,
-    WeakAnyLinkage = 5,
-    WeakODRLinkage = 6,
-    AppendingLinkage = 7,
-    InternalLinkage = 8,
-    PrivateLinkage = 9,
-    #[deprecated = "marked obsolete by LLVM"]
-    DLLImportLinkage = 10,
-    #[deprecated = "marked obsolete by LLVM"]
-    DLLExportLinkage = 11,
-    ExternalWeakLinkage = 12,
-    #[deprecated = "marked obsolete by LLVM"]
-    GhostLinkage = 13,
-    CommonLinkage = 14,
-    LinkerPrivateLinkage = 15,
-    LinkerPrivateWeakLinkage = 16,
+TryFromU32! {
+    /// Must match the layout of `LLVMLinkage`.
+    #[derive(Copy, Clone, PartialEq)]
+    #[repr(C)]
+    pub(crate) enum Linkage {
+        ExternalLinkage = 0,
+        AvailableExternallyLinkage = 1,
+        LinkOnceAnyLinkage = 2,
+        LinkOnceODRLinkage = 3,
+        #[deprecated = "marked obsolete by LLVM"]
+        LinkOnceODRAutoHideLinkage = 4,
+        WeakAnyLinkage = 5,
+        WeakODRLinkage = 6,
+        AppendingLinkage = 7,
+        InternalLinkage = 8,
+        PrivateLinkage = 9,
+        #[deprecated = "marked obsolete by LLVM"]
+        DLLImportLinkage = 10,
+        #[deprecated = "marked obsolete by LLVM"]
+        DLLExportLinkage = 11,
+        ExternalWeakLinkage = 12,
+        #[deprecated = "marked obsolete by LLVM"]
+        GhostLinkage = 13,
+        CommonLinkage = 14,
+        LinkerPrivateLinkage = 15,
+        LinkerPrivateWeakLinkage = 16,
+    }
 }
 
-/// Must match the layout of `LLVMVisibility`.
-#[repr(C)]
-#[derive(Copy, Clone, PartialEq, TryFromU32)]
-pub(crate) enum Visibility {
-    Default = 0,
-    Hidden = 1,
-    Protected = 2,
+TryFromU32! {
+    /// Must match the layout of `LLVMVisibility`.
+    #[repr(C)]
+    #[derive(Copy, Clone, PartialEq)]
+    pub(crate) enum Visibility {
+        Default = 0,
+        Hidden = 1,
+        Protected = 2,
+    }
 }
 
 /// LLVMUnnamedAddr
@@ -332,35 +338,37 @@ pub(crate) enum RealPredicate {
     RealPredicateTrue = 15,
 }
 
-/// Must match the layout of `LLVMTypeKind`.
-///
-/// Use [`RawEnum<TypeKind>`] for values of `LLVMTypeKind` returned from LLVM,
-/// to avoid risk of UB if LLVM adds new enum values.
-///
-/// All of LLVM's variants should be declared here, even if no Rust-side code refers
-/// to them, because unknown variants will cause [`RawEnum::to_rust`] to panic.
-#[derive(Copy, Clone, PartialEq, Debug, TryFromU32)]
-#[repr(C)]
-pub(crate) enum TypeKind {
-    Void = 0,
-    Half = 1,
-    Float = 2,
-    Double = 3,
-    X86_FP80 = 4,
-    FP128 = 5,
-    PPC_FP128 = 6,
-    Label = 7,
-    Integer = 8,
-    Function = 9,
-    Struct = 10,
-    Array = 11,
-    Pointer = 12,
-    Vector = 13,
-    Metadata = 14,
-    Token = 16,
-    ScalableVector = 17,
-    BFloat = 18,
-    X86_AMX = 19,
+TryFromU32! {
+    /// Must match the layout of `LLVMTypeKind`.
+    ///
+    /// Use [`RawEnum<TypeKind>`] for values of `LLVMTypeKind` returned from LLVM,
+    /// to avoid risk of UB if LLVM adds new enum values.
+    ///
+    /// All of LLVM's variants should be declared here, even if no Rust-side code refers
+    /// to them, because unknown variants will cause [`RawEnum::to_rust`] to panic.
+    #[derive(Copy, Clone, PartialEq, Debug)]
+    #[repr(C)]
+    pub(crate) enum TypeKind {
+        Void = 0,
+        Half = 1,
+        Float = 2,
+        Double = 3,
+        X86_FP80 = 4,
+        FP128 = 5,
+        PPC_FP128 = 6,
+        Label = 7,
+        Integer = 8,
+        Function = 9,
+        Struct = 10,
+        Array = 11,
+        Pointer = 12,
+        Vector = 13,
+        Metadata = 14,
+        Token = 16,
+        ScalableVector = 17,
+        BFloat = 18,
+        X86_AMX = 19,
+    }
 }
 
 /// LLVMAtomicRmwBinOp

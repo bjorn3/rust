@@ -18,7 +18,6 @@ pub struct PrintRequest {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-#[derive(AllVariants)]
 pub enum PrintKind {
     // tidy-alphabetical-start
     AllTargetSpecsJson,
@@ -47,6 +46,38 @@ pub enum PrintKind {
     TargetSpecJsonSchema,
     TlsModels,
     // tidy-alphabetical-end
+}
+
+impl crate::macros::AllVariants for PrintKind {
+    const ALL_VARIANTS: &[PrintKind] = &[
+        // tidy-alphabetical-start
+        PrintKind::AllTargetSpecsJson,
+        PrintKind::BackendHasZstd,
+        PrintKind::CallingConventions,
+        PrintKind::Cfg,
+        PrintKind::CheckCfg,
+        PrintKind::CodeModels,
+        PrintKind::CrateName,
+        PrintKind::CrateRootLintLevels,
+        PrintKind::DeploymentTarget,
+        PrintKind::FileNames,
+        PrintKind::HostTuple,
+        PrintKind::LinkArgs,
+        PrintKind::NativeStaticLibs,
+        PrintKind::RelocationModels,
+        PrintKind::SplitDebuginfo,
+        PrintKind::StackProtectorStrategies,
+        PrintKind::SupportedCrateTypes,
+        PrintKind::Sysroot,
+        PrintKind::TargetCPUs,
+        PrintKind::TargetFeatures,
+        PrintKind::TargetLibdir,
+        PrintKind::TargetList,
+        PrintKind::TargetSpecJson,
+        PrintKind::TargetSpecJsonSchema,
+        PrintKind::TlsModels,
+        // tidy-alphabetical-end
+    ];
 }
 
 impl PrintKind {

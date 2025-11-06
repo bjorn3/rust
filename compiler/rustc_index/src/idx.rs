@@ -109,6 +109,7 @@ impl<I: Idx, T> IntoSliceIdx<I, [T]> for ops::RangeToInclusive<I> {
 }
 
 #[cfg(feature = "nightly")]
+#[cfg(not(bootstrap))]
 impl<I: Idx, T> IntoSliceIdx<I, [T]> for core::range::Range<I> {
     type Output = core::range::Range<usize>;
     #[inline]
@@ -118,6 +119,7 @@ impl<I: Idx, T> IntoSliceIdx<I, [T]> for core::range::Range<I> {
 }
 
 #[cfg(feature = "nightly")]
+#[cfg(not(bootstrap))]
 impl<I: Idx, T> IntoSliceIdx<I, [T]> for core::range::RangeFrom<I> {
     type Output = core::range::RangeFrom<usize>;
     #[inline]
@@ -127,6 +129,7 @@ impl<I: Idx, T> IntoSliceIdx<I, [T]> for core::range::RangeFrom<I> {
 }
 
 #[cfg(feature = "nightly")]
+#[cfg(not(bootstrap))]
 impl<I: Idx, T> IntoSliceIdx<I, [T]> for core::range::RangeInclusive<I> {
     type Output = core::range::RangeInclusive<usize>;
     #[inline]
@@ -136,6 +139,7 @@ impl<I: Idx, T> IntoSliceIdx<I, [T]> for core::range::RangeInclusive<I> {
 }
 
 #[cfg(feature = "nightly")]
+#[cfg(not(bootstrap))]
 impl<I: Idx, T> IntoSliceIdx<I, [T]> for core::range::RangeToInclusive<I> {
     type Output = core::range::RangeToInclusive<usize>;
     #[inline]

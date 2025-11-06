@@ -19,15 +19,17 @@ mod covfun;
 mod spans;
 mod unused;
 
-/// Version number that will be included the `__llvm_covmap` section header.
-/// Corresponds to LLVM's `llvm::coverage::CovMapVersion` (in `CoverageMapping.h`),
-/// or at least the subset that we know and care about.
-///
-/// Note that version `n` is encoded as `(n-1)`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, TryFromU32)]
-enum CovmapVersion {
-    /// Used by LLVM 18 onwards.
-    Version7 = 6,
+TryFromU32! {
+    /// Version number that will be included the `__llvm_covmap` section header.
+    /// Corresponds to LLVM's `llvm::coverage::CovMapVersion` (in `CoverageMapping.h`),
+    /// or at least the subset that we know and care about.
+    ///
+    /// Note that version `n` is encoded as `(n-1)`.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    enum CovmapVersion {
+        /// Used by LLVM 18 onwards.
+        Version7 = 6,
+    }
 }
 
 impl CovmapVersion {
