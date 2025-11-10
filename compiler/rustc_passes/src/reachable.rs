@@ -184,7 +184,10 @@ impl<'tcx> ReachableContext<'tcx> {
                 CodegenFnAttrs::EMPTY
             };
             let is_extern = codegen_attrs.contains_extern_indicator();
-            if is_extern {
+            if is_extern
+                || codegen_attrs.flags.contains(CodegenFnAttrFlags::USED_COMPILER)
+                || codegen_attrs.flags.contains(CodegenFnAttrFlags::USED_LINKER)
+            {
                 self.reachable_symbols.insert(search_item);
             }
         } else {
