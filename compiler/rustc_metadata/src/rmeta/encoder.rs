@@ -701,6 +701,8 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
                 )
             });
 
+        let used_statics = stat!("used-statics", || self.encode_used_statics());
+
         // Encode the hygiene data.
         // IMPORTANT: this *must* be the last thing that we encode (other than `SourceMap`). The
         // process of encoding other items (e.g. `optimized_mir`) may cause us to load data from
@@ -767,6 +769,7 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
                 stable_order_of_exportable_impls,
                 exported_non_generic_symbols,
                 exported_generic_symbols,
+                used_statics,
                 interpret_alloc_index,
                 tables,
                 syntax_contexts,
@@ -2235,6 +2238,11 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
         empty_proc_macro!(self);
 
         self.lazy_array(exported_symbols.iter().cloned())
+    }
+
+    fn encode_used_statics(&mut self) -> LazyArray<DefIndex> {
+        empty_proc_macro!(self);
+        self.lazy_array(self.tcx.used_statics(LOCAL_CRATE).iter().map(|def_id| def_id.index))
     }
 
     fn encode_dylib_dependency_formats(&mut self) -> LazyArray<Option<LinkagePreference>> {

@@ -2398,6 +2398,14 @@ rustc_queries! {
         separate_provide_extern
     }
 
+    /// The list of statics marked as `#[used]` in the given crate.
+    // This is used by miri
+    query used_statics(cnum: CrateNum) -> &'tcx [DefId] {
+        desc { "collecting statics marked as #[used] for crate `{}`", cnum }
+        cache_on_disk_if { *cnum == LOCAL_CRATE }
+        separate_provide_extern
+    }
+
     query collect_and_partition_mono_items(_: ()) -> MonoItemPartitions<'tcx> {
         eval_always
         desc { "collect_and_partition_mono_items" }

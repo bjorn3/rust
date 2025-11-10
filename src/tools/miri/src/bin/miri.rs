@@ -36,16 +36,12 @@ use miri::{
 use rustc_abi::ExternAbi;
 use rustc_data_structures::sync;
 use rustc_driver::Compilation;
+use rustc_hir as hir;
 use rustc_hir::def_id::LOCAL_CRATE;
-use rustc_hir::{self as hir, Node};
 use rustc_hir_analysis::check::check_function_signature;
 use rustc_interface::interface::Config;
 use rustc_log::tracing::debug;
-use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
-use rustc_middle::middle::exported_symbols::{
-    ExportedSymbol, SymbolExportInfo, SymbolExportKind, SymbolExportLevel,
-};
-use rustc_middle::query::LocalCrate;
+use rustc_middle::middle::exported_symbols::ExportedSymbol;
 use rustc_middle::traits::{ObligationCause, ObligationCauseCode};
 use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_session::EarlyDiagCtxt;
@@ -247,65 +243,6 @@ impl rustc_driver::Callbacks for MiriBeRustCompilerCalls {
                     assert!(!config.opts.crate_types.is_empty());
                 }
             }
-
-            // Queries overridden here affect the data stored in `rmeta` files of dependencies,
-            // which will be used later in non-`MIRI_BE_RUSTC` mode.
-            config.override_queries = Some(|_, local_providers| {
-                // We need to add #[used] symbols to exported_symbols for `lookup_link_section`.
-                // FIXME handle this somehow in rustc itself to avoid this hack.
-                local_providers.exported_non_generic_symbols = |tcx, LocalCrate| {
-                    let reachable_set = tcx.with_stable_hashing_context(|hcx| {
-                        tcx.reachable_set(()).to_sorted(&hcx, true)
-                    });
-                    tcx.arena.alloc_from_iter(
-                        // This is based on:
-                        // https://github.com/rust-lang/rust/blob/2962e7c0089d5c136f4e9600b7abccfbbde4973d/compiler/rustc_codegen_ssa/src/back/symbol_export.rs#L62-L63
-                        // https://github.com/rust-lang/rust/blob/2962e7c0089d5c136f4e9600b7abccfbbde4973d/compiler/rustc_codegen_ssa/src/back/symbol_export.rs#L174
-                        reachable_set.into_iter().filter_map(|&local_def_id| {
-                            // Do the same filtering that rustc does:
-                            // https://github.com/rust-lang/rust/blob/2962e7c0089d5c136f4e9600b7abccfbbde4973d/compiler/rustc_codegen_ssa/src/back/symbol_export.rs#L84-L102
-                            // Otherwise it may cause unexpected behaviours and ICEs
-                            // (https://github.com/rust-lang/rust/issues/86261).
-                            let is_reachable_non_generic = matches!(
-                                tcx.hir_node_by_def_id(local_def_id),
-                                Node::Item(&hir::Item {
-                                    kind: hir::ItemKind::Static(..) | hir::ItemKind::Fn{ .. },
-                                    ..
-                                }) | Node::ImplItem(&hir::ImplItem {
-                                    kind: hir::ImplItemKind::Fn(..),
-                                    ..
-                                })
-                                if !tcx.generics_of(local_def_id).requires_monomorphization(tcx)
-                            );
-                            if !is_reachable_non_generic {
-                                return None;
-                            }
-                            let codegen_fn_attrs = tcx.codegen_fn_attrs(local_def_id);
-                            if codegen_fn_attrs.contains_extern_indicator()
-                                || codegen_fn_attrs
-                                    .flags
-                                    .contains(CodegenFnAttrFlags::USED_COMPILER)
-                                || codegen_fn_attrs.flags.contains(CodegenFnAttrFlags::USED_LINKER)
-                            {
-                                Some((
-                                    ExportedSymbol::NonGeneric(local_def_id.to_def_id()),
-                                    // Some dummy `SymbolExportInfo` here. We only use
-                                    // `exported_symbols` in shims/foreign_items.rs and the export info
-                                    // is ignored.
-                                    SymbolExportInfo {
-                                        level: SymbolExportLevel::C,
-                                        kind: SymbolExportKind::Text,
-                                        used: false,
-                                        rustc_std_internal_symbol: false,
-                                    },
-                                ))
-                            } else {
-                                None
-                            }
-                        }),
-                    )
-                }
-            });
         }
     }
 

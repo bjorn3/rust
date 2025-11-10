@@ -384,6 +384,35 @@ fn exported_generic_symbols_provider_local<'tcx>(
     tcx.arena.alloc_from_iter(symbols)
 }
 
+fn used_statics_provider<'tcx>(tcx: TyCtxt<'tcx>, _: LocalCrate) -> &'tcx [DefId] {
+    // FIXME: Sorting this is unnecessary since we are sorting later anyway.
+    //        Can we skip the later sorting?
+    let sorted = tcx.with_stable_hashing_context(|hcx| tcx.reachable_set(()).to_sorted(&hcx, true));
+
+    let mut symbols: Vec<_> = sorted
+        .into_iter()
+        .filter_map(|&local_def_id| {
+            let DefKind::Static { .. } = tcx.def_kind(local_def_id) else {
+                return None;
+            };
+
+            let codegen_fn_attrs = tcx.codegen_fn_attrs(local_def_id);
+            if codegen_fn_attrs.flags.contains(CodegenFnAttrFlags::USED_COMPILER)
+                || codegen_fn_attrs.flags.contains(CodegenFnAttrFlags::USED_LINKER)
+            {
+                Some(local_def_id.to_def_id())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // Sort so we get a stable incr. comp. hash.
+    symbols.sort_by_cached_key(|&def_id| tcx.symbol_name(ty::Instance::mono(tcx, def_id)));
+
+    tcx.arena.alloc_from_iter(symbols)
+}
+
 fn upstream_monomorphizations_provider(
     tcx: TyCtxt<'_>,
     (): (),
@@ -476,6 +505,7 @@ pub(crate) fn provide(providers: &mut Providers) {
     providers.exported_non_generic_symbols = exported_non_generic_symbols_provider_local;
     providers.exported_generic_symbols = exported_generic_symbols_provider_local;
     providers.upstream_monomorphizations = upstream_monomorphizations_provider;
+    providers.used_statics = used_statics_provider;
     providers.is_unreachable_local_definition = is_unreachable_local_definition_provider;
     providers.upstream_drop_glue_for = upstream_drop_glue_for_provider;
     providers.upstream_async_drop_glue_for = upstream_async_drop_glue_for_provider;

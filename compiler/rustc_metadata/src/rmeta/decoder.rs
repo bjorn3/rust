@@ -1515,6 +1515,10 @@ impl<'a> CrateMetadataRef<'a> {
         tcx.arena.alloc_from_iter(self.root.exported_generic_symbols.decode((self, tcx)))
     }
 
+    fn used_statics(self) -> impl Iterator<Item = DefId> {
+        self.root.used_statics.decode(self).map(move |index| self.local_def_id(index))
+    }
+
     fn get_macro(self, id: DefIndex, sess: &Session) -> ast::MacroDef {
         match self.def_kind(id) {
             DefKind::Macro(_) => {

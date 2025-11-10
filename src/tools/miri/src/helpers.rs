@@ -9,9 +9,8 @@ use rustc_apfloat::Float;
 use rustc_hash::FxHashSet;
 use rustc_hir::Safety;
 use rustc_hir::def::{DefKind, Namespace};
-use rustc_hir::def_id::{CRATE_DEF_INDEX, CrateNum, DefId, LOCAL_CRATE};
+use rustc_hir::def_id::{CRATE_DEF_INDEX, CrateNum, DefId};
 use rustc_index::IndexVec;
-use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
 use rustc_middle::middle::dependency_format::Linkage;
 use rustc_middle::middle::exported_symbols::ExportedSymbol;
 use rustc_middle::ty::layout::{LayoutOf, MaybeResult, TyAndLayout};
@@ -121,28 +120,11 @@ pub fn iter_exported_symbols<'tcx>(
     tcx: TyCtxt<'tcx>,
     mut f: impl FnMut(CrateNum, DefId) -> InterpResult<'tcx>,
 ) -> InterpResult<'tcx> {
-    // First, the symbols in the local crate. We can't use `exported_symbols` here as that
-    // skips `#[used]` statics (since `reachable_set` skips them in binary crates).
-    // So we walk all HIR items ourselves instead.
-    let crate_items = tcx.hir_crate_items(());
-    for def_id in crate_items.definitions() {
-        let exported = tcx.def_kind(def_id).has_codegen_attrs() && {
-            let codegen_attrs = tcx.codegen_fn_attrs(def_id);
-            codegen_attrs.contains_extern_indicator()
-                || codegen_attrs.flags.contains(CodegenFnAttrFlags::USED_COMPILER)
-                || codegen_attrs.flags.contains(CodegenFnAttrFlags::USED_LINKER)
-        };
-        if exported {
-            f(LOCAL_CRATE, def_id.into())?;
-        }
-    }
-
-    // Next, all our dependencies.
     // `dependency_formats` includes all the transitive informations needed to link a crate,
     // which is what we need here since we need to dig out `exported_symbols` from all transitive
     // dependencies.
     let dependency_formats = tcx.dependency_formats(());
-    // Find the dependencies of the executable we are running.
+    // Find the dependencies of the executable we are running. This list includes the local crate.
     let dependency_format = dependency_formats
         .get(&CrateType::Executable)
         .expect("interpreting a non-executable crate");
@@ -150,10 +132,6 @@ pub fn iter_exported_symbols<'tcx>(
         .iter_enumerated()
         .filter_map(|(num, &linkage)| (linkage != Linkage::NotLinked).then_some(num))
     {
-        if cnum == LOCAL_CRATE {
-            continue; // Already handled above
-        }
-
         // We can ignore `_export_info` here: we are a Rust crate, and everything is exported
         // from a Rust crate.
         for &(symbol, _export_info) in tcx.exported_non_generic_symbols(cnum) {
@@ -1004,36 +982,50 @@ pub trait EvalContextExt<'tcx>: crate::MiriInterpCxExt<'tcx> {
 
         let mut array = vec![];
 
-        iter_exported_symbols(tcx, |_cnum, def_id| {
-            let attrs = tcx.codegen_fn_attrs(def_id);
-            let Some(link_section) = attrs.link_section else {
-                return interp_ok(());
-            };
-            if include_name(link_section.as_str()) {
-                let instance = ty::Instance::mono(tcx, def_id);
-                let const_val = this.eval_global(instance).unwrap_or_else(|err| {
-                    panic!(
-                        "failed to evaluate static in required link_section: {def_id:?}\n{err:?}"
-                    )
-                });
-                match const_val.layout.ty.kind() {
-                    ty::FnPtr(..) => {
-                        array.push(this.read_immediate(&const_val)?);
-                    }
-                    ty::Array(elem_ty, _) if matches!(elem_ty.kind(), ty::FnPtr(..)) => {
-                        let mut elems = this.project_array_fields(&const_val)?;
-                        while let Some((_idx, elem)) = elems.next(this)? {
-                            array.push(this.read_immediate(&elem)?);
+        // `dependency_formats` includes all the transitive informations needed to link a crate,
+        // which is what we need here since we need to dig out `used_statics` from all transitive
+        // dependencies.
+        let dependency_formats = tcx.dependency_formats(());
+        // Find the dependencies of the executable we are running. This list includes the local crate.
+        let dependency_format = dependency_formats
+            .get(&CrateType::Executable)
+            .expect("interpreting a non-executable crate");
+        for cnum in dependency_format
+            .iter_enumerated()
+            .filter_map(|(num, &linkage)| (linkage != Linkage::NotLinked).then_some(num))
+        {
+            for &def_id in tcx.used_statics(cnum) {
+                let attrs = tcx.codegen_fn_attrs(def_id);
+                let Some(link_section) = attrs.link_section else {
+                    continue;
+                };
+                if include_name(link_section.as_str()) {
+                    let instance = ty::Instance::mono(tcx, def_id);
+                    let const_val = this.eval_global(instance).unwrap_or_else(|err| {
+                        panic!(
+                            "failed to evaluate static in required link_section: \n\
+                            {def_id:?}\n{err:?}"
+                        )
+                    });
+                    match const_val.layout.ty.kind() {
+                        ty::FnPtr(..) => {
+                            array.push(this.read_immediate(&const_val)?);
                         }
+                        ty::Array(elem_ty, _) if matches!(elem_ty.kind(), ty::FnPtr(..)) => {
+                            let mut elems = this.project_array_fields(&const_val)?;
+                            while let Some((_idx, elem)) = elems.next(this)? {
+                                array.push(this.read_immediate(&elem)?);
+                            }
+                        }
+                        _ =>
+                            throw_unsup_format!(
+                                "only function pointers and arrays of function pointers are \n\
+                                supported in well-known linker sections"
+                            ),
                     }
-                    _ =>
-                        throw_unsup_format!(
-                            "only function pointers and arrays of function pointers are supported in well-known linker sections"
-                        ),
                 }
             }
-            interp_ok(())
-        })?;
+        }
 
         interp_ok(array)
     }
