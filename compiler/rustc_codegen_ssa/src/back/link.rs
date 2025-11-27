@@ -3089,35 +3089,28 @@ fn add_upstream_rust_crates(
         // (e.g. `libstd` when `-C prefer-dynamic` is used).
         // HACK: `dependency_formats` can report `profiler_builtins` as `NotLinked`.
         // See the comment in inject_profiler_runtime for why this is the case.
-        let linkage = data[cnum];
-        let link_static_crate = linkage == Linkage::Static
-            || (linkage == Linkage::IncludedFromDylib || linkage == Linkage::NotLinked)
-                && (crate_info.compiler_builtins == Some(cnum)
-                    || crate_info.profiler_runtime == Some(cnum));
-
         let mut bundled_libs = Default::default();
-        match linkage {
-            Linkage::Static | Linkage::IncludedFromDylib | Linkage::NotLinked => {
-                if link_static_crate {
-                    bundled_libs = crate_info.native_libraries[&cnum]
-                        .iter()
-                        .filter_map(|lib| lib.filename)
-                        .collect();
-                    add_static_crate(
-                        cmd,
-                        sess,
-                        archive_builder_builder,
-                        crate_info,
-                        tmpdir,
-                        cnum,
-                        &bundled_libs,
-                    );
-                }
+        match data[cnum] {
+            Linkage::Static => {
+                bundled_libs = crate_info.native_libraries[&cnum]
+                    .iter()
+                    .filter_map(|lib| lib.filename)
+                    .collect();
+                add_static_crate(
+                    cmd,
+                    sess,
+                    archive_builder_builder,
+                    crate_info,
+                    tmpdir,
+                    cnum,
+                    &bundled_libs,
+                );
             }
             Linkage::Dynamic => {
                 let src = &crate_info.used_crate_source[&cnum];
                 add_dynamic_crate(cmd, sess, src.dylib.as_ref().unwrap());
             }
+            Linkage::IncludedFromDylib | Linkage::NotLinked => {}
         }
 
         // Static libraries are linked for a subset of linked upstream crates.
@@ -3128,7 +3121,7 @@ fn add_upstream_rust_crates(
         // inline/const/generic functions from the dylib can refer to symbols from the native
         // library, those symbols should be exported and available from the dylib anyway.
         // 3. Libraries bundled into `(compiler,profiler)_builtins` are special, see above.
-        let link_static = link_static_crate;
+        let link_static = data[cnum] == Linkage::Static;
         // Dynamic libraries are not linked here, see the FIXME in `add_upstream_native_libraries`.
         let link_dynamic = false;
         add_native_libs_from_crate(

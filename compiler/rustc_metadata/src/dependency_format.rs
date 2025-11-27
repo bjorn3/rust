@@ -259,6 +259,22 @@ fn calculate_type(tcx: TyCtxt<'_>, ty: CrateType) -> DependencyList {
         tcx.is_panic_runtime(cnum)
     });
 
+    for (cnum, kind) in ret.iter_enumerated_mut() {
+        if cnum != LOCAL_CRATE && (tcx.is_compiler_builtins(cnum) || tcx.is_profiler_runtime(cnum))
+        {
+            // We must always link crates `compiler_builtins` and `profiler_builtins` statically.
+            // Even if they were already included into a dylib
+            // (e.g. `libstd` when `-C prefer-dynamic` is used).
+            match *kind {
+                Linkage::NotLinked | Linkage::IncludedFromDylib => *kind = Linkage::Static,
+                Linkage::Static => {}
+                Linkage::Dynamic => {
+                    bug!("crate {} should not be available as dylib", tcx.crate_name(cnum));
+                }
+            }
+        }
+    }
+
     // When dylib B links to dylib A, then when using B we must also link to A.
     // It could be the case, however, that the rlib for A is present (hence we
     // found metadata), but the dylib for A has since been removed.

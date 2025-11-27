@@ -2288,10 +2288,12 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
 
     fn encode_dylib_dependency_formats(&mut self) -> LazyArray<Option<LinkagePreference>> {
         empty_proc_macro!(self);
-        let formats = self.tcx.dependency_formats(());
+        let tcx = self.tcx;
+        let formats = tcx.dependency_formats(());
         if let Some(arr) = formats.get(&CrateType::Dylib) {
-            return self.lazy_array(arr.iter().skip(1 /* skip LOCAL_CRATE */).map(
-                |slot| match *slot {
+            return self.lazy_array(arr.iter_enumerated().skip(1 /* skip LOCAL_CRATE */).map(
+                |(cnum, slot)| match *slot {
+                    _ if tcx.is_compiler_builtins(cnum) || tcx.is_profiler_runtime(cnum) => None,
                     Linkage::NotLinked | Linkage::IncludedFromDylib => None,
 
                     Linkage::Dynamic => Some(LinkagePreference::RequireDynamic),
