@@ -1534,8 +1534,7 @@ pub fn ignored_for_lto(sess: &Session, info: &CrateInfo, cnum: CrateNum) -> bool
     // If our target enables builtin function lowering in LLVM then the
     // crates providing these functions don't participate in LTO (e.g.
     // no_builtins or compiler builtins crates).
-    !sess.target.no_builtins
-        && (info.compiler_builtins == Some(cnum) || info.is_no_builtins.contains(&cnum))
+    !sess.target.no_builtins && info.is_no_builtins.contains(&cnum)
 }
 
 /// This functions tries to determine the appropriate linker (and corresponding LinkerFlavor) to use

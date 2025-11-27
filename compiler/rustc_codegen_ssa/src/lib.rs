@@ -250,8 +250,6 @@ pub struct CrateInfo {
     pub exported_symbols: UnordMap<CrateType, Vec<(String, SymbolExportKind)>>,
     pub linked_symbols: FxIndexMap<CrateType, Vec<(String, SymbolExportKind)>>,
     pub local_crate_name: Symbol,
-    pub compiler_builtins: Option<CrateNum>,
-    pub profiler_runtime: Option<CrateNum>,
     pub is_no_builtins: FxHashSet<CrateNum>,
     pub native_libraries: FxIndexMap<CrateNum, Vec<NativeLib>>,
     pub crate_name: UnordMap<CrateNum, Symbol>,

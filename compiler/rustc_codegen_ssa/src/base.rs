@@ -949,8 +949,6 @@ impl CrateInfo {
             exported_symbols,
             linked_symbols,
             local_crate_name,
-            compiler_builtins,
-            profiler_runtime: None,
             is_no_builtins: Default::default(),
             native_libraries: Default::default(),
             used_libraries: tcx.native_libraries(LOCAL_CRATE).iter().map(Into::into).collect(),
@@ -976,10 +974,7 @@ impl CrateInfo {
 
             let used_crate_source = tcx.used_crate_source(cnum);
             info.used_crate_source.insert(cnum, Arc::clone(used_crate_source));
-            if tcx.is_profiler_runtime(cnum) {
-                info.profiler_runtime = Some(cnum);
-            }
-            if tcx.is_no_builtins(cnum) {
+            if tcx.is_no_builtins(cnum) || tcx.is_compiler_builtins(cnum) {
                 info.is_no_builtins.insert(cnum);
             }
         }
