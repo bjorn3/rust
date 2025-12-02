@@ -113,14 +113,6 @@ impl Erasable for &'_ OsStr {
     type Storage = [u8; size_of::<&'static OsStr>()];
 }
 
-impl<T> Erasable for &'_ ty::List<T> {
-    type Storage = [u8; size_of::<&'static ty::List<()>>()];
-}
-
-impl<T> Erasable for &'_ ty::ListWithCachedTypeInfo<T> {
-    type Storage = [u8; size_of::<&'static ty::ListWithCachedTypeInfo<()>>()];
-}
-
 impl<I: rustc_index::Idx, T> Erasable for &'_ rustc_index::IndexSlice<I, T> {
     type Storage = [u8; size_of::<&'static rustc_index::IndexSlice<u32, ()>>()];
 }

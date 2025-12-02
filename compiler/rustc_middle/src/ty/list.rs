@@ -1,10 +1,9 @@
-use std::alloc::Layout;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
-use std::{fmt, iter, mem, ptr, slice};
+use std::{fmt, iter, mem, ptr};
 
-use rustc_data_structures::aligned::{Aligned, align_of};
+use rustc_data_structures::aligned::align_of;
 use rustc_data_structures::sync::DynSync;
 use rustc_serialize::{Encodable, Encoder};
 use rustc_type_ir::FlagComputation;
@@ -36,19 +35,8 @@ pub type List<T> = RawList<(), T>;
 /// [`Hash`] and [`Encodable`].
 #[repr(C)]
 pub struct RawList<H, T> {
-    skel: ListSkeleton<H, T>,
-    opaque: OpaqueListContents,
-}
-
-/// A [`RawList`] without the unsized tail. This type is used for layout computation
-/// and constructing empty lists.
-#[repr(C)]
-struct ListSkeleton<H, T> {
     header: H,
-    len: usize,
-    /// Although this claims to be a zero-length array, in practice `len`
-    /// elements are actually present.
-    data: [T; 0],
+    data: Vec<T>,
 }
 
 impl<T> Default for &List<T> {
@@ -57,21 +45,15 @@ impl<T> Default for &List<T> {
     }
 }
 
-unsafe extern "C" {
-    /// A dummy type used to force `List` to be unsized while not requiring
-    /// references to it be wide pointers.
-    type OpaqueListContents;
-}
-
 impl<H, T> RawList<H, T> {
     #[inline(always)]
     pub fn len(&self) -> usize {
-        self.skel.len
+        self.data.len()
     }
 
     #[inline(always)]
     pub fn as_slice(&self) -> &[T] {
-        self
+        &*self.data
     }
 
     /// Allocates a list from `arena` and copies the contents of `slice` into it.
@@ -85,7 +67,7 @@ impl<H, T> RawList<H, T> {
     /// `empty()`).
     #[inline]
     pub(super) fn from_arena<'tcx>(
-        arena: &'tcx Arena<'tcx>,
+        _arena: &'tcx Arena<'tcx>,
         header: H,
         slice: &[T],
     ) -> &'tcx RawList<H, T>
@@ -96,24 +78,7 @@ impl<H, T> RawList<H, T> {
         assert!(size_of::<T>() != 0);
         assert!(!slice.is_empty());
 
-        let (layout, _offset) =
-            Layout::new::<ListSkeleton<H, T>>().extend(Layout::for_value::<[T]>(slice)).unwrap();
-
-        let mem = arena.dropless.alloc_raw(layout) as *mut RawList<H, T>;
-        unsafe {
-            // Write the header
-            (&raw mut (*mem).skel.header).write(header);
-
-            // Write the length
-            (&raw mut (*mem).skel.len).write(slice.len());
-
-            // Write the elements
-            (&raw mut (*mem).skel.data)
-                .cast::<T>()
-                .copy_from_nonoverlapping(slice.as_ptr(), slice.len());
-
-            &*mem
-        }
+        Box::leak(Box::new(RawList { header, data: slice.to_vec() }))
     }
 
     // If this method didn't exist, we would use `slice.iter` due to
@@ -152,14 +117,16 @@ macro_rules! impl_list_empty {
                 #[repr(align(64))]
                 struct MaxAlign;
 
-                static EMPTY: ListSkeleton<$header_ty, MaxAlign> =
-                    ListSkeleton { header: $header_init, len: 0, data: [] };
+                static EMPTY: RawList<$header_ty, MaxAlign> =
+                    RawList { header: $header_init, data: Vec::new() };
 
                 assert!(align_of::<T>() <= align_of::<MaxAlign>());
 
-                // SAFETY: `EMPTY` is sufficiently aligned to be an empty list for all
-                // types with `align_of(T) <= align_of(MaxAlign)`, which we checked above.
-                unsafe { &*((&raw const EMPTY) as *const RawList<$header_ty, T>) }
+                unsafe {
+                    mem::transmute::<&RawList<$header_ty, MaxAlign>, &RawList<$header_ty, T>>(
+                        &EMPTY,
+                    )
+                }
             }
         }
     };
@@ -237,12 +204,7 @@ impl<H, T> Deref for RawList<H, T> {
 impl<H, T> AsRef<[T]> for RawList<H, T> {
     #[inline(always)]
     fn as_ref(&self) -> &[T] {
-        let data_ptr = (&raw const self.skel.data).cast::<T>();
-        // SAFETY: `data_ptr` has the same provenance as `self` and can therefore
-        // access the `self.skel.len` elements stored at `self.skel.data`.
-        // Note that we specifically don't reborrow `&self.skel.data`, because that
-        // would give us a pointer with provenance over 0 bytes.
-        unsafe { slice::from_raw_parts(data_ptr, self.skel.len) }
+        &*self.data
     }
 }
 
@@ -260,13 +222,6 @@ unsafe impl<H: Sync, T: Sync> Sync for RawList<H, T> {}
 // We need this since `List` uses extern type `OpaqueListContents`.
 unsafe impl<H: DynSync, T: DynSync> DynSync for RawList<H, T> {}
 
-// Safety:
-// Layouts of `ListSkeleton<H, T>` and `RawList<H, T>` are the same, modulo opaque tail,
-// thus aligns of `ListSkeleton<H, T>` and `RawList<H, T>` must be the same.
-unsafe impl<H, T> Aligned for RawList<H, T> {
-    const ALIGN: ptr::Alignment = align_of::<ListSkeleton<H, T>>();
-}
-
 /// A [`List`] that additionally stores type information inline to speed up
 /// [`TypeVisitableExt`](super::TypeVisitableExt) operations.
 pub type ListWithCachedTypeInfo<T> = RawList<TypeInfo, T>;
@@ -274,12 +229,12 @@ pub type ListWithCachedTypeInfo<T> = RawList<TypeInfo, T>;
 impl<T> ListWithCachedTypeInfo<T> {
     #[inline(always)]
     pub fn flags(&self) -> TypeFlags {
-        self.skel.header.flags
+        self.header.flags
     }
 
     #[inline(always)]
     pub fn outer_exclusive_binder(&self) -> DebruijnIndex {
-        self.skel.header.outer_exclusive_binder
+        self.header.outer_exclusive_binder
     }
 }
 
