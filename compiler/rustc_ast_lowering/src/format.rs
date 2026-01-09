@@ -388,7 +388,8 @@ fn expand_format_args<'hir>(
                     | ((o.debug_hex == Some(FormatDebugHex::Upper)) as u32) << 26
                     | (o.width.is_some() as u32) << 27
                     | (o.precision.is_some() as u32) << 28
-                    | align << 29;
+                    | align << 29
+                    | 1 << 31;
                 if flags != default_flags {
                     bytecode[i] |= 1;
                     bytecode.extend_from_slice(&flags.to_le_bytes());

@@ -290,7 +290,7 @@ pub struct FormattingOptions {
     /// ```text
     ///   31  30  29  28  27  26  25  24  23  22  21  20                              0
     /// ┌───┬───────┬───┬───┬───┬───┬───┬───┬───┬───┬──────────────────────────────────┐
-    /// │ 0 │ align │ p │ w │ X?│ x?│'0'│ # │ - │ + │               fill               │
+    /// │ 1 │ align │ p │ w │ X?│ x?│'0'│ # │ - │ + │               fill               │
     /// └───┴───────┴───┴───┴───┴───┴───┴───┴───┴───┴──────────────────────────────────┘
     ///   │     │     │   │  └─┬───────────────────┘ └─┬──────────────────────────────┘
     ///   │     │     │   │    │                       └─ The fill character (21 bits char).
@@ -301,9 +301,9 @@ pub struct FormattingOptions {
     ///   │     ├─ 1: Align right. (>)
     ///   │     ├─ 2: Align center. (^)
     ///   │     └─ 3: Alignment not set. (default)
-    ///   └─ Always zero.
+    ///   └─ Always one.
     /// ```
-    // Note: This could use a pattern type with range 0x0000_0000..=0x7dd0ffff.
+    // Note: This could use a pattern type with range 0x8000_0000..=0xfdd0ffff.
     // It's unclear if that's useful, though.
     flags: u32,
     /// Width if width flag (bit 27) above is set. Otherwise, always 0.
@@ -327,6 +327,7 @@ mod flags {
     pub(super) const ALIGN_RIGHT: u32 = 1 << 29;
     pub(super) const ALIGN_CENTER: u32 = 2 << 29;
     pub(super) const ALIGN_UNKNOWN: u32 = 3 << 29;
+    pub(super) const ALWAYS_ONE: u32 = 1 << 31;
 }
 
 impl FormattingOptions {
@@ -342,7 +343,11 @@ impl FormattingOptions {
     /// - no [`DebugAsHex`] output mode.
     #[unstable(feature = "formatting_options", issue = "118117")]
     pub const fn new() -> Self {
-        Self { flags: ' ' as u32 | flags::ALIGN_UNKNOWN, width: 0, precision: 0 }
+        Self {
+            flags: ' ' as u32 | flags::ALIGN_UNKNOWN | flags::ALWAYS_ONE,
+            width: 0,
+            precision: 0,
+        }
     }
 
     /// Sets or removes the sign (the `+` or the `-` flag).
@@ -706,8 +711,9 @@ impl<'a> Formatter<'a> {
 //         │ 0 │ ("\0")
 //         └───┘
 //
-//         (Note that a zero byte may also occur naturally as part of the string pieces or flags,
-//         width, precision and arg_index fields above. That is, the template byte sequence ends
+//         FIXME make indirect width, indirect precision and arg_index start from 1 to avoid interior 0 bytes.
+//         (Note that a zero byte may also occur naturally as part of the string pieces or width,
+//         precision and arg_index fields above. That is, the template byte sequence ends
 //         with a 0 byte, but isn't terminated by the first 0 byte.)
 //
 #[lang = "format_arguments"]
