@@ -20,7 +20,6 @@
 #![feature(iter_intersperse)]
 #![feature(iterator_try_reduce)]
 #![feature(never_type)]
-#![feature(strip_circumfix)]
 #![feature(try_blocks)]
 #![feature(unwrap_infallible)]
 #![feature(yeet_expr)]

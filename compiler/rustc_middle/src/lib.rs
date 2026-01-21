@@ -37,7 +37,7 @@
 #![feature(const_default)]
 #![feature(const_trait_impl)]
 #![feature(core_intrinsics)]
-#![feature(debug_closure_helpers)]
+#![cfg_attr(not(bootstrap), feature(debug_closure_helpers))]
 #![feature(decl_macro)]
 #![feature(discriminant_kind)]
 #![feature(extern_types)]

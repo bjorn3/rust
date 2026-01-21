@@ -593,10 +593,10 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 let source_info = self.source_info(irrefutable_pat.span);
                 self.cfg.push_fake_read(block, source_info, FakeReadCause::ForLet(None), place);
 
-                let ascriptions: &[_] =
-                    try { irrefutable_pat.extra.as_deref()?.ascriptions.as_slice() }
-                        .unwrap_or_default();
-                for thir::Ascription { annotation, variance: _ } in ascriptions {
+                let ascriptions: Option<&[_]> =
+                    try { irrefutable_pat.extra.as_deref()?.ascriptions.as_slice() };
+                for thir::Ascription { annotation, variance: _ } in ascriptions.unwrap_or_default()
+                {
                     let ty_source_info = self.source_info(annotation.span);
 
                     let base = self.canonical_user_type_annotations.push(annotation.clone());

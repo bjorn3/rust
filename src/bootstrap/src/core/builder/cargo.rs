@@ -69,7 +69,7 @@ impl Rustflags {
             self.env("RUSTFLAGS_BOOTSTRAP");
             self.arg("--cfg=bootstrap");
             self.arg("--extern=force:std");
-            self.arg("-Zcrate-attr=feature()");
+            self.arg("-Zcrate-attr=feature(debug_closure_helpers,maybe_uninit_slice,maybe_uninit_write_slice,slice_as_array)");
         }
     }
 }
