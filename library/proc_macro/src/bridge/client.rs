@@ -2,6 +2,7 @@
 
 use std::cell::RefCell;
 use std::marker::PhantomData;
+use std::num::NonZero;
 use std::sync::atomic::AtomicU32;
 
 use super::*;
@@ -15,57 +16,52 @@ pub(super) struct HandleCounters {
 static COUNTERS: HandleCounters =
     HandleCounters { token_stream: AtomicU32::new(1), span: AtomicU32::new(1) };
 
-pub struct ClientTypes;
+pub(crate) struct ClientTypes;
 
 impl Types for ClientTypes {
-    type TokenStream = TokenStream;
-    type Span = Span;
-    type Symbol = Symbol;
+    type TokenStream = handle::Handle;
+    type Span = handle::Handle;
+    type Symbol = NonZero<u32>;
 }
 
-pub struct TokenStream {
-    handle: handle::Handle,
-}
+pub type TokenStream = super::TokenStream<handle::Handle>;
+pub type Span = super::Span<handle::Handle>;
+pub type Symbol = super::Symbol<NonZero<u32>>;
 
 // Forward `Drop::drop` to the inherent `drop` method.
-impl Drop for TokenStream {
+/*impl<S: Types> Drop for super::TokenStream<S> {
     fn drop(&mut self) {
-        Methods::ts_drop(TokenStream { handle: self.handle });
+        Methods::ts_drop(self);
     }
-}
+}*/
 
 impl Encode<ClientTypes> for TokenStream {
     fn encode(self, w: &mut Buffer, s: &mut ClientTypes) {
-        mem::ManuallyDrop::new(self).handle.encode(w, s);
+        mem::ManuallyDrop::new(self).0.encode(w, s);
     }
 }
 
 impl Encode<ClientTypes> for &TokenStream {
     fn encode(self, w: &mut Buffer, s: &mut ClientTypes) {
-        self.handle.encode(w, s);
+        self.0.encode(w, s);
     }
 }
 
 impl Decode<'_, '_, ClientTypes> for TokenStream {
     fn decode(r: &mut &[u8], s: &mut ClientTypes) -> Self {
-        TokenStream { handle: handle::Handle::decode(r, s) }
+        TokenStream(handle::Handle::decode(r, s))
     }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub struct Span {
-    handle: handle::Handle,
 }
 
 impl Encode<ClientTypes> for Span {
     fn encode(self, w: &mut Buffer, s: &mut ClientTypes) {
-        self.handle.encode(w, s);
+        self.0.encode(w, s);
     }
 }
 
 impl Decode<'_, '_, ClientTypes> for Span {
     fn decode(r: &mut &[u8], s: &mut ClientTypes) -> Self {
-        Span { handle: handle::Handle::decode(r, s) }
+        Span(handle::Handle::decode(r, s))
     }
 }
 
@@ -76,15 +72,15 @@ impl Clone for TokenStream {
 }
 
 impl Span {
-    pub(crate) fn def_site() -> Span {
+    pub(crate) fn def_site() -> Self {
         Bridge::with(|bridge| bridge.globals.def_site)
     }
 
-    pub(crate) fn call_site() -> Span {
+    pub(crate) fn call_site() -> Self {
         Bridge::with(|bridge| bridge.globals.call_site)
     }
 
-    pub(crate) fn mixed_site() -> Span {
+    pub(crate) fn mixed_site() -> Self {
         Bridge::with(|bridge| bridge.globals.mixed_site)
     }
 }
@@ -96,34 +92,38 @@ impl fmt::Debug for Span {
 }
 
 pub(crate) use super::Methods;
-pub(crate) use super::symbol::Symbol;
 
 macro_rules! define_client_side {
     (
         $(fn $method:ident($($arg:ident: $arg_ty:ty),* $(,)?) $(-> $ret_ty:ty)?;)*
     ) => {
-        impl Methods {
-            $(pub(crate) fn $method($($arg: $arg_ty),*) $(-> $ret_ty)? {
-                Bridge::with(|bridge| {
-                    let mut buf = bridge.cached_buffer.take();
+        mod inner {
+            use crate::bridge::{TokenStream, Span, Symbol};
+            use super::*;
 
-                    buf.clear();
-                    ApiTags::$method.encode(&mut buf, &mut ClientTypes);
-                    $($arg.encode(&mut buf, &mut ClientTypes);)*
+            impl Methods {
+                $(pub(crate) fn $method($($arg: $arg_ty),*) $(-> $ret_ty)? {
+                    Bridge::with(|bridge| {
+                        let mut buf = bridge.cached_buffer.take();
 
-                    buf = bridge.dispatch.call(buf);
+                        buf.clear();
+                        ApiTags::$method.encode(&mut buf, &mut ClientTypes);
+                        $($arg.encode(&mut buf, &mut ClientTypes);)*
 
-                    let r = Result::<_, PanicMessage>::decode(&mut &buf[..], &mut ClientTypes);
+                        buf = bridge.dispatch.call(buf);
 
-                    bridge.cached_buffer = buf;
+                        let r = Result::<_, PanicMessage>::decode(&mut &buf[..], &mut ClientTypes);
 
-                    r.unwrap_or_else(|e| panic::resume_unwind(e.into()))
-                })
-            })*
+                        bridge.cached_buffer = buf;
+
+                        r.unwrap_or_else(|e| panic::resume_unwind(e.into()))
+                    })
+                })*
+            }
         }
     }
 }
-with_api!(define_client_side, TokenStream, Span, Symbol);
+with_api!(define_client_side, handle::Handle, handle::Handle, NonZero<u32>);
 
 struct Bridge<'a> {
     /// Reusable buffer (only `clear`-ed, never shrunk), primarily
@@ -134,7 +134,7 @@ struct Bridge<'a> {
     dispatch: closure::Closure<'a>,
 
     /// Provided globals for this macro expansion.
-    globals: ExpnGlobals<Span>,
+    globals: ExpnGlobals<handle::Handle>,
 }
 
 impl<'a> !Send for Bridge<'a> {}
@@ -259,7 +259,7 @@ fn run_client<A: for<'a, 's> Decode<'a, 's, ClientTypes>, R: Encode<ClientTypes>
         Symbol::invalidate_all();
 
         let reader = &mut &buf[..];
-        let (globals, input) = <(ExpnGlobals<Span>, A)>::decode(reader, &mut ClientTypes);
+        let (globals, input) = <(ExpnGlobals<handle::Handle>, A)>::decode(reader, &mut ClientTypes);
 
         // Put the buffer we used for input back in the `Bridge` for requests.
         let state = RefCell::new(Bridge { cached_buffer: buf.take(), dispatch, globals });

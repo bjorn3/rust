@@ -12,14 +12,11 @@
 use std::cell::RefCell;
 use std::num::NonZero;
 
+use super::client::Symbol;
 use super::*;
 
-/// Handle for a symbol string stored within the Interner.
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub struct Symbol(NonZero<u32>);
-
-impl !Send for Symbol {}
-impl !Sync for Symbol {}
+impl<T> !Send for super::Symbol<T> {}
+impl<T> !Sync for super::Symbol<T> {}
 
 impl Symbol {
     /// Intern a new `Symbol`
@@ -99,15 +96,15 @@ impl Encode<client::ClientTypes> for Symbol {
     }
 }
 
-impl<S: server::Server> Decode<'_, '_, server::HandleStore<S>> for server::MarkedSymbol<S> {
+impl<S: server::Server> Decode<'_, '_, server::HandleStore<S>> for super::Symbol<S::Symbol> {
     fn decode(r: &mut &[u8], s: &mut server::HandleStore<S>) -> Self {
-        Mark::mark(S::intern_symbol(<&str>::decode(r, s)))
+        S::intern_symbol(<&str>::decode(r, s))
     }
 }
 
-impl<S: server::Server> Encode<server::HandleStore<S>> for server::MarkedSymbol<S> {
+impl<S: server::Server> Encode<server::HandleStore<S>> for super::Symbol<S::Symbol> {
     fn encode(self, w: &mut Buffer, s: &mut server::HandleStore<S>) {
-        S::with_symbol_string(&self.unmark(), |sym| sym.encode(w, s))
+        S::with_symbol_string(&self, |sym| sym.encode(w, s))
     }
 }
 
