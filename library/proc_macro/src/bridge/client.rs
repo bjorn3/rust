@@ -15,7 +15,15 @@ pub(super) struct HandleCounters {
 static COUNTERS: HandleCounters =
     HandleCounters { token_stream: AtomicU32::new(1), span: AtomicU32::new(1) };
 
-pub(crate) struct TokenStream {
+pub struct ClientTypes;
+
+impl Types for ClientTypes {
+    type TokenStream = TokenStream;
+    type Span = Span;
+    type Symbol = Symbol;
+}
+
+pub struct TokenStream {
     handle: handle::Handle,
 }
 
@@ -26,37 +34,37 @@ impl Drop for TokenStream {
     }
 }
 
-impl<S> Encode<S> for TokenStream {
-    fn encode(self, w: &mut Buffer, s: &mut S) {
+impl Encode<ClientTypes> for TokenStream {
+    fn encode(self, w: &mut Buffer, s: &mut ClientTypes) {
         mem::ManuallyDrop::new(self).handle.encode(w, s);
     }
 }
 
-impl<S> Encode<S> for &TokenStream {
-    fn encode(self, w: &mut Buffer, s: &mut S) {
+impl Encode<ClientTypes> for &TokenStream {
+    fn encode(self, w: &mut Buffer, s: &mut ClientTypes) {
         self.handle.encode(w, s);
     }
 }
 
-impl<S> Decode<'_, '_, S> for TokenStream {
-    fn decode(r: &mut &[u8], s: &mut S) -> Self {
+impl Decode<'_, '_, ClientTypes> for TokenStream {
+    fn decode(r: &mut &[u8], s: &mut ClientTypes) -> Self {
         TokenStream { handle: handle::Handle::decode(r, s) }
     }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct Span {
+pub struct Span {
     handle: handle::Handle,
 }
 
-impl<S> Encode<S> for Span {
-    fn encode(self, w: &mut Buffer, s: &mut S) {
+impl Encode<ClientTypes> for Span {
+    fn encode(self, w: &mut Buffer, s: &mut ClientTypes) {
         self.handle.encode(w, s);
     }
 }
 
-impl<S> Decode<'_, '_, S> for Span {
-    fn decode(r: &mut &[u8], s: &mut S) -> Self {
+impl Decode<'_, '_, ClientTypes> for Span {
+    fn decode(r: &mut &[u8], s: &mut ClientTypes) -> Self {
         Span { handle: handle::Handle::decode(r, s) }
     }
 }
@@ -100,12 +108,12 @@ macro_rules! define_client_side {
                     let mut buf = bridge.cached_buffer.take();
 
                     buf.clear();
-                    ApiTags::$method.encode(&mut buf, &mut ());
-                    $($arg.encode(&mut buf, &mut ());)*
+                    ApiTags::$method.encode(&mut buf, &mut ClientTypes);
+                    $($arg.encode(&mut buf, &mut ClientTypes);)*
 
                     buf = bridge.dispatch.call(buf);
 
-                    let r = Result::<_, PanicMessage>::decode(&mut &buf[..], &mut ());
+                    let r = Result::<_, PanicMessage>::decode(&mut &buf[..], &mut ClientTypes);
 
                     bridge.cached_buffer = buf;
 
@@ -238,7 +246,7 @@ fn maybe_install_panic_hook(force_show_panics: bool) {
 /// Client-side helper for handling client panics, entering the bridge,
 /// deserializing input and serializing output.
 // FIXME(eddyb) maybe replace `Bridge::enter` with this?
-fn run_client<A: for<'a, 's> Decode<'a, 's, ()>, R: Encode<()>>(
+fn run_client<A: for<'a, 's> Decode<'a, 's, ClientTypes>, R: Encode<ClientTypes>>(
     config: BridgeConfig<'_>,
     f: impl FnOnce(A) -> R,
 ) -> Buffer {
@@ -251,7 +259,7 @@ fn run_client<A: for<'a, 's> Decode<'a, 's, ()>, R: Encode<()>>(
         Symbol::invalidate_all();
 
         let reader = &mut &buf[..];
-        let (globals, input) = <(ExpnGlobals<Span>, A)>::decode(reader, &mut ());
+        let (globals, input) = <(ExpnGlobals<Span>, A)>::decode(reader, &mut ClientTypes);
 
         // Put the buffer we used for input back in the `Bridge` for requests.
         let state = RefCell::new(Bridge { cached_buffer: buf.take(), dispatch, globals });
@@ -271,12 +279,12 @@ fn run_client<A: for<'a, 's> Decode<'a, 's, ()>, R: Encode<()>>(
         // reaching the `extern "C"` (which should `abort` but might not
         // at the moment, so this is also potentially preventing UB).
         buf.clear();
-        Ok::<_, ()>(output).encode(&mut buf, &mut ());
+        Ok::<_, ()>(output).encode(&mut buf, &mut ClientTypes);
     }))
     .map_err(PanicMessage::from)
     .unwrap_or_else(|e| {
         buf.clear();
-        Err::<(), _>(e).encode(&mut buf, &mut ());
+        Err::<(), _>(e).encode(&mut buf, &mut ClientTypes);
     });
 
     // Now that a response has been serialized, invalidate all symbols

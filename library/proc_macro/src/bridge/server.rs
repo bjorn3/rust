@@ -3,6 +3,7 @@
 use std::cell::Cell;
 use std::sync::mpsc;
 
+pub use super::Types;
 use super::*;
 
 pub(super) struct HandleStore<S: Server> {
@@ -19,9 +20,9 @@ impl<S: Server> HandleStore<S> {
     }
 }
 
-pub(super) type MarkedTokenStream<S> = Marked<<S as Server>::TokenStream, client::TokenStream>;
-pub(super) type MarkedSpan<S> = Marked<<S as Server>::Span, client::Span>;
-pub(super) type MarkedSymbol<S> = Marked<<S as Server>::Symbol, client::Symbol>;
+pub(super) type MarkedTokenStream<S> = Marked<<S as Types>::TokenStream, client::TokenStream>;
+pub(super) type MarkedSpan<S> = Marked<<S as Types>::Span, client::Span>;
+pub(super) type MarkedSymbol<S> = Marked<<S as Types>::Symbol, client::Symbol>;
 
 impl<S: Server> Encode<HandleStore<S>> for MarkedTokenStream<S> {
     fn encode(self, w: &mut Buffer, s: &mut HandleStore<S>) {
@@ -57,11 +58,7 @@ macro_rules! define_server {
     (
         $(fn $method:ident($($arg:ident: $arg_ty:ty),* $(,)?) $(-> $ret_ty:ty)?;)*
     ) => {
-        pub trait Server {
-            type TokenStream: 'static + Clone + Default;
-            type Span: 'static + Copy + Eq + Hash;
-            type Symbol: 'static;
-
+        pub trait Server: Types {
             fn globals(&mut self) -> ExpnGlobals<Self::Span>;
 
             /// Intern a symbol received from RPC
@@ -275,6 +272,7 @@ impl client::Client<crate::TokenStream, crate::TokenStream> {
     ) -> Result<S::TokenStream, PanicMessage>
     where
         S: Server,
+        S::TokenStream: Default,
     {
         let client::Client { handle_counters, run, _marker } = *self;
         run_server(
@@ -300,6 +298,7 @@ impl client::Client<(crate::TokenStream, crate::TokenStream), crate::TokenStream
     ) -> Result<S::TokenStream, PanicMessage>
     where
         S: Server,
+        S::TokenStream: Default,
     {
         let client::Client { handle_counters, run, _marker } = *self;
         run_server(

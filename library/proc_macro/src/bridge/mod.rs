@@ -131,6 +131,12 @@ pub struct BridgeConfig<'a> {
 impl !Send for BridgeConfig<'_> {}
 impl !Sync for BridgeConfig<'_> {}
 
+pub trait Types {
+    type TokenStream: 'static + Clone;
+    type Span: 'static + Copy + Eq + Hash;
+    type Symbol: 'static;
+}
+
 macro_rules! declare_tags {
     (
         $(fn $method:ident($($arg:ident: $arg_ty:ty),* $(,)?) $(-> $ret_ty:ty)?;)*

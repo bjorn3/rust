@@ -93,8 +93,8 @@ impl fmt::Display for Symbol {
     }
 }
 
-impl<S> Encode<S> for Symbol {
-    fn encode(self, w: &mut Buffer, s: &mut S) {
+impl Encode<client::ClientTypes> for Symbol {
+    fn encode(self, w: &mut Buffer, s: &mut client::ClientTypes) {
         self.with(|sym| sym.encode(w, s))
     }
 }
@@ -111,8 +111,8 @@ impl<S: server::Server> Encode<server::HandleStore<S>> for server::MarkedSymbol<
     }
 }
 
-impl<S> Decode<'_, '_, S> for Symbol {
-    fn decode(r: &mut &[u8], s: &mut S) -> Self {
+impl Decode<'_, '_, client::ClientTypes> for Symbol {
+    fn decode(r: &mut &[u8], s: &mut client::ClientTypes) -> Self {
         Symbol::new(<&str>::decode(r, s))
     }
 }
