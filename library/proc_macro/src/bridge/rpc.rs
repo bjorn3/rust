@@ -2,7 +2,6 @@
 
 use std::any::Any;
 use std::io::Write;
-use std::num::NonZero;
 
 use super::buffer::Buffer;
 
@@ -124,18 +123,6 @@ impl<S> Decode<'_, '_, S> for bool {
             1 => true,
             _ => unreachable!(),
         }
-    }
-}
-
-impl<S> Encode<S> for NonZero<u32> {
-    fn encode(self, w: &mut Buffer, s: &mut S) {
-        self.get().encode(w, s);
-    }
-}
-
-impl<S> Decode<'_, '_, S> for NonZero<u32> {
-    fn decode(r: &mut &[u8], s: &mut S) -> Self {
-        Self::new(u32::decode(r, s)).unwrap()
     }
 }
 

@@ -19,9 +19,6 @@ pub(crate) struct TokenStream {
     handle: handle::Handle,
 }
 
-impl !Send for TokenStream {}
-impl !Sync for TokenStream {}
-
 // Forward `Drop::drop` to the inherent `drop` method.
 impl Drop for TokenStream {
     fn drop(&mut self) {
@@ -51,9 +48,6 @@ impl<S> Decode<'_, '_, S> for TokenStream {
 pub(crate) struct Span {
     handle: handle::Handle,
 }
-
-impl !Send for Span {}
-impl !Sync for Span {}
 
 impl<S> Encode<S> for Span {
     fn encode(self, w: &mut Buffer, s: &mut S) {

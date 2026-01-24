@@ -6,9 +6,27 @@ use std::num::NonZero;
 use std::ops::Index;
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use super::buffer::Buffer;
 use super::fxhash::FxHashMap;
+use super::rpc::{Decode, Encode};
 
-pub(super) type Handle = NonZero<u32>;
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(super) struct Handle(NonZero<u32>);
+
+impl !Send for Handle {}
+impl !Sync for Handle {}
+
+impl<S> Encode<S> for Handle {
+    fn encode(self, w: &mut Buffer, s: &mut S) {
+        self.0.get().encode(w, s);
+    }
+}
+
+impl<S> Decode<'_, '_, S> for Handle {
+    fn decode(r: &mut &[u8], s: &mut S) -> Self {
+        Self(NonZero::new(u32::decode(r, s)).unwrap())
+    }
+}
 
 /// A store that associates values of type `T` with numeric handles. A value can
 /// be looked up using its handle.
@@ -30,7 +48,7 @@ impl<T> OwnedStore<T> {
 impl<T> OwnedStore<T> {
     pub(super) fn alloc(&mut self, x: T) -> Handle {
         let counter = self.counter.fetch_add(1, Ordering::Relaxed);
-        let handle = Handle::new(counter).expect("`proc_macro` handle counter overflowed");
+        let handle = Handle(NonZero::new(counter).expect("`proc_macro` handle counter overflowed"));
         assert!(self.data.insert(handle, x).is_none());
         handle
     }
