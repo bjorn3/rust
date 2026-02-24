@@ -431,28 +431,19 @@ pub(crate) mod Enzyme_AD {
         fn get_enzyme_path(sysroot: &Sysroot) -> Result<String, EnzymeLibraryError> {
             let llvm_version_major = unsafe { LLVMRustVersionMajor() };
 
-            let path_buf = sysroot
-                .all_paths()
-                .map(|sysroot_path| {
-                    filesearch::make_target_lib_path(sysroot_path, host_tuple())
-                        .join("lib")
-                        .with_file_name(format!("libEnzyme-{llvm_version_major}"))
-                        .with_extension(std::env::consts::DLL_EXTENSION)
-                })
-                .find(|f| f.exists())
-                .ok_or_else(|| {
-                    let candidates = sysroot
-                        .all_paths()
-                        .map(|p| p.join("lib").display().to_string())
-                        .collect::<Vec<String>>()
-                        .join("\n* ");
-                    EnzymeLibraryError::NotFound {
-                        err: format!(
-                            "failed to find a `libEnzyme-{llvm_version_major}` folder \
-                    in the sysroot candidates:\n* {candidates}"
-                        ),
-                    }
-                })?;
+            let path_buf = filesearch::make_target_lib_path(sysroot.path(), host_tuple())
+                .join("lib")
+                .with_file_name(format!("libEnzyme-{llvm_version_major}"))
+                .with_extension(std::env::consts::DLL_EXTENSION);
+            if !path_buf.exists() {
+                return Err(EnzymeLibraryError::NotFound {
+                    err: format!(
+                        "failed to find a `libEnzyme-{llvm_version_major}` folder \
+                    in the sysroot {}",
+                        sysroot.path().display(),
+                    ),
+                });
+            }
 
             Ok(path_buf
                 .to_str()

@@ -208,25 +208,16 @@ impl CodegenBackend for GccCodegenBackend {
                 .join("libgccjit.so")
         }
 
-        // We use all_paths() instead of only path() in case the path specified by --sysroot is
-        // invalid.
-        // This is the case for instance in Rust for Linux where they specify --sysroot=/dev/null.
-        for path in sess.opts.sysroot.all_paths() {
-            let libgccjit_target_lib_file = file_path(path, sess);
-            if let Ok(true) = fs::exists(&libgccjit_target_lib_file) {
-                load_libgccjit_if_needed(&libgccjit_target_lib_file);
-                break;
-            }
+        let libgccjit_target_lib_file = file_path(sess.opts.sysroot.path(), sess);
+        if let Ok(true) = fs::exists(&libgccjit_target_lib_file) {
+            load_libgccjit_if_needed(&libgccjit_target_lib_file);
         }
 
         if !gccjit::is_loaded() {
-            let mut paths = vec![];
-            for path in sess.opts.sysroot.all_paths() {
-                let libgccjit_target_lib_file = file_path(path, sess);
-                paths.push(libgccjit_target_lib_file);
-            }
-
-            panic!("Could not load libgccjit.so. Attempted paths: {:#?}", paths);
+            panic!(
+                "Could not load libgccjit.so. Attempted path: {:#?}",
+                file_path(sess.opts.sysroot.path(), sess),
+            );
         }
 
         #[cfg(feature = "master")]

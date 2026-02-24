@@ -1352,25 +1352,17 @@ pub(crate) fn parse_remap_path_scope(
 
 #[derive(Clone, Debug)]
 pub struct Sysroot {
-    explicit: Option<PathBuf>,
-    #[deprecated]
-    pub default: PathBuf,
+    path: PathBuf,
 }
 
 impl Sysroot {
     pub fn new(explicit: Option<PathBuf>) -> Sysroot {
-        Sysroot { explicit, default: filesearch::default_sysroot() }
+        Sysroot { path: explicit.unwrap_or_else(|| filesearch::default_sysroot()) }
     }
 
     /// Return explicit sysroot if it was passed with `--sysroot`, or default sysroot otherwise.
     pub fn path(&self) -> &Path {
-        self.explicit.as_deref().unwrap_or(&self.default)
-    }
-
-    /// Returns both explicit sysroot if it was passed with `--sysroot` and the default sysroot.
-    #[deprecated]
-    pub fn all_paths(&self) -> impl Iterator<Item = &Path> {
-        self.explicit.as_deref().into_iter().chain(iter::once(&*self.default))
+        &self.path
     }
 }
 

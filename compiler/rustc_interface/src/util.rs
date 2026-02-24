@@ -481,7 +481,7 @@ pub fn rustc_path<'a>(sysroot: &Sysroot) -> Option<&'a Path> {
     RUSTC_PATH
         .get_or_init(|| {
             let candidate = sysroot
-                .default
+                .path()
                 .join(env!("RUSTC_INSTALL_BINDIR"))
                 .join(if cfg!(target_os = "windows") { "rustc.exe" } else { "rustc" });
             candidate.exists().then_some(candidate)
@@ -507,34 +507,22 @@ fn get_codegen_sysroot(
 
     let target = host_tuple();
 
-    let sysroot = sysroot
-        .all_paths()
-        .map(|sysroot| {
-            filesearch::make_target_lib_path(sysroot, target).with_file_name("codegen-backends")
-        })
-        .find(|f| {
-            info!("codegen backend candidate: {}", f.display());
-            f.exists()
-        })
-        .unwrap_or_else(|| {
-            let candidates = sysroot
-                .all_paths()
-                .map(|p| p.display().to_string())
-                .collect::<Vec<_>>()
-                .join("\n* ");
-            let err = format!(
-                "failed to find a `codegen-backends` folder in the sysroot candidates:\n\
-                 * {candidates}"
-            );
-            early_dcx.early_fatal(err);
-        });
+    let codegen_backends =
+        filesearch::make_target_lib_path(sysroot.path(), target).with_file_name("codegen-backends");
+    if !codegen_backends.exists() {
+        let err = format!(
+            "failed to find a `codegen-backends` folder in the sysroot {}",
+            sysroot.path().display()
+        );
+        early_dcx.early_fatal(err);
+    }
 
-    info!("probing {} for a codegen backend", sysroot.display());
+    info!("probing {} for a codegen backend", codegen_backends.display());
 
-    let d = sysroot.read_dir().unwrap_or_else(|e| {
+    let d = codegen_backends.read_dir().unwrap_or_else(|e| {
         let err = format!(
             "failed to load default codegen backend, couldn't read `{}`: {e}",
-            sysroot.display(),
+            codegen_backends.display(),
         );
         early_dcx.early_fatal(err);
     });
