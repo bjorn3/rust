@@ -1352,7 +1352,8 @@ pub(crate) fn parse_remap_path_scope(
 
 #[derive(Clone, Debug)]
 pub struct Sysroot {
-    pub explicit: Option<PathBuf>,
+    explicit: Option<PathBuf>,
+    #[deprecated]
     pub default: PathBuf,
 }
 
@@ -1367,6 +1368,7 @@ impl Sysroot {
     }
 
     /// Returns both explicit sysroot if it was passed with `--sysroot` and the default sysroot.
+    #[deprecated]
     pub fn all_paths(&self) -> impl Iterator<Item = &Path> {
         self.explicit.as_deref().into_iter().chain(iter::once(&*self.default))
     }
@@ -1389,68 +1391,6 @@ fn file_path_mapping(
     remap_path_scope: RemapPathScopeComponents,
 ) -> FilePathMapping {
     FilePathMapping::new(remap_path_prefix.clone(), remap_path_scope)
-}
-
-impl Default for Options {
-    fn default() -> Options {
-        let unstable_opts = UnstableOptions::default();
-
-        // FIXME(Urgau): This is a hack that ideally shouldn't exist, but rustdoc
-        // currently uses this `Default` implementation, so we have no choice but
-        // to create a default working directory.
-        let working_dir = {
-            let working_dir = std::env::current_dir().unwrap();
-            let file_mapping = file_path_mapping(Vec::new(), RemapPathScopeComponents::empty());
-            file_mapping.to_real_filename(&RealFileName::empty(), &working_dir)
-        };
-
-        Options {
-            assert_incr_state: None,
-            crate_types: Vec::new(),
-            optimize: OptLevel::No,
-            debuginfo: DebugInfo::None,
-            lint_opts: Vec::new(),
-            lint_cap: None,
-            describe_lints: false,
-            output_types: OutputTypes(BTreeMap::new()),
-            search_paths: vec![],
-            sysroot: Sysroot::new(None),
-            target_triple: TargetTuple::from_tuple(host_tuple()),
-            test: false,
-            incremental: None,
-            untracked_state_hash: Default::default(),
-            unstable_opts,
-            prints: Vec::new(),
-            cg: Default::default(),
-            error_format: ErrorOutputType::default(),
-            diagnostic_width: None,
-            externs: Externs(BTreeMap::new()),
-            crate_name: None,
-            libs: Vec::new(),
-            unstable_features: UnstableFeatures::Disallow,
-            debug_assertions: true,
-            actually_rustdoc: false,
-            resolve_doc_links: ResolveDocLinks::None,
-            trimmed_def_paths: false,
-            cli_forced_codegen_units: None,
-            cli_forced_local_thinlto_off: false,
-            remap_path_prefix: Vec::new(),
-            remap_path_scope: RemapPathScopeComponents::all(),
-            real_rust_source_base_dir: None,
-            real_rustc_dev_source_base_dir: None,
-            edition: DEFAULT_EDITION,
-            json_artifact_notifications: false,
-            json_timings: false,
-            json_unused_externs: JsonUnusedExterns::No,
-            json_future_incompat: false,
-            pretty: None,
-            working_dir,
-            color: ColorConfig::Auto,
-            logical_env: FxIndexMap::default(),
-            verbose: false,
-            target_modifiers: BTreeMap::default(),
-        }
-    }
 }
 
 impl Options {
@@ -1594,10 +1534,10 @@ pub fn build_configuration(sess: &Session, mut user_cfg: Cfg) -> Cfg {
 pub fn build_target_config(
     early_dcx: &EarlyDiagCtxt,
     target: &TargetTuple,
-    sysroot: &Path,
+    target_rustlib: &Path,
     unstable_options: bool,
 ) -> Target {
-    match Target::search(target, sysroot, unstable_options) {
+    match Target::search(target, target_rustlib, unstable_options) {
         Ok((target, warnings)) => {
             for warning in warnings.warning_messages() {
                 early_dcx.early_warn(warning)
@@ -1837,6 +1777,7 @@ pub fn rustc_optgroups() -> Vec<RustcOptGroup> {
             "<NAME>[=<PATH>]",
         ),
         opt(Stable, Opt, "", "sysroot", "Override the system root", "<PATH>"),
+        opt(Stable, Opt, "", "target-rustlib", "Override the target rustlib directory", "<PATH>"),
         opt(Unstable, Multi, "Z", "", "Set unstable / perma-unstable options", "<FLAG>"),
         opt(
             Stable,
@@ -2697,6 +2638,13 @@ pub fn build_session_options(early_dcx: &mut EarlyDiagCtxt, matches: &getopts::M
     let logical_env = parse_logical_env(early_dcx, matches);
 
     let sysroot = Sysroot::new(matches.opt_str("sysroot").map(PathBuf::from));
+    let target_rustlib =
+        matches.opt_str("target-rustlib").map(PathBuf::from).unwrap_or_else(|| {
+            sysroot.path().join(rustc_target::relative_target_rustlib_path(
+                sysroot.path(),
+                target_triple.tuple(),
+            ))
+        });
 
     let real_source_base_dir = |suffix: &str, confirm: &str| {
         let mut candidate = sysroot.path().join(suffix);
@@ -2769,6 +2717,7 @@ pub fn build_session_options(early_dcx: &mut EarlyDiagCtxt, matches: &getopts::M
         output_types,
         search_paths,
         sysroot,
+        target_rustlib,
         target_triple,
         test,
         incremental,

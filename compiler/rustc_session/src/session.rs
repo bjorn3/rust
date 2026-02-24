@@ -42,7 +42,7 @@ use crate::config::{
 use crate::filesearch::FileSearch;
 use crate::lint::LintId;
 use crate::parse::{ParseSess, add_feature_diagnostics};
-use crate::search_paths::SearchPath;
+use crate::search_paths::{PathKind, SearchPath};
 use crate::{errors, filesearch, lint};
 
 /// The behavior of the CTFE engine when an error occurs with regards to backtraces.
@@ -1002,7 +1002,7 @@ pub fn build_session(
 
     let host_triple = TargetTuple::from_tuple(config::host_tuple());
     let (host, target_warnings) =
-        Target::search(&host_triple, sopts.sysroot.path(), sopts.unstable_opts.unstable_options)
+        Target::search(&host_triple, &sopts.target_rustlib, sopts.unstable_opts.unstable_options)
             .unwrap_or_else(|e| {
                 dcx.handle().fatal(format!("Error loading host specification: {e}"))
             });
@@ -1044,7 +1044,7 @@ pub fn build_session(
         // rescanning of the target lib path and an unnecessary allocation.
         Arc::clone(&host_tlib_path)
     } else {
-        Arc::new(SearchPath::from_sysroot_and_triple(sopts.sysroot.path(), target_triple))
+        Arc::new(SearchPath::new(PathKind::All, sopts.target_rustlib.join("lib")))
     };
 
     let prof = SelfProfilerRef::new(

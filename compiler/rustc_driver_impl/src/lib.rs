@@ -1128,7 +1128,14 @@ fn get_backend_from_raw_matches(
     let unstable_options = debug_flags.iter().find(|x| *x == "unstable-options").is_some();
     let target = parse_target_triple(early_dcx, matches);
     let sysroot = Sysroot::new(matches.opt_str("sysroot").map(PathBuf::from));
-    let target = config::build_target_config(early_dcx, &target, sysroot.path(), unstable_options);
+    let target = config::build_target_config(
+        early_dcx,
+        &target,
+        &sysroot
+            .path()
+            .join(rustc_target::relative_target_rustlib_path(sysroot.path(), target.tuple())),
+        unstable_options,
+    );
 
     get_codegen_backend(early_dcx, &sysroot, backend_name, &target)
 }

@@ -404,7 +404,8 @@ top_level_options!(
         output_types: OutputTypes [TRACKED],
         search_paths: Vec<SearchPath> [UNTRACKED],
         libs: Vec<NativeLib> [TRACKED],
-        sysroot: Sysroot [UNTRACKED],
+        sysroot: Sysroot [UNTRACKED], // FIXME use PathBuf
+        target_rustlib: PathBuf [UNTRACKED],
 
         target_triple: TargetTuple [TRACKED],
 

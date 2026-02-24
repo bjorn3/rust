@@ -400,7 +400,7 @@ pub fn run_compiler<R: Send>(config: Config, f: impl FnOnce(&Compiler) -> R + Se
     let target = config::build_target_config(
         &early_dcx,
         &config.opts.target_triple,
-        config.opts.sysroot.path(),
+        &config.opts.target_rustlib,
         config.opts.unstable_opts.unstable_options,
     );
     let file_loader = config.file_loader.unwrap_or_else(|| Box::new(RealFileLoader));

@@ -3330,7 +3330,7 @@ impl Target {
     /// JSON decoding.
     pub fn search(
         target_tuple: &TargetTuple,
-        sysroot: &Path,
+        target_rustlib: &Path,
         unstable_options: bool,
     ) -> Result<(Target, TargetWarnings), String> {
         use std::{env, fs};
@@ -3373,12 +3373,7 @@ impl Target {
 
                 // Additionally look in the sysroot under `lib/rustlib/<tuple>/target.json`
                 // as a fallback.
-                let rustlib_path = crate::relative_target_rustlib_path(sysroot, target_tuple);
-                let p = PathBuf::from_iter([
-                    Path::new(sysroot),
-                    Path::new(&rustlib_path),
-                    Path::new("target.json"),
-                ]);
+                let p = target_rustlib.join("target.json");
                 if p.is_file() {
                     return load_file(&p, unstable_options);
                 }

@@ -33,6 +33,9 @@ use rustc_middle::lint::diag_lint_level;
 use rustc_middle::middle::debugger_visualizer::DebuggerVisualizerFile;
 use rustc_middle::middle::dependency_format::Linkage;
 use rustc_middle::middle::exported_symbols::SymbolExportKind;
+/// For all the linkers we support, and information they might
+/// need out of the shared crate context before we get rid of it.
+use rustc_session::Session;
 use rustc_session::config::{
     self, CFGuard, CrateType, DebugInfo, LinkerFeaturesCli, OutFileName, OutputFilenames,
     OutputType, PrintKind, SplitDwarfKind, Strip,
@@ -40,9 +43,6 @@ use rustc_session::config::{
 use rustc_session::lint::builtin::LINKER_MESSAGES;
 use rustc_session::output::{check_file_is_writeable, invalid_output_for_target, out_filename};
 use rustc_session::search_paths::PathKind;
-/// For all the linkers we support, and information they might
-/// need out of the shared crate context before we get rid of it.
-use rustc_session::{Session, filesearch};
 use rustc_span::Symbol;
 use rustc_target::spec::crt_objects::CrtObjects;
 use rustc_target::spec::{
@@ -1261,16 +1261,8 @@ fn link_sanitizer_runtime(
     linker: &mut dyn Linker,
     name: &str,
 ) {
-    fn find_sanitizer_runtime(sess: &Session, filename: &str) -> PathBuf {
-        let path = sess.target_tlib_path.dir.join(filename);
-        if path.exists() {
-            sess.target_tlib_path.dir.clone()
-        } else {
-            filesearch::make_target_lib_path(
-                &sess.opts.sysroot.default,
-                sess.opts.target_triple.tuple(),
-            )
-        }
+    fn find_sanitizer_runtime(sess: &Session) -> PathBuf {
+        sess.target_tlib_path.dir.clone()
     }
 
     let channel =
@@ -1282,7 +1274,7 @@ fn link_sanitizer_runtime(
         // rpath to the library as well (the rpath should be absolute, see
         // PR #41352 for details).
         let filename = format!("rustc{channel}_rt.{name}");
-        let path = find_sanitizer_runtime(sess, &filename);
+        let path = find_sanitizer_runtime(sess);
         let rpath = path.to_str().expect("non-utf8 component in path");
         linker.link_args(&["-rpath", rpath]);
         linker.link_dylib_by_name(&filename, false, true);
@@ -1292,7 +1284,7 @@ fn link_sanitizer_runtime(
         linker.link_arg("/INFERASANLIBS");
     } else {
         let filename = format!("librustc{channel}_rt.{name}.a");
-        let path = find_sanitizer_runtime(sess, &filename).join(&filename);
+        let path = find_sanitizer_runtime(sess).join(&filename);
         linker.link_staticlib_by_path(&path, true);
     }
 }
@@ -1769,7 +1761,7 @@ fn detect_self_contained_mingw(sess: &Session, linker: &Path) -> bool {
     for dir in env::split_paths(&env::var_os("PATH").unwrap_or_default()) {
         let full_path = dir.join(&linker_with_extension);
         // If linker comes from sysroot assume self-contained mode
-        if full_path.is_file() && !full_path.starts_with(sess.opts.sysroot.path()) {
+        if full_path.is_file() && !full_path.starts_with(&sess.opts.sysroot.path()) {
             return false;
         }
     }
