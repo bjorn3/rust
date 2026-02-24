@@ -1385,6 +1385,69 @@ fn file_path_mapping(
     FilePathMapping::new(remap_path_prefix.clone(), remap_path_scope)
 }
 
+impl Default for Options {
+    fn default() -> Options {
+        let unstable_opts = UnstableOptions::default();
+
+        // FIXME(Urgau): This is a hack that ideally shouldn't exist, but rustdoc
+        // currently uses this `Default` implementation, so we have no choice but
+        // to create a default working directory.
+        let working_dir = {
+            let working_dir = std::env::current_dir().unwrap();
+            let file_mapping = file_path_mapping(Vec::new(), RemapPathScopeComponents::empty());
+            file_mapping.to_real_filename(&RealFileName::empty(), &working_dir)
+        };
+
+        Options {
+            assert_incr_state: None,
+            crate_types: Vec::new(),
+            optimize: OptLevel::No,
+            debuginfo: DebugInfo::None,
+            lint_opts: Vec::new(),
+            lint_cap: None,
+            describe_lints: false,
+            output_types: OutputTypes(BTreeMap::new()),
+            search_paths: vec![],
+            sysroot: Sysroot::new(None),
+            target_rustlib: PathBuf::new(),
+            target_triple: TargetTuple::from_tuple(host_tuple()),
+            test: false,
+            incremental: None,
+            untracked_state_hash: Default::default(),
+            unstable_opts,
+            prints: Vec::new(),
+            cg: Default::default(),
+            error_format: ErrorOutputType::default(),
+            diagnostic_width: None,
+            externs: Externs(BTreeMap::new()),
+            crate_name: None,
+            libs: Vec::new(),
+            unstable_features: UnstableFeatures::Disallow,
+            debug_assertions: true,
+            actually_rustdoc: false,
+            resolve_doc_links: ResolveDocLinks::None,
+            trimmed_def_paths: false,
+            cli_forced_codegen_units: None,
+            cli_forced_local_thinlto_off: false,
+            remap_path_prefix: Vec::new(),
+            remap_path_scope: RemapPathScopeComponents::all(),
+            real_rust_source_base_dir: None,
+            real_rustc_dev_source_base_dir: None,
+            edition: DEFAULT_EDITION,
+            json_artifact_notifications: false,
+            json_timings: false,
+            json_unused_externs: JsonUnusedExterns::No,
+            json_future_incompat: false,
+            pretty: None,
+            working_dir,
+            color: ColorConfig::Auto,
+            logical_env: FxIndexMap::default(),
+            verbose: false,
+            target_modifiers: BTreeMap::default(),
+        }
+    }
+}
+
 impl Options {
     /// Returns `true` if there is a reason to build the dep graph.
     pub fn build_dep_graph(&self) -> bool {
