@@ -874,6 +874,7 @@ tool_check_step!(CoverageDump {
 tool_check_step!(Compiletest {
     path: "src/tools/compiletest",
     mode: Mode::ToolBootstrap,
+    allow_features: "never_type",
     default: false,
 });
 

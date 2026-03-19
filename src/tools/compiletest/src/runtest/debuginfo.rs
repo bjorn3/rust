@@ -11,7 +11,7 @@ use super::{Debugger, Emit, ProcRes, TestCx, Truncated, WillExecute};
 use crate::debuggers::extract_gdb_version;
 
 impl TestCx<'_> {
-    pub(super) fn run_debuginfo_test(&self) {
+    pub(super) fn run_debuginfo_test(&self) -> Result<(), ()> {
         match self.config.debugger.unwrap() {
             Debugger::Cdb => self.run_debuginfo_cdb_test(),
             Debugger::Gdb => self.run_debuginfo_gdb_test(),
@@ -19,7 +19,7 @@ impl TestCx<'_> {
         }
     }
 
-    fn run_debuginfo_cdb_test(&self) {
+    fn run_debuginfo_cdb_test(&self) -> Result<(), ()> {
         let exe_file = self.make_exe_name();
 
         // Existing PDB files are update in-place. When changing the debuginfo
@@ -37,17 +37,17 @@ impl TestCx<'_> {
 
         // compile test file (it should have 'compile-flags:-g' in the directive)
         let should_run = self.run_if_enabled();
-        let compile_result = self.compile_test(should_run, Emit::None);
+        let compile_result = self.compile_test(should_run, Emit::None)?;
         if !compile_result.status.success() {
-            self.fatal_proc_rec("compilation failed!", &compile_result);
+            self.fatal_proc_rec("compilation failed!", &compile_result)?;
         }
         if let WillExecute::Disabled = should_run {
-            return;
+            return Ok(());
         }
 
         // Parse debugger commands etc from test files
         let dbg_cmds = DebuggerCommands::parse_from(&self.testpaths.file, "cdb", self.revision)
-            .unwrap_or_else(|e| self.fatal(&e));
+            .or_else(|e| self.fatal(&e).map(|ok| match ok {}))?;
 
         // https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/debugger-commands
         let mut script_str = String::with_capacity(2048);
@@ -96,27 +96,29 @@ impl TestCx<'_> {
         );
 
         if !debugger_run_result.status.success() {
-            self.fatal_proc_rec("Error while running CDB", &debugger_run_result);
+            self.fatal_proc_rec("Error while running CDB", &debugger_run_result)?;
         }
 
         if let Err(e) = dbg_cmds.check_output(&debugger_run_result) {
-            self.fatal_proc_rec(&e, &debugger_run_result);
+            self.fatal_proc_rec(&e, &debugger_run_result)?;
         }
+
+        Ok(())
     }
 
-    fn run_debuginfo_gdb_test(&self) {
+    fn run_debuginfo_gdb_test(&self) -> Result<(), ()> {
         let dbg_cmds = DebuggerCommands::parse_from(&self.testpaths.file, "gdb", self.revision)
-            .unwrap_or_else(|e| self.fatal(&e));
+            .or_else(|e| self.fatal(&e).map(|ok| match ok {}))?;
         let mut cmds = dbg_cmds.commands.join("\n");
 
         // compile test file (it should have 'compile-flags:-g' in the directive)
         let should_run = self.run_if_enabled();
-        let compiler_run_result = self.compile_test(should_run, Emit::None);
+        let compiler_run_result = self.compile_test(should_run, Emit::None)?;
         if !compiler_run_result.status.success() {
-            self.fatal_proc_rec("compilation failed!", &compiler_run_result);
+            self.fatal_proc_rec("compilation failed!", &compiler_run_result)?;
         }
         if let WillExecute::Disabled = should_run {
-            return;
+            return Ok(());
         }
 
         let exe_file = self.make_exe_name();
@@ -318,27 +320,29 @@ impl TestCx<'_> {
         }
 
         if !debugger_run_result.status.success() {
-            self.fatal_proc_rec("gdb failed to execute", &debugger_run_result);
+            self.fatal_proc_rec("gdb failed to execute", &debugger_run_result)?;
         }
 
         if let Err(e) = dbg_cmds.check_output(&debugger_run_result) {
-            self.fatal_proc_rec(&e, &debugger_run_result);
+            self.fatal_proc_rec(&e, &debugger_run_result)?;
         }
+
+        Ok(())
     }
 
-    fn run_debuginfo_lldb_test(&self) {
+    fn run_debuginfo_lldb_test(&self) -> Result<(), ()> {
         let Some(ref lldb) = self.config.lldb else {
-            self.fatal("Can't run LLDB test because LLDB's path is not set.");
+            self.fatal("Can't run LLDB test because LLDB's path is not set.")?;
         };
 
         // compile test file (it should have 'compile-flags:-g' in the directive)
         let should_run = self.run_if_enabled();
-        let compile_result = self.compile_test(should_run, Emit::None);
+        let compile_result = self.compile_test(should_run, Emit::None)?;
         if !compile_result.status.success() {
-            self.fatal_proc_rec("compilation failed!", &compile_result);
+            self.fatal_proc_rec("compilation failed!", &compile_result)?;
         }
         if let WillExecute::Disabled = should_run {
-            return;
+            return Ok(());
         }
 
         let exe_file = self.make_exe_name();
@@ -362,7 +366,7 @@ impl TestCx<'_> {
 
         // Parse debugger commands etc from test files
         let dbg_cmds = DebuggerCommands::parse_from(&self.testpaths.file, "lldb", self.revision)
-            .unwrap_or_else(|e| self.fatal(&e));
+            .or_else(|e| self.fatal(&e).map(|ok| match ok {}))?;
 
         // Write debugger script:
         // We don't want to hang when calling `quit` while the process is still running
@@ -435,15 +439,17 @@ impl TestCx<'_> {
         let debugger_script = self.make_out_name("debugger.script");
 
         // Let LLDB execute the script via lldb_batchmode.py
-        let debugger_run_result = self.run_lldb(lldb, &exe_file, &debugger_script);
+        let debugger_run_result = self.run_lldb(lldb, &exe_file, &debugger_script)?;
 
         if !debugger_run_result.status.success() {
-            self.fatal_proc_rec("Error while running LLDB", &debugger_run_result);
+            self.fatal_proc_rec("Error while running LLDB", &debugger_run_result)?;
         }
 
         if let Err(e) = dbg_cmds.check_output(&debugger_run_result) {
-            self.fatal_proc_rec(&e, &debugger_run_result);
+            self.fatal_proc_rec(&e, &debugger_run_result)?;
         }
+
+        Ok(())
     }
 
     fn run_lldb(
@@ -451,7 +457,7 @@ impl TestCx<'_> {
         lldb: &Utf8Path,
         test_executable: &Utf8Path,
         debugger_script: &Utf8Path,
-    ) -> ProcRes {
+    ) -> Result<ProcRes, ()> {
         // Path containing `lldb_batchmode.py`, so that the `script` command can import it.
         let rust_pp_module_abs_path = self.config.src_root.join("src/etc");
         let pythonpath = with_pythonpath_prepended(&rust_pp_module_abs_path);

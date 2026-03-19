@@ -3,7 +3,7 @@ use std::fs;
 use super::{ProcRes, ReadFrom, TestCx};
 
 impl TestCx<'_> {
-    pub(super) fn run_pretty_test(&self) {
+    pub(super) fn run_pretty_test(&self) -> Result<(), ()> {
         if self.props.pp_exact.is_some() {
             self.logv("testing for exact pretty-printing");
         } else {
@@ -24,7 +24,7 @@ impl TestCx<'_> {
             let read_from =
                 if round == 0 { ReadFrom::Path } else { ReadFrom::Stdin(srcs[round].to_owned()) };
 
-            let proc_res = self.print_source(read_from, &self.props.pretty_mode);
+            let proc_res = self.print_source(read_from, &self.props.pretty_mode)?;
             if !proc_res.status.success() {
                 self.fatal_proc_rec(
                     &format!(
@@ -32,7 +32,7 @@ impl TestCx<'_> {
                         round, self.revision
                     ),
                     &proc_res,
-                );
+                )?;
             }
 
             let ProcRes { stdout, .. } = proc_res;
@@ -57,7 +57,7 @@ impl TestCx<'_> {
         }
 
         if !self.config.bless {
-            self.compare_source(&expected, &actual);
+            self.compare_source(&expected, &actual)?;
         } else if expected != actual {
             let filepath_buf;
             let filepath = match &self.props.pp_exact {
@@ -72,13 +72,15 @@ impl TestCx<'_> {
 
         // If we're only making sure that the output matches then just stop here
         if self.props.pretty_compare_only {
-            return;
+            return Ok(());
         }
 
         // Finally, let's make sure it actually appears to remain valid code
-        let proc_res = self.typecheck_source(actual);
+        let proc_res = self.typecheck_source(actual)?;
         if !proc_res.status.success() {
-            self.fatal_proc_rec("pretty-printed source does not typecheck", &proc_res);
+            self.fatal_proc_rec("pretty-printed source does not typecheck", &proc_res)?;
         }
+
+        Ok(())
     }
 }

@@ -1,9 +1,9 @@
 use super::{TestCx, WillExecute};
 
 impl TestCx<'_> {
-    pub(super) fn run_crash_test(&self) {
+    pub(super) fn run_crash_test(&self) -> Result<(), ()> {
         let pm = self.pass_mode();
-        let proc_res = self.compile_test(WillExecute::No, self.should_emit_metadata(pm));
+        let proc_res = self.compile_test(WillExecute::No, self.should_emit_metadata(pm))?;
 
         if std::env::var("COMPILETEST_VERBOSE_CRASHES").is_ok() {
             writeln!(self.stderr, "{}", proc_res.status);
@@ -20,7 +20,9 @@ impl TestCx<'_> {
                 move it to tests/ui or wherever you see fit. Adding 'Fixes #<issueNr>' to your PR \
                 description ensures that the corresponding ticket is auto-closed upon merge. \
                 If you want to see verbose output, set `COMPILETEST_VERBOSE_CRASHES=1`."
-            ));
+            ))?;
         }
+
+        Ok(())
     }
 }

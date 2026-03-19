@@ -9,7 +9,7 @@ use super::{Emit, TestCx, WillExecute};
 use crate::runtest::compute_diff::write_diff;
 
 impl TestCx<'_> {
-    pub(super) fn run_mir_opt_test(&self) {
+    pub(super) fn run_mir_opt_test(&self) -> Result<(), ()> {
         let pm = self.pass_mode();
         let should_run = self.should_run(pm);
 
@@ -21,22 +21,24 @@ impl TestCx<'_> {
 
         let passes = std::mem::take(&mut test_info.passes);
 
-        let proc_res = self.compile_test_with_passes(should_run, Emit::Mir, passes);
+        let proc_res = self.compile_test_with_passes(should_run, Emit::Mir, passes)?;
         if !proc_res.status.success() {
-            self.fatal_proc_rec("compilation failed!", &proc_res);
+            self.fatal_proc_rec("compilation failed!", &proc_res)?;
         }
-        self.check_mir_dump(test_info);
+        self.check_mir_dump(test_info)?;
 
         if let WillExecute::Yes = should_run {
             let proc_res = self.exec_compiled_test();
 
             if !proc_res.status.success() {
-                self.fatal_proc_rec("test run failed!", &proc_res);
+                self.fatal_proc_rec("test run failed!", &proc_res)?;
             }
         }
+
+        Ok(())
     }
 
-    fn check_mir_dump(&self, test_info: MiroptTest) {
+    fn check_mir_dump(&self, test_info: MiroptTest) -> Result<(), ()> {
         let test_dir = self.testpaths.file.parent().unwrap();
         let test_crate = self.testpaths.file.file_stem().unwrap().replace('-', "_");
 
@@ -93,9 +95,11 @@ impl TestCx<'_> {
             let output_path = self.output_base_name().with_extension("mir");
             let proc_res = self.verify_with_filecheck(&output_path);
             if !proc_res.status.success() {
-                self.fatal_proc_rec("verification with 'FileCheck' failed", &proc_res);
+                self.fatal_proc_rec("verification with 'FileCheck' failed", &proc_res)?;
             }
         }
+
+        Ok(())
     }
 
     fn diff_mir_files(&self, before: Utf8PathBuf, after: Utf8PathBuf) -> String {

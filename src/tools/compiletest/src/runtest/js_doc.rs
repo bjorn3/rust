@@ -3,11 +3,11 @@ use std::process::Command;
 use super::{DocKind, TestCx};
 
 impl TestCx<'_> {
-    pub(super) fn run_rustdoc_js_test(&self) {
+    pub(super) fn run_rustdoc_js_test(&self) -> Result<(), ()> {
         if let Some(nodejs) = &self.config.nodejs {
             let out_dir = self.output_base_dir();
 
-            self.document(&out_dir, DocKind::Html);
+            self.document(&out_dir, DocKind::Html)?;
 
             let file_stem = self.testpaths.file.file_stem().expect("no file stem");
             let res = self.run_command_to_procres(
@@ -21,12 +21,14 @@ impl TestCx<'_> {
                     .arg(self.testpaths.file.with_extension("js"))
                     .arg("--revision")
                     .arg(self.revision.unwrap_or_default()),
-            );
+            )?;
             if !res.status.success() {
-                self.fatal_proc_rec("rustdoc-js test failed!", &res);
+                self.fatal_proc_rec("rustdoc-js test failed!", &res)?;
             }
         } else {
-            self.fatal("no nodeJS");
+            self.fatal("no nodeJS")?;
         }
+
+        Ok(())
     }
 }

@@ -12,20 +12,20 @@ use crate::runtest::{
 };
 
 impl TestCx<'_> {
-    pub(super) fn run_ui_test(&self) {
+    pub(super) fn run_ui_test(&self) -> Result<(), ()> {
         if let Some(FailMode::Build) = self.props.fail_mode {
             // Make sure a build-fail test cannot fail due to failing analysis (e.g. typeck).
             let pm = Some(PassMode::Check);
             let proc_res =
-                self.compile_test_general(WillExecute::No, Emit::Metadata, pm, Vec::new());
-            self.check_if_test_should_compile(self.props.fail_mode, pm, &proc_res);
+                self.compile_test_general(WillExecute::No, Emit::Metadata, pm, Vec::new())?;
+            self.check_if_test_should_compile(self.props.fail_mode, pm, &proc_res)?;
         }
 
         let pm = self.pass_mode();
         let should_run = self.should_run(pm);
         let emit_metadata = self.should_emit_metadata(pm);
-        let proc_res = self.compile_test(should_run, emit_metadata);
-        self.check_if_test_should_compile(self.props.fail_mode, pm, &proc_res);
+        let proc_res = self.compile_test(should_run, emit_metadata)?;
+        self.check_if_test_should_compile(self.props.fail_mode, pm, &proc_res)?;
         if matches!(proc_res.truncated, Truncated::Yes)
             && !self.props.dont_check_compiler_stdout
             && !self.props.dont_check_compiler_stderr
@@ -33,7 +33,7 @@ impl TestCx<'_> {
             self.fatal_proc_rec(
                 "compiler output got truncated, cannot compare with reference file",
                 &proc_res,
-            );
+            )?;
         }
 
         // if the user specified a format in the ui test
@@ -41,11 +41,11 @@ impl TestCx<'_> {
         // the rendered error messages from json and print them
         let explicit = self.props.compile_flags.iter().any(|s| s.contains("--error-format"));
 
-        let expected_fixed = self.load_expected_output(UI_FIXED);
+        let expected_fixed = self.load_expected_output(UI_FIXED)?;
 
-        self.check_and_prune_duplicate_outputs(&proc_res, &[], &[]);
+        self.check_and_prune_duplicate_outputs(&proc_res, &[], &[])?;
 
-        let mut errors = self.load_compare_outputs(&proc_res, TestOutput::Compile, explicit);
+        let mut errors = self.load_compare_outputs(&proc_res, TestOutput::Compile, explicit)?;
         let rustfix_input = json::rustfix_diagnostics_only(&proc_res.stderr);
 
         if self.config.compare_mode.is_some() {
@@ -101,7 +101,7 @@ impl TestCx<'_> {
             });
 
             if self
-                .compare_output("fixed", &fixed_code, &fixed_code, &expected_fixed)
+                .compare_output("fixed", &fixed_code, &fixed_code, &expected_fixed)?
                 .should_error()
             {
                 errors += 1;
@@ -128,7 +128,7 @@ impl TestCx<'_> {
             self.fatal_proc_rec(
                 &format!("{} errors occurred comparing output.", errors),
                 &proc_res,
-            );
+            )?;
         }
 
         // If the test is executed, capture its ProcRes separately so that
@@ -137,7 +137,7 @@ impl TestCx<'_> {
         let output_to_check = if let WillExecute::Yes = should_run {
             let proc_res = self.exec_compiled_test();
             let run_output_errors = if self.props.check_run_results {
-                self.load_compare_outputs(&proc_res, TestOutput::Run, explicit)
+                self.load_compare_outputs(&proc_res, TestOutput::Run, explicit)?
             } else {
                 0
             };
@@ -145,7 +145,7 @@ impl TestCx<'_> {
                 self.fatal_proc_rec(
                     &format!("{} errors occurred comparing run output.", run_output_errors),
                     &proc_res,
-                );
+                )?;
             }
             let code = proc_res.status.code();
             let run_result = if proc_res.status.success() {
@@ -163,7 +163,7 @@ impl TestCx<'_> {
                     self.fatal_proc_rec(
                         &format!("test did not exit with success! {pass_hint}"),
                         &proc_res,
-                    );
+                    )?;
                 }
             } else if self.props.fail_mode == Some(FailMode::Run(RunFailMode::Fail)) {
                 // If the test is marked as `run-fail` but do not support
@@ -179,18 +179,18 @@ impl TestCx<'_> {
                     } else {
                         format!("test did not exit with failure! {pass_hint}")
                     };
-                    self.fatal_proc_rec(&err, &proc_res);
+                    self.fatal_proc_rec(&err, &proc_res)?;
                 }
             } else if self.props.fail_mode == Some(FailMode::Run(RunFailMode::Crash)) {
                 if run_result != RunResult::Crash {
-                    self.fatal_proc_rec(&format!("test did not crash! {pass_hint}"), &proc_res);
+                    self.fatal_proc_rec(&format!("test did not crash! {pass_hint}"), &proc_res)?;
                 }
             } else if self.props.fail_mode == Some(FailMode::Run(RunFailMode::FailOrCrash)) {
                 if run_result != RunResult::Fail && run_result != RunResult::Crash {
                     self.fatal_proc_rec(
                         &format!("test did not exit with failure or crash! {pass_hint}"),
                         &proc_res,
-                    );
+                    )?;
                 }
             } else {
                 unreachable!("run_ui_test() must not be called if the test should not run");
@@ -215,13 +215,13 @@ impl TestCx<'_> {
         );
 
         // Compiler diagnostics (expected errors) are always tied to the compile-time ProcRes.
-        self.check_expected_errors(&proc_res);
+        self.check_expected_errors(&proc_res)?;
 
         // For runtime pattern/forbid checks prefer the executed program's ProcRes if available
         // so that missing pattern failures include the program's stdout/stderr.
         let pattern_proc_res = run_proc_res.as_ref().unwrap_or(&proc_res);
-        self.check_all_error_patterns(&output_to_check, pattern_proc_res);
-        self.check_forbid_output(&output_to_check, pattern_proc_res);
+        self.check_all_error_patterns(&output_to_check, pattern_proc_res)?;
+        self.check_forbid_output(&output_to_check, pattern_proc_res)?;
 
         if self.props.run_rustfix && self.config.compare_mode.is_none() {
             // And finally, compile the fixed code and make sure it both
@@ -253,16 +253,18 @@ impl TestCx<'_> {
                 rustc.arg(crate_name);
             }
 
-            let res = self.compose_and_run_compiler(rustc, None);
+            let res = self.compose_and_run_compiler(rustc, None)?;
             if !res.status.success() {
-                self.fatal_proc_rec("failed to compile fixed code", &res);
+                self.fatal_proc_rec("failed to compile fixed code", &res)?;
             }
             if !res.stderr.is_empty()
                 && !self.props.rustfix_only_machine_applicable
                 && !json::rustfix_diagnostics_only(&res.stderr).is_empty()
             {
-                self.fatal_proc_rec("fixed code is still producing diagnostics", &res);
+                self.fatal_proc_rec("fixed code is still producing diagnostics", &res)?;
             }
         }
+
+        Ok(())
     }
 }

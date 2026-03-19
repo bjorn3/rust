@@ -11,32 +11,33 @@ use crate::runtest::{Emit, ProcRes, TestCx, WillExecute};
 use crate::util::static_regex;
 
 impl<'test> TestCx<'test> {
-    fn coverage_dump_path(&self) -> &Utf8Path {
+    fn coverage_dump_path(&self) -> Result<&Utf8Path, ()> {
         self.config
             .coverage_dump_path
             .as_deref()
-            .unwrap_or_else(|| self.fatal("missing --coverage-dump"))
+            .ok_or(())
+            .or_else(|()| self.fatal("missing --coverage-dump").map(|ok| match ok {}))
     }
 
-    pub(super) fn run_coverage_map_test(&self) {
-        let coverage_dump_path = self.coverage_dump_path();
+    pub(super) fn run_coverage_map_test(&self) -> Result<(), ()> {
+        let coverage_dump_path = self.coverage_dump_path()?;
 
-        let (proc_res, llvm_ir_path) = self.compile_test_and_save_ir();
+        let (proc_res, llvm_ir_path) = self.compile_test_and_save_ir()?;
         if !proc_res.status.success() {
-            self.fatal_proc_rec("compilation failed!", &proc_res);
+            self.fatal_proc_rec("compilation failed!", &proc_res)?;
         }
         drop(proc_res);
 
         let mut dump_command = Command::new(coverage_dump_path);
         dump_command.arg(llvm_ir_path);
-        let proc_res = self.run_command_to_procres(&mut dump_command);
+        let proc_res = self.run_command_to_procres(&mut dump_command)?;
         if !proc_res.status.success() {
-            self.fatal_proc_rec("coverage-dump failed!", &proc_res);
+            self.fatal_proc_rec("coverage-dump failed!", &proc_res)?;
         }
 
         let kind = UI_COVERAGE_MAP;
 
-        let expected_coverage_dump = self.load_expected_output(kind);
+        let expected_coverage_dump = self.load_expected_output(kind)?;
         let actual_coverage_dump = self.normalize_output(&proc_res.stdout, &[]);
 
         let coverage_dump_compare_outcome = self.compare_output(
@@ -44,27 +45,29 @@ impl<'test> TestCx<'test> {
             &actual_coverage_dump,
             &proc_res.stdout,
             &expected_coverage_dump,
-        );
+        )?;
 
         if coverage_dump_compare_outcome.should_error() {
             self.fatal_proc_rec(
                 &format!("an error occurred comparing coverage output."),
                 &proc_res,
-            );
+            )?;
         }
+
+        Ok(())
     }
 
-    pub(super) fn run_coverage_run_test(&self) {
+    pub(super) fn run_coverage_run_test(&self) -> Result<(), ()> {
         let should_run = self.run_if_enabled();
-        let proc_res = self.compile_test(should_run, Emit::None);
+        let proc_res = self.compile_test(should_run, Emit::None)?;
 
         if !proc_res.status.success() {
-            self.fatal_proc_rec("compilation failed!", &proc_res);
+            self.fatal_proc_rec("compilation failed!", &proc_res)?;
         }
         drop(proc_res);
 
         if let WillExecute::Disabled = should_run {
-            return;
+            return Ok(());
         }
 
         let profraw_path = self.output_base_dir().join("default.profraw");
@@ -82,9 +85,9 @@ impl<'test> TestCx<'test> {
         let proc_res =
             self.exec_compiled_test_general(&[("LLVM_PROFILE_FILE", profraw_path.as_str())], false);
         if self.props.failure_status.is_some() {
-            self.check_correct_failure_status(&proc_res);
+            self.check_correct_failure_status(&proc_res)?;
         } else if !proc_res.status.success() {
-            self.fatal_proc_rec("test run failed!", &proc_res);
+            self.fatal_proc_rec("test run failed!", &proc_res)?;
         }
         drop(proc_res);
 
@@ -92,7 +95,7 @@ impl<'test> TestCx<'test> {
         let mut bin_paths = vec![self.make_exe_name()];
 
         if self.config.suite == TestSuite::CoverageRunRustdoc {
-            self.run_doctests_for_coverage(&mut profraw_paths, &mut bin_paths);
+            self.run_doctests_for_coverage(&mut profraw_paths, &mut bin_paths)?;
         }
 
         // Run `llvm-profdata merge` to index the raw coverage output.
@@ -100,9 +103,10 @@ impl<'test> TestCx<'test> {
             cmd.args(["merge", "--sparse", "--output"]);
             cmd.arg(&profdata_path);
             cmd.args(&profraw_paths);
-        });
+            Ok(())
+        })?;
         if !proc_res.status.success() {
-            self.fatal_proc_rec("llvm-profdata merge failed!", &proc_res);
+            self.fatal_proc_rec("llvm-profdata merge failed!", &proc_res)?;
         }
         drop(proc_res);
 
@@ -111,7 +115,7 @@ impl<'test> TestCx<'test> {
             cmd.args(["show", "--format=text", "--show-line-counts-or-regions"]);
 
             // Specify the demangler binary and its arguments.
-            let coverage_dump_path = self.coverage_dump_path();
+            let coverage_dump_path = self.coverage_dump_path()?;
             cmd.arg("--Xdemangler").arg(coverage_dump_path);
             cmd.arg("--Xdemangler").arg("--demangle");
 
@@ -124,32 +128,35 @@ impl<'test> TestCx<'test> {
             }
 
             cmd.args(&self.props.llvm_cov_flags);
-        });
+
+            Ok(())
+        })?;
         if !proc_res.status.success() {
-            self.fatal_proc_rec("llvm-cov show failed!", &proc_res);
+            self.fatal_proc_rec("llvm-cov show failed!", &proc_res)?;
         }
 
         let kind = UI_COVERAGE;
 
-        let expected_coverage = self.load_expected_output(kind);
-        let normalized_actual_coverage =
-            self.normalize_coverage_output(&proc_res.stdout).unwrap_or_else(|err| {
-                self.fatal_proc_rec(&err, &proc_res);
-            });
+        let expected_coverage = self.load_expected_output(kind)?;
+        let normalized_actual_coverage = self
+            .normalize_coverage_output(&proc_res.stdout)
+            .or_else(|err| self.fatal_proc_rec(&err, &proc_res)?)?;
 
         let coverage_dump_compare_outcome = self.compare_output(
             kind,
             &normalized_actual_coverage,
             &proc_res.stdout,
             &expected_coverage,
-        );
+        )?;
 
         if coverage_dump_compare_outcome.should_error() {
             self.fatal_proc_rec(
                 &format!("an error occurred comparing coverage output."),
                 &proc_res,
-            );
+            )?;
         }
+
+        Ok(())
     }
 
     /// Run any doctests embedded in this test file, and add any resulting
@@ -158,7 +165,7 @@ impl<'test> TestCx<'test> {
         &self,
         profraw_paths: &mut Vec<Utf8PathBuf>,
         bin_paths: &mut Vec<Utf8PathBuf>,
-    ) {
+    ) -> Result<(), ()> {
         // Put .profraw files and doctest executables in dedicated directories,
         // to make it easier to glob them all later.
         let profraws_dir = self.output_base_dir().join("doc_profraws");
@@ -197,9 +204,9 @@ impl<'test> TestCx<'test> {
 
         rustdoc_cmd.arg(&self.testpaths.file);
 
-        let proc_res = self.compose_and_run_compiler(rustdoc_cmd, None);
+        let proc_res = self.compose_and_run_compiler(rustdoc_cmd, None)?;
         if !proc_res.status.success() {
-            self.fatal_proc_rec("rustdoc --test failed!", &proc_res)
+            self.fatal_proc_rec("rustdoc --test failed!", &proc_res)?;
         }
 
         fn glob_iter(path: impl AsRef<Utf8Path>) -> impl Iterator<Item = Utf8PathBuf> {
@@ -225,9 +232,15 @@ impl<'test> TestCx<'test> {
                 bin_paths.push(p);
             }
         }
+
+        Ok(())
     }
 
-    fn run_llvm_tool(&self, name: &str, configure_cmd_fn: impl FnOnce(&mut Command)) -> ProcRes {
+    fn run_llvm_tool(
+        &self,
+        name: &str,
+        configure_cmd_fn: impl FnOnce(&mut Command) -> Result<(), ()>,
+    ) -> Result<ProcRes, ()> {
         let tool_path = self
             .config
             .llvm_bin_dir
@@ -236,7 +249,7 @@ impl<'test> TestCx<'test> {
             .join(name);
 
         let mut cmd = Command::new(tool_path);
-        configure_cmd_fn(&mut cmd);
+        configure_cmd_fn(&mut cmd)?;
 
         self.run_command_to_procres(&mut cmd)
     }

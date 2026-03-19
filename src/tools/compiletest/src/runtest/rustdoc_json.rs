@@ -3,7 +3,7 @@ use std::process::Command;
 use super::{DocKind, TestCx, remove_and_create_dir_all};
 
 impl TestCx<'_> {
-    pub(super) fn run_rustdoc_json_test(&self) {
+    pub(super) fn run_rustdoc_json_test(&self) -> Result<(), ()> {
         //FIXME: Add bless option.
 
         assert!(self.revision.is_none(), "revisions not supported in this test suite");
@@ -13,14 +13,14 @@ impl TestCx<'_> {
             panic!("failed to remove and recreate output directory `{out_dir}`: {e}")
         });
 
-        let proc_res = self.document(&out_dir, DocKind::Json);
+        let proc_res = self.document(&out_dir, DocKind::Json)?;
 
         if !self.config.capture {
             writeln!(self.stdout, "{}", proc_res.format_info());
         }
 
         if !proc_res.status.success() {
-            self.fatal_proc_rec("rustdoc failed!", &proc_res);
+            self.fatal_proc_rec("rustdoc failed!", &proc_res)?;
         }
 
         let res = self.run_command_to_procres(
@@ -29,13 +29,13 @@ impl TestCx<'_> {
                 .arg(&out_dir)
                 .arg("--template")
                 .arg(&self.testpaths.file),
-        );
+        )?;
 
         if !res.status.success() {
             self.fatal_proc_rec_general("jsondocck failed!", None, &res, || {
                 writeln!(self.stdout, "Rustdoc Output:");
                 writeln!(self.stdout, "{}", proc_res.format_info());
-            })
+            })?;
         }
 
         let mut json_out = out_dir.join(self.testpaths.file.file_stem().unwrap());
@@ -43,10 +43,12 @@ impl TestCx<'_> {
 
         let res = self.run_command_to_procres(
             Command::new(self.config.jsondoclint_path.as_ref().unwrap()).arg(&json_out),
-        );
+        )?;
 
         if !res.status.success() {
-            self.fatal_proc_rec("jsondoclint failed!", &res);
+            self.fatal_proc_rec("jsondoclint failed!", &res)?;
         }
+
+        Ok(())
     }
 }

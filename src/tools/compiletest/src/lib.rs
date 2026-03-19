@@ -1,4 +1,4 @@
-#![crate_name = "compiletest"]
+#![feature(never_type)]
 
 #[cfg(test)]
 mod tests;

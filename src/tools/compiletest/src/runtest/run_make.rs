@@ -9,7 +9,7 @@ use crate::common::TestSuite;
 use crate::util::{copy_dir_all, dylib_env_var};
 
 impl TestCx<'_> {
-    pub(super) fn run_rmake_test(&self) {
+    pub(super) fn run_rmake_test(&self) -> Result<(), ()> {
         // For `run-make`, we need to perform 2 steps to build and run a `run-make` recipe
         // (`rmake.rs`) to run the actual tests. The support library is already built as a tool rust
         // library and is available under
@@ -134,9 +134,9 @@ impl TestCx<'_> {
         rustc.arg("-Dunused_must_use");
 
         // Now run rustc to build the recipe.
-        let res = self.run_command_to_procres(&mut rustc);
+        let res = self.run_command_to_procres(&mut rustc)?;
         if !res.status.success() {
-            self.fatal_proc_rec("run-make test failed: could not build `rmake.rs` recipe", &res);
+            self.fatal_proc_rec("run-make test failed: could not build `rmake.rs` recipe", &res)?;
         }
 
         // To actually run the recipe, we have to provide the recipe with a bunch of information
@@ -326,7 +326,9 @@ impl TestCx<'_> {
         self.dump_output(status.success(), &cmd.get_program().to_string_lossy(), &stdout, &stderr);
         if !status.success() {
             let res = ProcRes { status, stdout, stderr, truncated, cmdline: format!("{:?}", cmd) };
-            self.fatal_proc_rec("rmake recipe failed to complete", &res);
+            self.fatal_proc_rec("rmake recipe failed to complete", &res)?;
         }
+
+        Ok(())
     }
 }

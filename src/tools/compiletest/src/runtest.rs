@@ -112,7 +112,7 @@ pub fn run(
     stderr: &dyn ConsoleOut,
     testpaths: &TestPaths,
     revision: Option<&str>,
-) {
+) -> Result<(), ()> {
     match &*config.target {
         "arm-linux-androideabi"
         | "armv7-linux-androideabi"
@@ -172,13 +172,15 @@ pub fn run(
                 testpaths,
                 revision: Some(revision),
             };
-            rev_cx.run_revision();
+            rev_cx.run_revision()?;
         }
     } else {
-        cx.run_revision();
+        cx.run_revision()?;
     }
 
     cx.create_stamp();
+
+    Ok(())
 }
 
 pub fn compute_stamp_hash(config: &Config) -> String {
@@ -265,34 +267,36 @@ enum CompilerKind {
 impl<'test> TestCx<'test> {
     /// Code executed for each revision in turn (or, if there are no
     /// revisions, exactly once, with revision == None).
-    fn run_revision(&self) {
+    fn run_revision(&self) -> Result<(), ()> {
         if self.props.should_ice
             && self.config.mode != TestMode::Incremental
             && self.config.mode != TestMode::Crashes
         {
-            self.fatal("cannot use should-ice in a test that is not cfail");
+            self.fatal("cannot use should-ice in a test that is not cfail")?;
         }
         // Run the test multiple times if requested.
         // This is useful for catching flaky tests under the parallel frontend.
         for _ in 0..self.config.iteration_count {
             match self.config.mode {
-                TestMode::Pretty => self.run_pretty_test(),
-                TestMode::DebugInfo => self.run_debuginfo_test(),
-                TestMode::Codegen => self.run_codegen_test(),
-                TestMode::RustdocHtml => self.run_rustdoc_html_test(),
-                TestMode::RustdocJson => self.run_rustdoc_json_test(),
-                TestMode::CodegenUnits => self.run_codegen_units_test(),
-                TestMode::Incremental => self.run_incremental_test(),
-                TestMode::RunMake => self.run_rmake_test(),
-                TestMode::Ui => self.run_ui_test(),
-                TestMode::MirOpt => self.run_mir_opt_test(),
-                TestMode::Assembly => self.run_assembly_test(),
-                TestMode::RustdocJs => self.run_rustdoc_js_test(),
-                TestMode::CoverageMap => self.run_coverage_map_test(), // see self::coverage
-                TestMode::CoverageRun => self.run_coverage_run_test(), // see self::coverage
-                TestMode::Crashes => self.run_crash_test(),
+                TestMode::Pretty => self.run_pretty_test()?,
+                TestMode::DebugInfo => self.run_debuginfo_test()?,
+                TestMode::Codegen => self.run_codegen_test()?,
+                TestMode::RustdocHtml => self.run_rustdoc_html_test()?,
+                TestMode::RustdocJson => self.run_rustdoc_json_test()?,
+                TestMode::CodegenUnits => self.run_codegen_units_test()?,
+                TestMode::Incremental => self.run_incremental_test()?,
+                TestMode::RunMake => self.run_rmake_test()?,
+                TestMode::Ui => self.run_ui_test()?,
+                TestMode::MirOpt => self.run_mir_opt_test()?,
+                TestMode::Assembly => self.run_assembly_test()?,
+                TestMode::RustdocJs => self.run_rustdoc_js_test()?,
+                TestMode::CoverageMap => self.run_coverage_map_test()?, // see self::coverage
+                TestMode::CoverageRun => self.run_coverage_run_test()?, // see self::coverage
+                TestMode::Crashes => self.run_crash_test()?,
             }
         }
+
+        Ok(())
     }
 
     fn pass_mode(&self) -> Option<PassMode> {
@@ -353,7 +357,7 @@ impl<'test> TestCx<'test> {
         fail_mode: Option<FailMode>,
         pass_mode: Option<PassMode>,
         proc_res: &ProcRes,
-    ) {
+    ) -> Result<(), ()> {
         if self.should_compile_successfully(pass_mode) {
             if !proc_res.status.success() {
                 match (fail_mode, pass_mode) {
@@ -362,13 +366,13 @@ impl<'test> TestCx<'test> {
                         self.fatal_proc_rec(
                             "`build-fail` test is required to pass check build, but check build failed",
                             proc_res,
-                        );
+                        )?;
                     }
                     _ => {
                         self.fatal_proc_rec(
                             "test compilation failed although it shouldn't!",
                             proc_res,
-                        );
+                        )?;
                     }
                 }
             }
@@ -377,13 +381,15 @@ impl<'test> TestCx<'test> {
                 let err = &format!("{} test did not emit an error", self.config.mode);
                 let extra_note = (self.config.mode == crate::common::TestMode::Ui)
                     .then_some("note: by default, ui tests are expected not to compile.\nhint: use check-pass, build-pass, or run-pass directive to change this behavior.");
-                self.fatal_proc_rec_general(err, extra_note, proc_res, || ());
+                self.fatal_proc_rec_general(err, extra_note, proc_res, || ())?;
             }
 
             if !self.props.dont_check_failure_status {
-                self.check_correct_failure_status(proc_res);
+                self.check_correct_failure_status(proc_res)?;
             }
         }
+
+        Ok(())
     }
 
     fn get_output(&self, proc_res: &ProcRes) -> String {
@@ -394,7 +400,7 @@ impl<'test> TestCx<'test> {
         }
     }
 
-    fn check_correct_failure_status(&self, proc_res: &ProcRes) {
+    fn check_correct_failure_status(&self, proc_res: &ProcRes) -> Result<(), ()> {
         let expected_status = Some(self.props.failure_status.unwrap_or(1));
         let received_status = proc_res.status.code();
 
@@ -405,8 +411,10 @@ impl<'test> TestCx<'test> {
                     expected_status, received_status
                 ),
                 proc_res,
-            );
+            )?;
         }
+
+        Ok(())
     }
 
     /// Runs a [`Command`] and waits for it to finish, then converts its exit
@@ -419,10 +427,11 @@ impl<'test> TestCx<'test> {
     /// Panics if the command couldn't be executed at all
     /// (e.g. because the executable could not be found).
     #[must_use = "caller should check whether the command succeeded"]
-    fn run_command_to_procres(&self, cmd: &mut Command) -> ProcRes {
-        let output = cmd
-            .output()
-            .unwrap_or_else(|e| self.fatal(&format!("failed to exec `{cmd:?}` because: {e}")));
+    fn run_command_to_procres(&self, cmd: &mut Command) -> Result<ProcRes, ()> {
+        let output = cmd.output().or_else(|e| {
+            self.fatal(&format!("failed to exec `{cmd:?}` because: {e}"))
+                .map(|ok| -> Output { match ok {} })
+        })?;
 
         let proc_res = ProcRes {
             status: output.status,
@@ -438,10 +447,10 @@ impl<'test> TestCx<'test> {
             &proc_res.stderr,
         );
 
-        proc_res
+        Ok(proc_res)
     }
 
-    fn print_source(&self, read_from: ReadFrom, pretty_type: &str) -> ProcRes {
+    fn print_source(&self, read_from: ReadFrom, pretty_type: &str) -> Result<ProcRes, ()> {
         let aux_dir = self.aux_output_dir_name();
         let input: &str = match read_from {
             ReadFrom::Stdin(_) => "-",
@@ -450,7 +459,7 @@ impl<'test> TestCx<'test> {
 
         let mut rustc = Command::new(&self.config.rustc_path);
 
-        self.build_all_auxiliary(&self.aux_output_dir(), &mut rustc);
+        self.build_all_auxiliary(&self.aux_output_dir(), &mut rustc)?;
 
         rustc
             .arg(input)
@@ -469,15 +478,15 @@ impl<'test> TestCx<'test> {
             ReadFrom::Path => None,
         };
 
-        self.compose_and_run(
+        Ok(self.compose_and_run(
             rustc,
             self.config.host_compile_lib_path.as_path(),
             Some(aux_dir.as_path()),
             src,
-        )
+        ))
     }
 
-    fn compare_source(&self, expected: &str, actual: &str) {
+    fn compare_source(&self, expected: &str, actual: &str) -> Result<(), ()> {
         if expected != actual {
             self.fatal(&format!(
                 "pretty-printed source does not match expected source\n\
@@ -495,8 +504,10 @@ impl<'test> TestCx<'test> {
                 expected,
                 actual,
                 write_diff(expected, actual, 3),
-            ));
+            ))?;
         }
+
+        Ok(())
     }
 
     fn set_revision_flags(&self, cmd: &mut Command) {
@@ -545,7 +556,7 @@ impl<'test> TestCx<'test> {
         }
     }
 
-    fn typecheck_source(&self, src: String) -> ProcRes {
+    fn typecheck_source(&self, src: String) -> Result<ProcRes, ()> {
         let mut rustc = Command::new(&self.config.rustc_path);
 
         let out_dir = self.output_base_name().with_extension("pretty-out");
@@ -609,20 +620,24 @@ impl<'test> TestCx<'test> {
     }
 
     /// Check `error-pattern` and `regex-error-pattern` directives.
-    fn check_all_error_patterns(&self, output_to_check: &str, proc_res: &ProcRes) {
+    fn check_all_error_patterns(
+        &self,
+        output_to_check: &str,
+        proc_res: &ProcRes,
+    ) -> Result<(), ()> {
         let mut missing_patterns: Vec<String> = Vec::new();
         self.check_error_patterns(output_to_check, &mut missing_patterns);
-        self.check_regex_error_patterns(output_to_check, proc_res, &mut missing_patterns);
+        self.check_regex_error_patterns(output_to_check, proc_res, &mut missing_patterns)?;
 
         if missing_patterns.is_empty() {
-            return;
+            return Ok(());
         }
 
         if missing_patterns.len() == 1 {
             self.fatal_proc_rec(
                 &format!("error pattern '{}' not found!", missing_patterns[0]),
                 proc_res,
-            );
+            )?;
         } else {
             for pattern in missing_patterns {
                 writeln!(
@@ -631,7 +646,7 @@ impl<'test> TestCx<'test> {
                     prefix = self.error_prefix()
                 );
             }
-            self.fatal_proc_rec("multiple error patterns not found", proc_res);
+            self.fatal_proc_rec("multiple error patterns not found", proc_res)?;
         }
     }
 
@@ -651,7 +666,7 @@ impl<'test> TestCx<'test> {
         output_to_check: &str,
         proc_res: &ProcRes,
         missing_patterns: &mut Vec<String>,
-    ) {
+    ) -> Result<(), ()> {
         debug!("check_regex_error_patterns");
 
         for pattern in &self.props.regex_error_patterns {
@@ -662,7 +677,7 @@ impl<'test> TestCx<'test> {
                     self.fatal_proc_rec(
                         &format!("invalid regex error pattern '{}': {:?}", pattern, err),
                         proc_res,
-                    );
+                    )?;
                 }
             };
             if re.is_match(output_to_check) {
@@ -671,35 +686,40 @@ impl<'test> TestCx<'test> {
                 missing_patterns.push(pattern.to_string());
             }
         }
+
+        Ok(())
     }
 
-    fn check_no_compiler_crash(&self, proc_res: &ProcRes, should_ice: bool) {
+    fn check_no_compiler_crash(&self, proc_res: &ProcRes, should_ice: bool) -> Result<(), ()> {
         match proc_res.status.code() {
             Some(101) if !should_ice => {
-                self.fatal_proc_rec("compiler encountered internal error", proc_res)
+                self.fatal_proc_rec("compiler encountered internal error", proc_res)?
             }
-            None => self.fatal_proc_rec("compiler terminated by signal", proc_res),
-            _ => (),
+            None => self.fatal_proc_rec("compiler terminated by signal", proc_res)?,
+            _ => {}
         }
+        Ok(())
     }
 
-    fn check_forbid_output(&self, output_to_check: &str, proc_res: &ProcRes) {
+    fn check_forbid_output(&self, output_to_check: &str, proc_res: &ProcRes) -> Result<(), ()> {
         for pat in &self.props.forbid_output {
             if output_to_check.contains(pat) {
-                self.fatal_proc_rec("forbidden pattern found in compiler output", proc_res);
+                self.fatal_proc_rec("forbidden pattern found in compiler output", proc_res)?;
             }
         }
+
+        Ok(())
     }
 
     /// Check `//~ KIND message` annotations.
-    fn check_expected_errors(&self, proc_res: &ProcRes) {
+    fn check_expected_errors(&self, proc_res: &ProcRes) -> Result<(), ()> {
         let expected_errors = load_errors(&self.testpaths.file, self.revision);
         debug!(
             "check_expected_errors: expected_errors={:?} proc_res.status={:?}",
             expected_errors, proc_res.status
         );
         if proc_res.status.success() && expected_errors.iter().any(|x| x.kind == ErrorKind::Error) {
-            self.fatal_proc_rec("process did not return an error status", proc_res);
+            self.fatal_proc_rec("process did not return an error status", proc_res)?;
         }
 
         if self.props.known_bug {
@@ -707,9 +727,9 @@ impl<'test> TestCx<'test> {
                 self.fatal_proc_rec(
                     "`known_bug` tests should not have an expected error",
                     proc_res,
-                );
+                )?;
             }
-            return;
+            return Ok(());
         }
 
         // On Windows, keep all '\' path separators to match the paths reported in the JSON output
@@ -747,7 +767,7 @@ impl<'test> TestCx<'test> {
                         "error pattern '{pattern}' is found in structured \
                          diagnostics, use `//~{q} {} {pattern}` instead",
                         actual_error.kind,
-                    ));
+                    ))?;
                 }
             }
 
@@ -932,11 +952,14 @@ impl<'test> TestCx<'test> {
                     show_suggestions(suggestions, "reported", Color::Green);
                 }
             }
+            // FIXME replace panic with println+return Err
             panic!(
                 "errors differ from expected\nstatus: {}\ncommand: {}\n",
                 proc_res.status, proc_res.cmdline
             );
         }
+
+        Ok(())
     }
 
     fn should_emit_metadata(&self, pm: Option<PassMode>) -> Emit {
@@ -948,7 +971,7 @@ impl<'test> TestCx<'test> {
         }
     }
 
-    fn compile_test(&self, will_execute: WillExecute, emit: Emit) -> ProcRes {
+    fn compile_test(&self, will_execute: WillExecute, emit: Emit) -> Result<ProcRes, ()> {
         self.compile_test_general(will_execute, emit, self.props.local_pass_mode(), Vec::new())
     }
 
@@ -957,7 +980,7 @@ impl<'test> TestCx<'test> {
         will_execute: WillExecute,
         emit: Emit,
         passes: Vec<String>,
-    ) -> ProcRes {
+    ) -> Result<ProcRes, ()> {
         self.compile_test_general(will_execute, emit, self.props.local_pass_mode(), passes)
     }
 
@@ -967,7 +990,7 @@ impl<'test> TestCx<'test> {
         emit: Emit,
         local_pm: Option<PassMode>,
         passes: Vec<String>,
-    ) -> ProcRes {
+    ) -> Result<ProcRes, ()> {
         let compiler_kind = self.compiler_kind_for_non_aux();
 
         // Only use `make_exe_name` when the test ends up being executed.
@@ -1014,7 +1037,7 @@ impl<'test> TestCx<'test> {
 
     /// `root_out_dir` and `root_testpaths` refer to the parameters of the actual test being run.
     /// Auxiliaries, no matter how deep, have the same root_out_dir and root_testpaths.
-    fn document(&self, root_out_dir: &Utf8Path, kind: DocKind) -> ProcRes {
+    fn document(&self, root_out_dir: &Utf8Path, kind: DocKind) -> Result<ProcRes, ()> {
         self.document_inner(&self.testpaths.file, root_out_dir, kind)
     }
 
@@ -1026,12 +1049,12 @@ impl<'test> TestCx<'test> {
         file_to_doc: &Utf8Path,
         root_out_dir: &Utf8Path,
         kind: DocKind,
-    ) -> ProcRes {
+    ) -> Result<ProcRes, ()> {
         if self.props.build_aux_docs {
             assert_eq!(kind, DocKind::Html, "build-aux-docs only make sense for html output");
 
             for rel_ab in &self.props.aux.builds {
-                let aux_path = self.resolve_aux_path(rel_ab);
+                let aux_path = self.resolve_aux_path(rel_ab)?;
                 let props_for_aux = self.props.from_aux_file(&aux_path, self.revision, self.config);
                 let aux_cx = TestCx {
                     config: self.config,
@@ -1043,9 +1066,9 @@ impl<'test> TestCx<'test> {
                 };
                 // Create the directory for the stdout/stderr files.
                 create_dir_all(aux_cx.output_base_dir()).unwrap();
-                let auxres = aux_cx.document_inner(&aux_path, &root_out_dir, kind);
+                let auxres = aux_cx.document_inner(&aux_path, &root_out_dir, kind)?;
                 if !auxres.status.success() {
-                    return auxres;
+                    return Ok(auxres);
                 }
             }
         }
@@ -1214,7 +1237,7 @@ impl<'test> TestCx<'test> {
 
     /// For each `aux-build: foo/bar` annotation, we check to find the file in an `auxiliary`
     /// directory relative to the test itself (not any intermediate auxiliaries).
-    fn resolve_aux_path(&self, relative_aux_path: &str) -> Utf8PathBuf {
+    fn resolve_aux_path(&self, relative_aux_path: &str) -> Result<Utf8PathBuf, ()> {
         let aux_path = self
             .testpaths
             .file
@@ -1225,10 +1248,10 @@ impl<'test> TestCx<'test> {
         if !aux_path.exists() {
             self.fatal(&format!(
                 "auxiliary source file `{relative_aux_path}` not found at `{aux_path}`"
-            ));
+            ))?;
         }
 
-        aux_path
+        Ok(aux_path)
     }
 
     fn is_vxworks_pure_static(&self) -> bool {
@@ -1274,13 +1297,13 @@ impl<'test> TestCx<'test> {
         aux_dir
     }
 
-    fn build_all_auxiliary(&self, aux_dir: &Utf8Path, rustc: &mut Command) {
+    fn build_all_auxiliary(&self, aux_dir: &Utf8Path, rustc: &mut Command) -> Result<(), ()> {
         for rel_ab in &self.props.aux.builds {
-            self.build_auxiliary(rel_ab, &aux_dir, None);
+            self.build_auxiliary(rel_ab, &aux_dir, None)?;
         }
 
         for rel_ab in &self.props.aux.bins {
-            self.build_auxiliary(rel_ab, &aux_dir, Some(AuxType::Bin));
+            self.build_auxiliary(rel_ab, &aux_dir, Some(AuxType::Bin))?;
         }
 
         let path_to_crate_name = |path: &str| -> String {
@@ -1306,12 +1329,12 @@ impl<'test> TestCx<'test> {
         };
 
         for AuxCrate { extern_modifiers, name, path } in &self.props.aux.crates {
-            let aux_type = self.build_auxiliary(&path, &aux_dir, None);
+            let aux_type = self.build_auxiliary(&path, &aux_dir, None)?;
             add_extern(rustc, extern_modifiers.as_deref(), name, path, aux_type);
         }
 
         for proc_macro in &self.props.aux.proc_macros {
-            self.build_auxiliary(&proc_macro.path, &aux_dir, Some(AuxType::ProcMacro));
+            self.build_auxiliary(&proc_macro.path, &aux_dir, Some(AuxType::ProcMacro))?;
             let crate_name = path_to_crate_name(&proc_macro.path);
             add_extern(
                 rustc,
@@ -1325,39 +1348,45 @@ impl<'test> TestCx<'test> {
         // Build any `//@ aux-codegen-backend`, and pass the resulting library
         // to `-Zcodegen-backend` when compiling the test file.
         if let Some(aux_file) = &self.props.aux.codegen_backend {
-            let aux_type = self.build_auxiliary(aux_file, aux_dir, None);
+            let aux_type = self.build_auxiliary(aux_file, aux_dir, None)?;
             if let Some(lib_name) = get_lib_name(aux_file.trim_end_matches(".rs"), aux_type) {
                 let lib_path = aux_dir.join(&lib_name);
                 rustc.arg(format!("-Zcodegen-backend={}", lib_path));
             }
         }
+
+        Ok(())
     }
 
     /// `root_testpaths` refers to the path of the original test. the auxiliary and the test with an
     /// aux-build have the same `root_testpaths`.
-    fn compose_and_run_compiler(&self, mut rustc: Command, input: Option<String>) -> ProcRes {
+    fn compose_and_run_compiler(
+        &self,
+        mut rustc: Command,
+        input: Option<String>,
+    ) -> Result<ProcRes, ()> {
         if self.props.add_minicore {
-            let minicore_path = self.build_minicore();
+            let minicore_path = self.build_minicore()?;
             rustc.arg("--extern");
             rustc.arg(&format!("minicore={}", minicore_path));
         }
 
         let aux_dir = self.aux_output_dir();
-        self.build_all_auxiliary(&aux_dir, &mut rustc);
+        self.build_all_auxiliary(&aux_dir, &mut rustc)?;
 
         rustc.envs(self.props.rustc_env.clone());
         self.props.unset_rustc_env.iter().fold(&mut rustc, Command::env_remove);
-        self.compose_and_run(
+        Ok(self.compose_and_run(
             rustc,
             self.config.host_compile_lib_path.as_path(),
             Some(aux_dir.as_path()),
             input,
-        )
+        ))
     }
 
     /// Builds `minicore`. Returns the path to the minicore rlib within the base test output
     /// directory.
-    fn build_minicore(&self) -> Utf8PathBuf {
+    fn build_minicore(&self) -> Result<Utf8PathBuf, ()> {
         let output_file_path = self.output_base_dir().join("libminicore.rlib");
         let mut rustc = self.make_compile_args(
             CompilerKind::Rustc,
@@ -1379,10 +1408,10 @@ impl<'test> TestCx<'test> {
             self.fatal_proc_rec(
                 &format!("auxiliary build of {} failed to compile: ", self.config.minicore_path),
                 &res,
-            );
+            )?;
         }
 
-        output_file_path
+        Ok(output_file_path)
     }
 
     /// Builds an aux dependency.
@@ -1393,8 +1422,8 @@ impl<'test> TestCx<'test> {
         source_path: &str,
         aux_dir: &Utf8Path,
         aux_type: Option<AuxType>,
-    ) -> AuxType {
-        let aux_path = self.resolve_aux_path(source_path);
+    ) -> Result<AuxType, ()> {
+        let aux_path = self.resolve_aux_path(source_path)?;
         let mut aux_props = self.props.from_aux_file(&aux_path, self.revision, self.config);
         if aux_type == Some(AuxType::ProcMacro) {
             aux_props.force_host = true;
@@ -1427,7 +1456,7 @@ impl<'test> TestCx<'test> {
             LinkToAux::No,
             Vec::new(),
         );
-        aux_cx.build_all_auxiliary(&aux_dir, &mut aux_rustc);
+        aux_cx.build_all_auxiliary(&aux_dir, &mut aux_rustc)?;
 
         aux_rustc.envs(aux_props.rustc_env.clone());
         for key in &aux_props.unset_rustc_env {
@@ -1483,7 +1512,7 @@ impl<'test> TestCx<'test> {
         aux_rustc.arg("-L").arg(&aux_dir);
 
         if aux_props.add_minicore {
-            let minicore_path = self.build_minicore();
+            let minicore_path = self.build_minicore()?;
             aux_rustc.arg("--extern");
             aux_rustc.arg(&format!("minicore={}", minicore_path));
         }
@@ -1498,9 +1527,9 @@ impl<'test> TestCx<'test> {
             self.fatal_proc_rec(
                 &format!("auxiliary build of {aux_path} failed to compile: "),
                 &auxres,
-            );
+            )?;
         }
-        aux_type
+        Ok(aux_type)
     }
 
     fn read2_abbreviated(&self, child: Child) -> (Output, Truncated) {
@@ -2143,14 +2172,14 @@ impl<'test> TestCx<'test> {
     }
 
     #[track_caller]
-    fn fatal(&self, err: &str) -> ! {
+    fn fatal(&self, err: &str) -> Result<!, ()> {
         writeln!(self.stdout, "\n{prefix}: {err}", prefix = self.error_prefix());
         error!("fatal error, panic: {:?}", err);
         panic!("fatal error");
     }
 
-    fn fatal_proc_rec(&self, err: &str, proc_res: &ProcRes) -> ! {
-        self.fatal_proc_rec_general(err, None, proc_res, || ());
+    fn fatal_proc_rec(&self, err: &str, proc_res: &ProcRes) -> Result<!, ()> {
+        self.fatal_proc_rec_general(err, None, proc_res, || ())
     }
 
     /// Underlying implementation of [`Self::fatal_proc_rec`], providing some
@@ -2161,7 +2190,7 @@ impl<'test> TestCx<'test> {
         extra_note: Option<&str>,
         proc_res: &ProcRes,
         callback_before_unwind: impl FnOnce(),
-    ) -> ! {
+    ) -> Result<!, ()> {
         writeln!(self.stdout, "\n{prefix}: {err}", prefix = self.error_prefix());
 
         // Some callers want to print additional notes after the main error message.
@@ -2182,7 +2211,7 @@ impl<'test> TestCx<'test> {
 
     // codegen tests (using FileCheck)
 
-    fn compile_test_and_save_ir(&self) -> (ProcRes, Utf8PathBuf) {
+    fn compile_test_and_save_ir(&self) -> Result<(ProcRes, Utf8PathBuf), ()> {
         let output_path = self.output_base_name().with_extension("ll");
         let input_file = &self.testpaths.file;
         let rustc = self.make_compile_args(
@@ -2195,8 +2224,8 @@ impl<'test> TestCx<'test> {
             Vec::new(),
         );
 
-        let proc_res = self.compose_and_run_compiler(rustc, None);
-        (proc_res, output_path)
+        let proc_res = self.compose_and_run_compiler(rustc, None)?;
+        Ok((proc_res, output_path))
     }
 
     fn verify_with_filecheck(&self, output: &Utf8Path) -> ProcRes {
@@ -2275,7 +2304,7 @@ impl<'test> TestCx<'test> {
     ///
     /// It checks that doctests line in the displayed doctest "name" matches where they are
     /// defined in source code.
-    fn check_rustdoc_test_option(&self, res: ProcRes) {
+    fn check_rustdoc_test_option(&self, res: ProcRes) -> Result<(), ()> {
         let mut other_files = Vec::new();
         let mut files: HashMap<String, Vec<usize>> = HashMap::new();
         let normalized = fs::canonicalize(&self.testpaths.file).expect("failed to canonicalize");
@@ -2313,13 +2342,13 @@ impl<'test> TestCx<'test> {
                         self.fatal_proc_rec(
                             &format!("Not found doc test: \"{}\" in \"{}\":{:?}", s, path, v),
                             &res,
-                        );
+                        )?;
                     }
                 }
             }
         }
         if tested == 0 {
-            self.fatal_proc_rec(&format!("No test has been found... {:?}", files), &res);
+            self.fatal_proc_rec(&format!("No test has been found... {:?}", files), &res)?;
         } else {
             for (entry, v) in &files {
                 if !v.is_empty() {
@@ -2331,10 +2360,12 @@ impl<'test> TestCx<'test> {
                             v
                         ),
                         &res,
-                    );
+                    )?;
                 }
             }
         }
+
+        Ok(())
     }
 
     fn force_color_svg(&self) -> bool {
@@ -2346,7 +2377,7 @@ impl<'test> TestCx<'test> {
         proc_res: &ProcRes,
         output_kind: TestOutput,
         explicit_format: bool,
-    ) -> usize {
+    ) -> Result<usize, ()> {
         let stderr_bits = format!("{}bit.stderr", self.config.get_pointer_width());
         let (stderr_kind, stdout_kind) = match output_kind {
             TestOutput::Compile => (
@@ -2368,8 +2399,8 @@ impl<'test> TestCx<'test> {
             TestOutput::Run => (UI_RUN_STDERR, UI_RUN_STDOUT),
         };
 
-        let expected_stderr = self.load_expected_output(stderr_kind);
-        let expected_stdout = self.load_expected_output(stdout_kind);
+        let expected_stderr = self.load_expected_output(stderr_kind)?;
+        let expected_stdout = self.load_expected_output(stdout_kind)?;
 
         let mut normalized_stdout =
             self.normalize_output(&proc_res.stdout, &self.props.normalize_stdout);
@@ -2421,7 +2452,7 @@ impl<'test> TestCx<'test> {
                             &normalized_stdout,
                             &proc_res.stdout,
                             &expected_stdout,
-                        )
+                        )?
                         .should_error()
                     {
                         errors += 1;
@@ -2429,7 +2460,7 @@ impl<'test> TestCx<'test> {
                 }
                 if !self.props.dont_check_compiler_stderr {
                     if self
-                        .compare_output(stderr_kind, &normalized_stderr, &stderr, &expected_stderr)
+                        .compare_output(stderr_kind, &normalized_stderr, &stderr, &expected_stderr)?
                         .should_error()
                     {
                         errors += 1;
@@ -2443,21 +2474,21 @@ impl<'test> TestCx<'test> {
                         &normalized_stdout,
                         &proc_res.stdout,
                         &expected_stdout,
-                    )
+                    )?
                     .should_error()
                 {
                     errors += 1;
                 }
 
                 if self
-                    .compare_output(stderr_kind, &normalized_stderr, &stderr, &expected_stderr)
+                    .compare_output(stderr_kind, &normalized_stderr, &stderr, &expected_stderr)?
                     .should_error()
                 {
                     errors += 1;
                 }
             }
         }
-        errors
+        Ok(errors)
     }
 
     fn normalize_output(&self, output: &str, custom_rules: &[(String, String)]) -> String {
@@ -2677,15 +2708,15 @@ impl<'test> TestCx<'test> {
         path
     }
 
-    fn load_expected_output(&self, kind: &str) -> String {
+    fn load_expected_output(&self, kind: &str) -> Result<String, ()> {
         let path = self.expected_output_path(kind);
         if path.exists() {
             match self.load_expected_output_from_path(&path) {
-                Ok(x) => x,
-                Err(x) => self.fatal(&x),
+                Ok(x) => Ok(x),
+                Err(x) => self.fatal(&x)?,
             }
         } else {
-            String::new()
+            Ok(String::new())
         }
     }
 
@@ -2695,12 +2726,14 @@ impl<'test> TestCx<'test> {
     }
 
     /// Attempts to delete a file, succeeding if the file does not exist.
-    fn delete_file(&self, file: &Utf8Path) {
+    fn delete_file(&self, file: &Utf8Path) -> Result<(), ()> {
         if let Err(e) = fs::remove_file(file.as_std_path())
             && e.kind() != io::ErrorKind::NotFound
         {
-            self.fatal(&format!("failed to delete `{}`: {}", file, e,));
+            self.fatal(&format!("failed to delete `{}`: {}", file, e,))?;
         }
+
+        Ok(())
     }
 
     fn compare_output(
@@ -2709,12 +2742,12 @@ impl<'test> TestCx<'test> {
         actual: &str,
         actual_unnormalized: &str,
         expected: &str,
-    ) -> CompareOutcome {
+    ) -> Result<CompareOutcome, ()> {
         let expected_path =
             expected_output_path(self.testpaths, self.revision, &self.config.compare_mode, stream);
 
         if self.config.bless && actual.is_empty() && expected_path.exists() {
-            self.delete_file(&expected_path);
+            self.delete_file(&expected_path)?;
         }
 
         let are_different = match (self.force_color_svg(), expected.find('\n'), actual.find('\n')) {
@@ -2724,7 +2757,7 @@ impl<'test> TestCx<'test> {
             _ => expected != actual,
         };
         if !are_different {
-            return CompareOutcome::Same;
+            return Ok(CompareOutcome::Same);
         }
 
         // Wrapper tools set by `runner` might provide extra output on failure,
@@ -2745,7 +2778,7 @@ impl<'test> TestCx<'test> {
 
             // check if `expected` contains a subset of the lines of `actual`
             if used.len() == expected_lines.len() && (expected.is_empty() == actual.is_empty()) {
-                return CompareOutcome::Same;
+                return Ok(CompareOutcome::Same);
             }
             if expected_lines.is_empty() {
                 // if we have no lines to check, force a full overwite
@@ -2761,7 +2794,7 @@ impl<'test> TestCx<'test> {
             actual_lines.sort_unstable();
             expected_lines.sort_unstable();
             if actual_lines == expected_lines {
-                return CompareOutcome::Same;
+                return Ok(CompareOutcome::Same);
             } else {
                 (expected, actual)
             }
@@ -2779,7 +2812,7 @@ impl<'test> TestCx<'test> {
             .with_extra_extension(stream);
 
         if let Err(err) = fs::write(&actual_path, &actual) {
-            self.fatal(&format!("failed to write {stream} to `{actual_path}`: {err}",));
+            self.fatal(&format!("failed to write {stream} to `{actual_path}`: {err}",))?;
         }
         writeln!(self.stdout, "Saved the actual {stream} to `{actual_path}`");
 
@@ -2794,7 +2827,7 @@ impl<'test> TestCx<'test> {
                     expected,
                     actual,
                     actual_unnormalized,
-                );
+                )?;
             }
         } else {
             // Delete non-revision .stderr/.stdout file if revisions are used.
@@ -2802,12 +2835,12 @@ impl<'test> TestCx<'test> {
             if self.revision.is_some() {
                 let old =
                     expected_output_path(self.testpaths, None, &self.config.compare_mode, stream);
-                self.delete_file(&old);
+                self.delete_file(&old)?;
             }
 
             if !actual.is_empty() {
                 if let Err(err) = fs::write(&expected_path, &actual) {
-                    self.fatal(&format!("failed to write {stream} to `{expected_path}`: {err}"));
+                    self.fatal(&format!("failed to write {stream} to `{expected_path}`: {err}"))?;
                 }
                 writeln!(
                     self.stdout,
@@ -2819,7 +2852,7 @@ impl<'test> TestCx<'test> {
 
         writeln!(self.stdout, "\nThe actual {stream} differed from the expected {stream}");
 
-        if self.config.bless { CompareOutcome::Blessed } else { CompareOutcome::Differed }
+        Ok(if self.config.bless { CompareOutcome::Blessed } else { CompareOutcome::Differed })
     }
 
     /// Returns whether to show the full stderr/stdout.
@@ -2831,7 +2864,7 @@ impl<'test> TestCx<'test> {
         expected: &str,
         actual: &str,
         actual_unnormalized: &str,
-    ) {
+    ) -> Result<(), ()> {
         writeln!(self.stderr, "diff of {stream}:\n");
         if let Some(diff_command) = self.config.diff_command.as_deref() {
             let mut args = diff_command.split_whitespace();
@@ -2840,7 +2873,7 @@ impl<'test> TestCx<'test> {
                 Err(err) => {
                     self.fatal(&format!(
                         "failed to call custom diff command `{diff_command}`: {err}"
-                    ));
+                    ))?;
                 }
                 Ok(output) => {
                     let output = String::from_utf8_lossy(&output.stdout);
@@ -2897,6 +2930,8 @@ impl<'test> TestCx<'test> {
                 write_diff(&mismatches_unnormalized, &mismatches_normalized, 0)
             );
         }
+
+        Ok(())
     }
 
     fn check_and_prune_duplicate_outputs(
@@ -2904,7 +2939,7 @@ impl<'test> TestCx<'test> {
         proc_res: &ProcRes,
         modes: &[CompareMode],
         require_same_modes: &[CompareMode],
-    ) {
+    ) -> Result<(), ()> {
         for kind in UI_EXTENSIONS {
             let canon_comparison_path =
                 expected_output_path(&self.testpaths, self.revision, &None, kind);
@@ -2914,14 +2949,16 @@ impl<'test> TestCx<'test> {
                 _ => continue,
             };
             let bless = self.config.bless;
-            let check_and_prune_duplicate_outputs = |mode: &CompareMode, require_same: bool| {
+            let check_and_prune_duplicate_outputs = |mode: &CompareMode,
+                                                     require_same: bool|
+             -> Result<(), ()> {
                 let examined_path =
                     expected_output_path(&self.testpaths, self.revision, &Some(mode.clone()), kind);
 
                 // If there is no output, there is nothing to do
                 let examined_content = match self.load_expected_output_from_path(&examined_path) {
                     Ok(content) => content,
-                    _ => return,
+                    _ => return Ok(()),
                 };
 
                 let is_duplicate = canon == examined_content;
@@ -2929,7 +2966,7 @@ impl<'test> TestCx<'test> {
                 match (bless, require_same, is_duplicate) {
                     // If we're blessing and the output is the same, then delete the file.
                     (true, _, true) => {
-                        self.delete_file(&examined_path);
+                        self.delete_file(&examined_path)?;
                     }
                     // If we want them to be the same, but they are different, then error.
                     // We do this whether we bless or not
@@ -2937,18 +2974,22 @@ impl<'test> TestCx<'test> {
                         self.fatal_proc_rec(
                             &format!("`{}` should not have different output from base test!", kind),
                             proc_res,
-                        );
+                        )?;
                     }
                     _ => {}
                 }
+
+                Ok(())
             };
             for mode in modes {
-                check_and_prune_duplicate_outputs(mode, false);
+                check_and_prune_duplicate_outputs(mode, false)?;
             }
             for mode in require_same_modes {
-                check_and_prune_duplicate_outputs(mode, true);
+                check_and_prune_duplicate_outputs(mode, true)?;
             }
         }
+
+        Ok(())
     }
 
     fn create_stamp(&self) {

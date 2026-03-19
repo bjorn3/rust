@@ -150,7 +150,7 @@ fn test_thread_main(args: TestThreadArgs) {
     // FIXME(Zalathar): Ideally we would report test failures with `Result`,
     // and use panics only for bugs within compiletest itself, but that would
     // require a major overhaul of error handling in the test runners.
-    let panic_payload = panic::catch_unwind(|| {
+    let test_result = panic::catch_unwind(|| {
         __rust_begin_short_backtrace(|| {
             crate::runtest::run(
                 &args.config,
@@ -158,10 +158,9 @@ fn test_thread_main(args: TestThreadArgs) {
                 stderr,
                 &args.testpaths,
                 args.revision.as_deref(),
-            );
-        });
-    })
-    .err();
+            )
+        })
+    });
 
     if let Some(panic_buf) = panic_hook::take_capture_buf() {
         let panic_buf = panic_buf.lock().unwrap_or_else(|e| e.into_inner());
@@ -170,10 +169,14 @@ fn test_thread_main(args: TestThreadArgs) {
     }
 
     // Interpret the presence/absence of a panic as test failure/success.
-    let outcome = match (args.should_fail, panic_payload) {
-        (ShouldFail::No, None) | (ShouldFail::Yes, Some(_)) => TestOutcome::Succeeded,
-        (ShouldFail::No, Some(_)) => TestOutcome::Failed { message: None },
-        (ShouldFail::Yes, None) => {
+    let outcome = match (args.should_fail, test_result) {
+        (ShouldFail::No, Ok(Ok(())))
+        | (ShouldFail::Yes, Ok(Err(())))
+        | (ShouldFail::Yes, Err(_)) => TestOutcome::Succeeded,
+        (ShouldFail::No, Ok(Err(()))) | (ShouldFail::No, Err(_)) => {
+            TestOutcome::Failed { message: None }
+        }
+        (ShouldFail::Yes, Ok(Ok(()))) => {
             TestOutcome::Failed { message: Some("`//@ should-fail` test did not fail as expected") }
         }
     };
