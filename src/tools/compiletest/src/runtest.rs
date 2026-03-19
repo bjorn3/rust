@@ -2290,7 +2290,7 @@ impl<'test> TestCx<'test> {
         }
 
         let mut tested = 0;
-        for _ in res.stdout.split('\n').filter(|s| s.starts_with("test ")).inspect(|s| {
+        for s in res.stdout.split('\n').filter(|s| s.starts_with("test ")) {
             if let Some((left, right)) = s.split_once(" - ") {
                 let path = left.rsplit("test ").next().unwrap();
                 let path = fs::canonicalize(&path).expect("failed to canonicalize");
@@ -2317,7 +2317,7 @@ impl<'test> TestCx<'test> {
                     }
                 }
             }
-        }) {}
+        }
         if tested == 0 {
             self.fatal_proc_rec(&format!("No test has been found... {:?}", files), &res);
         } else {
