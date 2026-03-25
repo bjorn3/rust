@@ -5,9 +5,10 @@ use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
 use rustc_hir::def_id::{CrateNum, DefId, LOCAL_CRATE, LocalDefId, LocalModDefId, ModDefId};
 use rustc_hir::definitions::DefPathHash;
 use rustc_hir::{HirId, ItemLocalId, OwnerId};
+use rustc_span::Symbol;
 
 use crate::dep_graph::{DepNode, KeyFingerprintStyle};
-use crate::ich::StableHashingContext;
+use crate::mir::mono::MonoItem;
 use crate::ty::TyCtxt;
 
 /// Trait for query keys as seen by dependency-node tracking.
@@ -29,39 +30,6 @@ pub trait DepNodeKey<'tcx>: Debug + Sized {
     fn try_recover_key(tcx: TyCtxt<'tcx>, dep_node: &DepNode) -> Option<Self>;
 }
 
-// Blanket impl of `DepNodeKey`, which is specialized by other impls elsewhere.
-impl<'tcx, T> DepNodeKey<'tcx> for T
-where
-    T: for<'a> HashStable<StableHashingContext<'a>> + Debug,
-{
-    #[inline(always)]
-    default fn key_fingerprint_style() -> KeyFingerprintStyle {
-        KeyFingerprintStyle::Opaque
-    }
-
-    #[inline(always)]
-    default fn to_fingerprint(&self, tcx: TyCtxt<'tcx>) -> Fingerprint {
-        tcx.with_stable_hashing_context(|mut hcx| {
-            let mut hasher = StableHasher::new();
-            self.hash_stable(&mut hcx, &mut hasher);
-            hasher.finish()
-        })
-    }
-
-    #[inline(always)]
-    default fn to_debug_str(&self, tcx: TyCtxt<'tcx>) -> String {
-        // Make sure to print dep node params with reduced queries since printing
-        // may themselves call queries, which may lead to (possibly untracked!)
-        // query cycles.
-        tcx.with_reduced_queries(|| format!("{self:?}"))
-    }
-
-    #[inline(always)]
-    default fn try_recover_key(_: TyCtxt<'tcx>, _: &DepNode) -> Option<Self> {
-        None
-    }
-}
-
 impl<'tcx> DepNodeKey<'tcx> for () {
     #[inline(always)]
     fn key_fingerprint_style() -> KeyFingerprintStyle {
@@ -71,6 +39,14 @@ impl<'tcx> DepNodeKey<'tcx> for () {
     #[inline(always)]
     fn to_fingerprint(&self, _: TyCtxt<'tcx>) -> Fingerprint {
         Fingerprint::ZERO
+    }
+
+    #[inline(always)]
+    fn to_debug_str(&self, tcx: TyCtxt<'tcx>) -> String {
+        // Make sure to print dep node params with reduced queries since printing
+        // may themselves call queries, which may lead to (possibly untracked!)
+        // query cycles.
+        tcx.with_reduced_queries(|| format!("{self:?}"))
     }
 
     #[inline(always)]
@@ -193,6 +169,11 @@ impl<'tcx> DepNodeKey<'tcx> for (DefId, DefId) {
 
         format!("({}, {})", tcx.def_path_debug_str(def_id_0), tcx.def_path_debug_str(def_id_1))
     }
+
+    #[inline(always)]
+    fn try_recover_key(_: TyCtxt<'tcx>, _: &DepNode) -> Option<Self> {
+        None
+    }
 }
 
 impl<'tcx> DepNodeKey<'tcx> for HirId {
@@ -279,5 +260,63 @@ impl<'tcx> DepNodeKey<'tcx> for LocalModDefId {
     #[inline(always)]
     fn try_recover_key(tcx: TyCtxt<'tcx>, dep_node: &DepNode) -> Option<Self> {
         LocalDefId::try_recover_key(tcx, dep_node).map(LocalModDefId::new_unchecked)
+    }
+}
+
+impl<'tcx> DepNodeKey<'tcx> for Symbol {
+    #[inline(always)]
+    fn key_fingerprint_style() -> KeyFingerprintStyle {
+        KeyFingerprintStyle::Opaque
+    }
+
+    #[inline(always)]
+    fn to_fingerprint(&self, tcx: TyCtxt<'tcx>) -> Fingerprint {
+        tcx.with_stable_hashing_context(|mut hcx| {
+            let mut hasher = StableHasher::new();
+            self.hash_stable(&mut hcx, &mut hasher);
+            hasher.finish()
+        })
+    }
+
+    #[inline(always)]
+    fn to_debug_str(&self, tcx: TyCtxt<'tcx>) -> String {
+        // Make sure to print dep node params with reduced queries since printing
+        // may themselves call queries, which may lead to (possibly untracked!)
+        // query cycles.
+        tcx.with_reduced_queries(|| format!("{self:?}"))
+    }
+
+    #[inline(always)]
+    fn try_recover_key(_: TyCtxt<'tcx>, _: &DepNode) -> Option<Self> {
+        None
+    }
+}
+
+impl<'tcx> DepNodeKey<'tcx> for MonoItem<'tcx> {
+    #[inline(always)]
+    fn key_fingerprint_style() -> KeyFingerprintStyle {
+        KeyFingerprintStyle::Opaque
+    }
+
+    #[inline(always)]
+    fn to_fingerprint(&self, tcx: TyCtxt<'tcx>) -> Fingerprint {
+        tcx.with_stable_hashing_context(|mut hcx| {
+            let mut hasher = StableHasher::new();
+            self.hash_stable(&mut hcx, &mut hasher);
+            hasher.finish()
+        })
+    }
+
+    #[inline(always)]
+    fn to_debug_str(&self, tcx: TyCtxt<'tcx>) -> String {
+        // Make sure to print dep node params with reduced queries since printing
+        // may themselves call queries, which may lead to (possibly untracked!)
+        // query cycles.
+        tcx.with_reduced_queries(|| format!("{self:?}"))
+    }
+
+    #[inline(always)]
+    fn try_recover_key(_: TyCtxt<'tcx>, _: &DepNode) -> Option<Self> {
+        None
     }
 }

@@ -100,65 +100,40 @@ impl<'a, 'tcx> QueryKeyStringBuilder<'a, 'tcx> {
     }
 }
 
-trait IntoSelfProfilingString {
+trait IntoSelfProfilingString: Debug {
     fn to_self_profile_string(&self, builder: &mut QueryKeyStringBuilder<'_, '_>) -> StringId;
 }
 
-// The default implementation of `IntoSelfProfilingString` just uses `Debug`
-// which is slow and causes lots of duplication of string data.
-// The specialized impls below take care of making the `DefId` case more
-// efficient.
-impl<T: Debug> IntoSelfProfilingString for T {
-    default fn to_self_profile_string(
-        &self,
-        builder: &mut QueryKeyStringBuilder<'_, '_>,
-    ) -> StringId {
-        let s = format!("{self:?}");
-        builder.profiler.alloc_string(&s[..])
-    }
-}
-
-impl<T: SpecIntoSelfProfilingString> IntoSelfProfilingString for T {
+impl IntoSelfProfilingString for DefId {
     fn to_self_profile_string(&self, builder: &mut QueryKeyStringBuilder<'_, '_>) -> StringId {
-        self.spec_to_self_profile_string(builder)
-    }
-}
-
-#[rustc_specialization_trait]
-trait SpecIntoSelfProfilingString: Debug {
-    fn spec_to_self_profile_string(&self, builder: &mut QueryKeyStringBuilder<'_, '_>) -> StringId;
-}
-
-impl SpecIntoSelfProfilingString for DefId {
-    fn spec_to_self_profile_string(&self, builder: &mut QueryKeyStringBuilder<'_, '_>) -> StringId {
         builder.def_id_to_string_id(*self)
     }
 }
 
-impl SpecIntoSelfProfilingString for CrateNum {
-    fn spec_to_self_profile_string(&self, builder: &mut QueryKeyStringBuilder<'_, '_>) -> StringId {
+impl IntoSelfProfilingString for CrateNum {
+    fn to_self_profile_string(&self, builder: &mut QueryKeyStringBuilder<'_, '_>) -> StringId {
         builder.def_id_to_string_id(self.as_def_id())
     }
 }
 
-impl SpecIntoSelfProfilingString for DefIndex {
-    fn spec_to_self_profile_string(&self, builder: &mut QueryKeyStringBuilder<'_, '_>) -> StringId {
+impl IntoSelfProfilingString for DefIndex {
+    fn to_self_profile_string(&self, builder: &mut QueryKeyStringBuilder<'_, '_>) -> StringId {
         builder.def_id_to_string_id(DefId { krate: LOCAL_CRATE, index: *self })
     }
 }
 
-impl SpecIntoSelfProfilingString for LocalDefId {
-    fn spec_to_self_profile_string(&self, builder: &mut QueryKeyStringBuilder<'_, '_>) -> StringId {
+impl IntoSelfProfilingString for LocalDefId {
+    fn to_self_profile_string(&self, builder: &mut QueryKeyStringBuilder<'_, '_>) -> StringId {
         builder.def_id_to_string_id(DefId { krate: LOCAL_CRATE, index: self.local_def_index })
     }
 }
 
-impl<T0, T1> SpecIntoSelfProfilingString for (T0, T1)
+impl<T0, T1> IntoSelfProfilingString for (T0, T1)
 where
-    T0: SpecIntoSelfProfilingString,
-    T1: SpecIntoSelfProfilingString,
+    T0: IntoSelfProfilingString,
+    T1: IntoSelfProfilingString,
 {
-    fn spec_to_self_profile_string(&self, builder: &mut QueryKeyStringBuilder<'_, '_>) -> StringId {
+    fn to_self_profile_string(&self, builder: &mut QueryKeyStringBuilder<'_, '_>) -> StringId {
         let val0 = self.0.to_self_profile_string(builder);
         let val1 = self.1.to_self_profile_string(builder);
 
