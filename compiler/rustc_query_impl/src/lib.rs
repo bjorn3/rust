@@ -3,7 +3,6 @@
 // tidy-alphabetical-start
 #![allow(internal_features)]
 #![feature(core_intrinsics)]
-#![feature(min_specialization)]
 #![feature(rustc_attrs)]
 #![feature(try_blocks)]
 // tidy-alphabetical-end

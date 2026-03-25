@@ -42,7 +42,6 @@
 #![feature(extern_types)]
 #![feature(file_buffered)]
 #![feature(gen_blocks)]
-#![feature(min_specialization)]
 #![feature(negative_impls)]
 #![feature(never_type)]
 #![feature(ptr_alignment_type)]

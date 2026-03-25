@@ -3,9 +3,7 @@
 
 use rustc_ast as ast;
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
-use rustc_hir as hir;
 use rustc_span::{SourceFile, Symbol, sym};
-use smallvec::SmallVec;
 
 use super::StableHashingContext;
 
@@ -13,31 +11,6 @@ impl<'a> HashStable<StableHashingContext<'a>> for ast::NodeId {
     #[inline]
     fn hash_stable(&self, _: &mut StableHashingContext<'a>, _: &mut StableHasher) {
         panic!("Node IDs should not appear in incremental state");
-    }
-}
-
-impl<'a> HashStable<StableHashingContext<'a>> for [hir::Attribute] {
-    // FIXME remove this specialization
-    fn hash_stable(&self, hcx: &mut StableHashingContext<'a>, hasher: &mut StableHasher) {
-        if self.is_empty() {
-            self.len().hash_stable(hcx, hasher);
-            return;
-        }
-
-        // Some attributes are always ignored during hashing.
-        let filtered: SmallVec<[&hir::Attribute; 8]> = self
-            .iter()
-            .filter(|attr| {
-                attr.is_doc_comment().is_none()
-                    // FIXME(jdonszelmann) have a better way to handle ignored attrs
-                    && !attr.name().is_some_and(|ident| is_ignored_attr(ident))
-            })
-            .collect();
-
-        filtered.len().hash_stable(hcx, hasher);
-        for attr in filtered {
-            attr.hash_stable(hcx, hasher);
-        }
     }
 }
 

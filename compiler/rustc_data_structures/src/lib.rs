@@ -22,7 +22,6 @@
 #![feature(extend_one)]
 #![feature(file_buffered)]
 #![feature(map_try_insert)]
-#![feature(min_specialization)]
 #![feature(negative_impls)]
 #![feature(never_type)]
 #![feature(pattern_type_macro)]
