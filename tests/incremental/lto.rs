@@ -1,6 +1,7 @@
 //@ no-prefer-dynamic
 //@ revisions:rpass1 rpass2
 //@ compile-flags: -C lto
+//@ needs-lto-support
 //@ ignore-backends: gcc
 
 mod x {

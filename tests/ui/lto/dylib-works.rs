@@ -1,4 +1,5 @@
 //@ run-pass
+//@ needs-lto-support
 
 //@ aux-build:dylib.rs
 

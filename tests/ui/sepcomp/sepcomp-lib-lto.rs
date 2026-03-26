@@ -5,6 +5,7 @@
 //@ aux-build:sepcomp_lib.rs
 //@ compile-flags: -C lto -g
 //@ no-prefer-dynamic
+//@ needs-lto-support
 //@ ignore-backends: gcc
 
 extern crate sepcomp_lib;

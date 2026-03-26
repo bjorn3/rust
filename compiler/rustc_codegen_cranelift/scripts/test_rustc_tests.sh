@@ -77,7 +77,7 @@ rm -r tests/run-make/forced-unwind-terminate-pof # forced unwinding doesn't take
 
 # requires LTO
 rm -r tests/ui/lto
-for test in $(rg --files-with-matches "lto" tests/{codegen-units,ui,incremental}); do
+for test in $(rg --files-with-matches "//@ needs-lto-support" tests/{ui,incremental}); do
   rm $test
 done
 rm -r tests/run-make/cdylib

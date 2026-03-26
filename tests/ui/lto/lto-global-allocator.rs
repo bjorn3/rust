@@ -2,6 +2,7 @@
 //@ build-pass
 //@ no-prefer-dynamic
 //@ needs-crate-type: cdylib
+//@ needs-lto-support
 //@ ignore-backends: gcc
 
 use std::alloc::{GlobalAlloc, Layout};

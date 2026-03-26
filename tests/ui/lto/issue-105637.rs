@@ -12,6 +12,7 @@
 //@ aux-build: thinlto-dylib.rs
 //@ run-fail
 //@ check-run-results
+//@ needs-lto-support
 
 extern crate thinlto_dylib;
 

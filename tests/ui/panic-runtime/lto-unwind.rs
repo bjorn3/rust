@@ -3,6 +3,7 @@
 //@ needs-unwind
 //@ no-prefer-dynamic
 //@ needs-subprocess
+//@ needs-lto-support
 //@ ignore-backends: gcc
 
 use std::process::Command;

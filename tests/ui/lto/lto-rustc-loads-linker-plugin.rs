@@ -2,6 +2,7 @@
 //@ aux-build:lto-rustc-loads-linker-plugin.rs
 //@ run-pass
 //@ no-prefer-dynamic
+//@ needs-lto-support
 //@ ignore-backends: gcc
 
 // This test ensures that if a dependency was compiled with

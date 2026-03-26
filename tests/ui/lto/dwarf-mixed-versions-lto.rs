@@ -6,6 +6,7 @@
 //@ aux-build:dwarf-mixed-versions-lto-aux.rs
 //@ compile-flags: -C lto -g -Cdwarf-version=5
 //@ no-prefer-dynamic
+//@ needs-lto-support
 //@ build-pass
 //@ ignore-backends: gcc
 

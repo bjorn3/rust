@@ -2,6 +2,7 @@
 //@ compile-flags: -C lto
 //@ no-prefer-dynamic
 //@ needs-threads
+//@ needs-lto-support
 //@ ignore-backends: gcc
 
 // FIXME(static_mut_refs): this could use an atomic

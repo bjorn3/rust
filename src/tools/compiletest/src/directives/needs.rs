@@ -1,5 +1,6 @@
 use crate::common::{
-    Config, KNOWN_CRATE_TYPES, KNOWN_TARGET_HAS_ATOMIC_WIDTHS, Sanitizer, query_rustc_output,
+    CodegenBackend, Config, KNOWN_CRATE_TYPES, KNOWN_TARGET_HAS_ATOMIC_WIDTHS, Sanitizer,
+    query_rustc_output,
 };
 use crate::directives::{DirectiveLine, IgnoreDecision};
 
@@ -200,6 +201,12 @@ pub(super) fn handle_needs(
             name: "needs-target-std",
             condition: build_helper::targets::target_supports_std(&config.target),
             ignore_reason: "ignored if target does not support std",
+        },
+        Need {
+            name: "needs-lto-support",
+            // FIXME directly query from codegen backend
+            condition: config.default_codegen_backend != CodegenBackend::Cranelift,
+            ignore_reason: "ignored if codegen backend does not support LTO",
         },
     ];
 

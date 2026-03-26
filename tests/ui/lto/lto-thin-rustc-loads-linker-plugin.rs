@@ -3,6 +3,7 @@
 //@ aux-build:lto-rustc-loads-linker-plugin.rs
 //@ run-pass
 //@ no-prefer-dynamic
+//@ needs-lto-support
 
 // Same as the adjacent `lto-thin-rustc-loads-linker-plugin.rs` test, only with
 // ThinLTO.

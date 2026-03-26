@@ -3,6 +3,7 @@
 //@ compile-flags: -C codegen-units=8 -O -C lto=thin
 //@ aux-build:thin-lto-inlines-aux.rs
 //@ no-prefer-dynamic
+//@ needs-lto-support
 //@ ignore-emscripten can't inspect instructions on emscripten
 //@ ignore-backends: gcc
 

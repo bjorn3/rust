@@ -3,6 +3,7 @@
 //@ compile-flags:-C lto -C panic=abort
 //@ no-prefer-dynamic
 //@ needs-subprocess
+//@ needs-lto-support
 
 use std::process::Command;
 use std::env;

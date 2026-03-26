@@ -11,6 +11,7 @@
 //@ build-pass
 //@ compile-flags: --test -C debuginfo=2 -C lto=fat
 //@ no-prefer-dynamic
+//@ needs-lto-support
 //@ incremental
 //@ ignore-backends: gcc
 
