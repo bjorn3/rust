@@ -1796,6 +1796,7 @@ impl Step for CraneliftCodegenBackend {
         cargo
             .arg("--manifest-path")
             .arg(builder.src.join("compiler/rustc_codegen_cranelift/Cargo.toml"));
+        cargo.arg("--features").arg("unwinding");
         rustc_cargo_env(builder, &mut cargo, target);
 
         let _guard = builder.msg(

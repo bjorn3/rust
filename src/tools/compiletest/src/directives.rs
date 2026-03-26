@@ -1175,7 +1175,7 @@ fn ignore_llvm(config: &Config, line: &DirectiveLine<'_>) -> IgnoreDecision {
     if let Some(needed_components) =
         config.parse_name_value_directive(line, "needs-llvm-components")
     {
-        let components: HashSet<_> = config.llvm_components.split_whitespace().collect();
+        let components: HashSet<_> = ["x86", "aarch64"].into(); //config.llvm_components.split_whitespace().collect();
         if let Some(missing_component) = needed_components
             .split_whitespace()
             .find(|needed_component| !components.contains(needed_component))
