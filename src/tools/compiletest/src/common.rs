@@ -1011,6 +1011,11 @@ impl TargetCfgs {
             }
         }
 
+        // FIXME query codegen backend for supported sanitizers
+        if config.default_codegen_backend == CodegenBackend::Cranelift {
+            cfg.sanitizers.clear();
+        }
+
         cfg
     }
 }

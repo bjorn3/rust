@@ -5,6 +5,7 @@
 //@ check-pass
 //@ compile-flags: -Zsanitizer=kernel-hwaddress --target aarch64-unknown-none
 //@ needs-llvm-components: aarch64
+//@ needs-sanitizer-support: kernel-hwaddress
 //@ ignore-backends: gcc
 
 #![crate_type = "rlib"]
