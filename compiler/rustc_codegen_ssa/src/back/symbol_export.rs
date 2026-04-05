@@ -3,6 +3,7 @@ use std::collections::hash_map::Entry::*;
 use rustc_abi::{CanonAbi, X86Call};
 use rustc_ast::expand::allocator::{AllocatorKind, NO_ALLOC_SHIM_IS_UNSTABLE, global_fn_name};
 use rustc_data_structures::unord::UnordMap;
+use rustc_hir::attrs::{CrateTypes, LibCrateType};
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{CrateNum, DefId, DefIdMap, LOCAL_CRATE, LocalDefId};
 use rustc_middle::bug;
@@ -13,7 +14,6 @@ use rustc_middle::middle::exported_symbols::{
 use rustc_middle::query::LocalCrate;
 use rustc_middle::ty::{self, GenericArgKind, GenericArgsRef, Instance, SymbolName, Ty, TyCtxt};
 use rustc_middle::util::Providers;
-use rustc_session::config::CrateType;
 use rustc_span::Span;
 use rustc_symbol_mangling::mangle_internal_symbol;
 use rustc_target::spec::{Arch, Os, TlsModel};
@@ -26,23 +26,20 @@ fn threshold(tcx: TyCtxt<'_>) -> SymbolExportLevel {
     crates_export_threshold(tcx.crate_types())
 }
 
-fn crate_export_threshold(crate_type: CrateType) -> SymbolExportLevel {
-    match crate_type {
-        CrateType::Executable | CrateType::StaticLib | CrateType::ProcMacro | CrateType::Cdylib => {
-            SymbolExportLevel::C
+pub fn crates_export_threshold(crate_types: &CrateTypes) -> SymbolExportLevel {
+    match crate_types {
+        CrateTypes::Executable | CrateTypes::ProcMacro => SymbolExportLevel::C,
+        CrateTypes::Sdylib => SymbolExportLevel::Rust,
+        CrateTypes::Lib(tys) => {
+            if tys.iter().any(|ty| match ty {
+                LibCrateType::Dylib | LibCrateType::Rlib => true,
+                LibCrateType::StaticLib | LibCrateType::Cdylib => false,
+            }) {
+                SymbolExportLevel::Rust
+            } else {
+                SymbolExportLevel::C
+            }
         }
-        CrateType::Rlib | CrateType::Dylib | CrateType::Sdylib => SymbolExportLevel::Rust,
-    }
-}
-
-pub fn crates_export_threshold(crate_types: &[CrateType]) -> SymbolExportLevel {
-    if crate_types
-        .iter()
-        .any(|&crate_type| crate_export_threshold(crate_type) == SymbolExportLevel::Rust)
-    {
-        SymbolExportLevel::Rust
-    } else {
-        SymbolExportLevel::C
     }
 }
 

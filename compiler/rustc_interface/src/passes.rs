@@ -37,7 +37,7 @@ use rustc_parse::{new_parser_from_file, new_parser_from_source_str, unwrap_or_em
 use rustc_passes::{abi_test, input_stats, layout_test};
 use rustc_resolve::{Resolver, ResolverOutputs};
 use rustc_session::Session;
-use rustc_session::config::{CrateType, Input, OutFileName, OutputFilenames, OutputType};
+use rustc_session::config::{CliCrateType, Input, OutFileName, OutputFilenames, OutputType};
 use rustc_session::cstore::Untracked;
 use rustc_session::errors::feature_err;
 use rustc_session::output::{filename_for_input, invalid_output_for_target};
@@ -266,8 +266,8 @@ fn configure_and_expand(
     });
 
     let crate_types = tcx.crate_types();
-    let is_executable_crate = crate_types.contains(&CrateType::Executable);
-    let is_proc_macro_crate = crate_types.contains(&CrateType::ProcMacro);
+    let is_executable_crate = crate_types.contains(&CliCrateType::Executable);
+    let is_proc_macro_crate = crate_types.contains(&CliCrateType::ProcMacro);
 
     if crate_types.len() > 1 {
         if is_executable_crate {
@@ -277,7 +277,7 @@ fn configure_and_expand(
             sess.dcx().emit_err(errors::MixedProcMacroCrate);
         }
     }
-    if crate_types.contains(&CrateType::Sdylib) && !tcx.features().export_stable() {
+    if crate_types.contains(&CliCrateType::Sdylib) && !tcx.features().export_stable() {
         feature_err(sess, sym::export_stable, DUMMY_SP, "`sdylib` crate type is unstable").emit();
     }
 
@@ -856,7 +856,7 @@ pub fn write_dep_info(tcx: TyCtxt<'_>) {
 }
 
 pub fn write_interface<'tcx>(tcx: TyCtxt<'tcx>) {
-    if !tcx.crate_types().contains(&rustc_session::config::CrateType::Sdylib) {
+    if !tcx.crate_types().contains(&rustc_session::config::CliCrateType::Sdylib) {
         return;
     }
     let _timer = tcx.sess.timer("write_interface");
@@ -934,7 +934,7 @@ pub fn create_and_enter_global_ctxt<T, F: for<'tcx> FnOnce(TyCtxt<'tcx>) -> T>(
     );
     let stable_crate_id = StableCrateId::new(
         crate_name,
-        crate_types.contains(&CrateType::Executable),
+        crate_types.contains(&CliCrateType::Executable),
         sess.opts.cg.metadata.clone(),
         sess.cfg_version,
     );
@@ -1403,27 +1403,27 @@ pub(crate) fn parse_crate_name(
 
 pub fn collect_crate_types(
     session: &Session,
-    backend_crate_types: &[CrateType],
+    backend_crate_types: &[CliCrateType],
     codegen_backend_name: &'static str,
     attrs: &[ast::Attribute],
     crate_span: Span,
-) -> Vec<CrateType> {
+) -> Vec<CliCrateType> {
     // If we're generating a test executable, then ignore all other output
     // styles at all other locations
     if session.opts.test {
         if !session.target.executables {
             session.dcx().emit_warn(errors::UnsupportedCrateTypeForTarget {
-                crate_type: CrateType::Executable,
+                crate_type: CliCrateType::Executable,
                 target_triple: &session.opts.target_triple,
             });
             return Vec::new();
         }
-        return vec![CrateType::Executable];
+        return vec![CliCrateType::Executable];
     }
 
     // Shadow `sdylib` crate type in interface build.
     if session.opts.unstable_opts.build_sdylib_interface {
-        return vec![CrateType::Rlib];
+        return vec![CliCrateType::Rlib];
     }
 
     // Only check command line flags if present. If no types are specified by
@@ -1486,8 +1486,8 @@ pub fn collect_crate_types(
 /// way to run iOS binaries anyway without jailbreaking and
 /// interaction with Rust code through static library is the only
 /// option for now
-fn default_output_for_target(sess: &Session) -> CrateType {
-    if !sess.target.executables { CrateType::StaticLib } else { CrateType::Executable }
+fn default_output_for_target(sess: &Session) -> CliCrateType {
+    if !sess.target.executables { CliCrateType::StaticLib } else { CliCrateType::Executable }
 }
 
 fn get_recursion_limit(krate_attrs: &[ast::Attribute], sess: &Session) -> Limit {

@@ -11,7 +11,7 @@ use rustc_data_structures::sync::{par_for_each_in, par_join};
 use rustc_data_structures::temp_dir::MaybeTempDir;
 use rustc_data_structures::thousands::usize_with_underscores;
 use rustc_hir as hir;
-use rustc_hir::attrs::{AttributeKind, EncodeCrossCrate};
+use rustc_hir::attrs::{AttributeKind, CrateTypes, EncodeCrossCrate};
 use rustc_hir::def_id::{CRATE_DEF_ID, CRATE_DEF_INDEX, LOCAL_CRATE, LocalDefId, LocalDefIdSet};
 use rustc_hir::definitions::DefPathData;
 use rustc_hir::find_attr;
@@ -27,7 +27,7 @@ use rustc_middle::ty::fast_reject::{self, TreatParams};
 use rustc_middle::{bug, span_bug};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder, opaque};
 use rustc_session::config::mitigation_coverage::DeniedPartialMitigation;
-use rustc_session::config::{CrateType, OptLevel, TargetModifier};
+use rustc_session::config::{CliCrateType, OptLevel, TargetModifier};
 use rustc_span::hygiene::HygieneEncodeContext;
 use rustc_span::{
     ByteSymbol, ExternalSource, FileName, SourceFile, SpanData, SpanEncoder, StableSourceFileId,
@@ -1977,7 +1977,7 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
     }
 
     fn encode_proc_macros(&mut self) -> Option<ProcMacroData> {
-        let is_proc_macro = self.tcx.crate_types().contains(&CrateType::ProcMacro);
+        let is_proc_macro = matches!(self.tcx.crate_types(), CrateTypes::ProcMacro);
         if is_proc_macro {
             let tcx = self.tcx;
             let proc_macro_decls_static = tcx.proc_macro_decls_static(()).unwrap().local_def_index;
@@ -2272,7 +2272,7 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
     fn encode_dylib_dependency_formats(&mut self) -> LazyArray<Option<LinkagePreference>> {
         empty_proc_macro!(self);
         let formats = self.tcx.dependency_formats(());
-        if let Some(arr) = formats.get(&CrateType::Dylib) {
+        if let Some(arr) = formats.get(&CliCrateType::Dylib) {
             return self.lazy_array(arr.iter().skip(1 /* skip LOCAL_CRATE */).map(
                 |slot| match *slot {
                     Linkage::NotLinked | Linkage::IncludedFromDylib => None,
@@ -2536,7 +2536,7 @@ fn with_encode_metadata_header(
         source_file_cache,
         interpret_allocs: Default::default(),
         required_source_files,
-        is_proc_macro: tcx.crate_types().contains(&CrateType::ProcMacro),
+        is_proc_macro: matches!(tcx.crate_types(), CrateTypes::ProcMacro),
         hygiene_ctxt: &hygiene_ctxt,
         symbol_index_table: Default::default(),
     };

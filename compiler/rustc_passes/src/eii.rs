@@ -7,7 +7,6 @@ use rustc_data_structures::fx::FxIndexMap;
 use rustc_hir::attrs::{EiiDecl, EiiImpl};
 use rustc_hir::def_id::{CrateNum, DefId, LOCAL_CRATE};
 use rustc_middle::ty::TyCtxt;
-use rustc_session::config::CrateType;
 
 use crate::errors::{DuplicateEiiImpls, EiiWithoutImpl};
 
@@ -19,7 +18,7 @@ enum CheckingMode {
 
 fn get_checking_mode(tcx: TyCtxt<'_>) -> CheckingMode {
     // if any of the crate types is not rlib, we must check for existence.
-    if tcx.crate_types().iter().any(|i| !matches!(i, CrateType::Rlib)) {
+    if !tcx.crate_types().only_rlib() {
         CheckingMode::CheckExistence
     } else {
         CheckingMode::CheckDuplicates

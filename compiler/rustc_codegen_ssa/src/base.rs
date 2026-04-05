@@ -30,7 +30,7 @@ use rustc_middle::ty::layout::{HasTyCtxt, HasTypingEnv, LayoutOf, TyAndLayout};
 use rustc_middle::ty::{self, Instance, PatternKind, Ty, TyCtxt, Unnormalized};
 use rustc_middle::{bug, span_bug};
 use rustc_session::Session;
-use rustc_session::config::{self, CrateType, EntryFnType};
+use rustc_session::config::{self, CliCrateType, EntryFnType};
 use rustc_span::{DUMMY_SP, Symbol};
 use rustc_symbol_mangling::mangle_internal_symbol;
 use rustc_target::spec::{Arch, Os};
@@ -659,7 +659,7 @@ pub fn allocator_kind_for_codegen(tcx: TyCtxt<'_>) -> Option<AllocatorKind> {
 /// this case no allocator shim shall be linked.
 pub(crate) fn needs_allocator_shim_for_linking(
     dependency_formats: &Dependencies,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
 ) -> bool {
     use rustc_middle::middle::dependency_format::Linkage;
     let any_dynamic_crate =
@@ -1024,7 +1024,7 @@ impl CrateInfo {
             info.linked_symbols
                 .iter_mut()
                 .filter(|(crate_type, _)| {
-                    !matches!(crate_type, CrateType::Rlib | CrateType::StaticLib)
+                    !matches!(crate_type, CliCrateType::Rlib | CliCrateType::StaticLib)
                 })
                 .for_each(|(_, linked_symbols)| {
                     let mut symbols = missing_weak_lang_items
@@ -1064,18 +1064,21 @@ impl CrateInfo {
             crate::back::lto::exported_symbols_for_lto(tcx, &each_linked_rlib_for_lto);
 
         let embed_visualizers = tcx.crate_types().iter().any(|&crate_type| match crate_type {
-            CrateType::Executable | CrateType::Dylib | CrateType::Cdylib | CrateType::Sdylib => {
+            CliCrateType::Executable
+            | CliCrateType::Dylib
+            | CliCrateType::Cdylib
+            | CliCrateType::Sdylib => {
                 // These are crate types for which we invoke the linker and can embed
                 // NatVis visualizers.
                 true
             }
-            CrateType::ProcMacro => {
+            CliCrateType::ProcMacro => {
                 // We could embed NatVis for proc macro crates too (to improve the debugging
                 // experience for them) but it does not seem like a good default, since
                 // this is a rare use case and we don't want to slow down the common case.
                 false
             }
-            CrateType::StaticLib | CrateType::Rlib => {
+            CliCrateType::StaticLib | CliCrateType::Rlib => {
                 // We don't invoke the linker for these, so we don't need to collect the NatVis for
                 // them.
                 false

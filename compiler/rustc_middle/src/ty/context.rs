@@ -29,6 +29,7 @@ use rustc_data_structures::sync::{
     self, DynSend, DynSync, FreezeReadGuard, Lock, RwLock, WorkerLocal,
 };
 use rustc_errors::{Applicability, Diag, DiagCtxtHandle, Diagnostic, MultiSpan};
+use rustc_hir::attrs::{CrateTypes, LibCrateType};
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{CrateNum, DefId, LOCAL_CRATE, LocalDefId};
 use rustc_hir::definitions::{DefPathData, Definitions, PerParentDisambiguatorState};
@@ -39,7 +40,6 @@ use rustc_hir::{self as hir, CRATE_HIR_ID, HirId, MaybeOwner, Node, TraitCandida
 use rustc_index::IndexVec;
 use rustc_macros::Diagnostic;
 use rustc_session::Session;
-use rustc_session::config::CrateType;
 use rustc_session::cstore::{CrateStoreDyn, Untracked};
 use rustc_session::lint::Lint;
 use rustc_span::def_id::{CRATE_DEF_ID, DefPathHash, StableCrateId};
@@ -682,7 +682,7 @@ pub struct GlobalCtxt<'tcx> {
     interners: CtxtInterners<'tcx>,
 
     pub sess: &'tcx Session,
-    crate_types: Vec<CrateType>,
+    crate_types: CrateTypes,
     /// The `stable_crate_id` is constructed out of the crate name and all the
     /// `-C metadata` arguments passed to the compiler. Its value forms a unique
     /// global identifier for the crate. It is used to allow multiple crates
@@ -912,7 +912,7 @@ impl<'tcx> TyCtxt<'tcx> {
     pub fn create_global_ctxt<T>(
         gcx_cell: &'tcx OnceLock<GlobalCtxt<'tcx>>,
         sess: &'tcx Session,
-        crate_types: Vec<CrateType>,
+        crate_types: CrateTypes,
         stable_crate_id: StableCrateId,
         arena: &'tcx WorkerLocal<Arena<'tcx>>,
         hir_arena: &'tcx WorkerLocal<hir::Arena<'tcx>>,
@@ -1102,18 +1102,20 @@ impl<'tcx> TyCtxt<'tcx> {
     }
 
     #[inline]
-    pub fn crate_types(self) -> &'tcx [CrateType] {
+    pub fn crate_types(self) -> &'tcx CrateTypes {
         &self.crate_types
     }
 
     pub fn needs_metadata(self) -> bool {
-        self.crate_types().iter().any(|ty| match *ty {
-            CrateType::Executable
-            | CrateType::StaticLib
-            | CrateType::Cdylib
-            | CrateType::Sdylib => false,
-            CrateType::Rlib | CrateType::Dylib | CrateType::ProcMacro => true,
-        })
+        match &self.crate_types {
+            CrateTypes::Executable => false,
+            CrateTypes::ProcMacro => true,
+            CrateTypes::Sdylib => false,
+            CrateTypes::Lib(tys) => tys.iter().any(|ty| match *ty {
+                LibCrateType::Dylib | LibCrateType::Rlib => true,
+                LibCrateType::StaticLib | LibCrateType::Cdylib => false,
+            }),
+        }
     }
 
     pub fn needs_hir_hash(self) -> bool {
@@ -1401,23 +1403,20 @@ impl<'tcx> TyCtxt<'tcx> {
         if self.is_compiler_builtins(LOCAL_CRATE) {
             return false;
         }
-        self.crate_types().iter().any(|crate_type| {
-            match crate_type {
-                CrateType::Executable
-                | CrateType::StaticLib
-                | CrateType::ProcMacro
-                | CrateType::Cdylib
-                | CrateType::Sdylib => false,
+        match &self.crate_types {
+            CrateTypes::Executable | CrateTypes::ProcMacro | CrateTypes::Sdylib => false,
+            CrateTypes::Lib(tys) => tys.iter().any(|ty| match ty {
+                LibCrateType::StaticLib | LibCrateType::Cdylib => false,
 
                 // FIXME rust-lang/rust#64319, rust-lang/rust#64872:
                 // We want to block export of generics from dylibs,
                 // but we must fix rust-lang/rust#65890 before we can
                 // do that robustly.
-                CrateType::Dylib => true,
+                LibCrateType::Dylib => true,
 
-                CrateType::Rlib => true,
-            }
-        })
+                LibCrateType::Rlib => true,
+            }),
+        }
     }
 
     /// Returns the `DefId` and the `BoundRegionKind` corresponding to the given region.

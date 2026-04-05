@@ -24,6 +24,7 @@ use rustc_errors::{
     Applicability, Diag, DiagArgValue, Diagnostic, ErrorGuaranteed, IntoDiagArg, MultiSpan,
     StashKey, Suggestions, elided_lifetime_in_path_suggestion, pluralize,
 };
+use rustc_hir::attrs::CrateTypes;
 use rustc_hir::def::Namespace::{self, *};
 use rustc_hir::def::{CtorKind, DefKind, LifetimeRes, NonMacroAttrKind, PartialRes, PerNS};
 use rustc_hir::def_id::{CRATE_DEF_ID, DefId, LOCAL_CRATE, LocalDefId};
@@ -31,7 +32,7 @@ use rustc_hir::{MissingLifetimeKind, PrimTy, TraitCandidate};
 use rustc_middle::middle::resolve_bound_vars::Set1;
 use rustc_middle::ty::{AssocTag, DelegationInfo, Visibility};
 use rustc_middle::{bug, span_bug};
-use rustc_session::config::{CrateType, ResolveDocLinks};
+use rustc_session::config::ResolveDocLinks;
 use rustc_session::errors::feature_err;
 use rustc_session::lint;
 use rustc_span::{BytePos, DUMMY_SP, Ident, Span, Spanned, Symbol, kw, respan, sym};
@@ -5432,7 +5433,7 @@ impl<'a, 'ast, 'ra, 'tcx> LateResolutionVisitor<'a, 'ast, 'ra, 'tcx> {
 
     fn is_invalid_proc_macro_item_for_doc(&self, did: DefId) -> bool {
         if !matches!(self.r.tcx.sess.opts.resolve_doc_links, ResolveDocLinks::ExportedMetadata)
-            || !self.r.tcx.crate_types().contains(&CrateType::ProcMacro)
+            || !matches!(self.r.tcx.crate_types(), CrateTypes::ProcMacro)
         {
             return false;
         }
@@ -5444,8 +5445,7 @@ impl<'a, 'ast, 'ra, 'tcx> LateResolutionVisitor<'a, 'ast, 'ra, 'tcx> {
         match self.r.tcx.sess.opts.resolve_doc_links {
             ResolveDocLinks::None => return,
             ResolveDocLinks::ExportedMetadata
-                if !self.r.tcx.crate_types().iter().copied().any(CrateType::has_metadata)
-                    || !maybe_exported.eval(self.r) =>
+                if !self.r.tcx.crate_types().any_has_metadata() || !maybe_exported.eval(self.r) =>
             {
                 return;
             }

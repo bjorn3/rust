@@ -1,10 +1,11 @@
 use rustc_ast::entry::EntryPointType;
 use rustc_errors::codes::*;
+use rustc_hir::attrs::CrateTypes;
 use rustc_hir::def_id::{CRATE_DEF_ID, DefId, LOCAL_CRATE, LocalDefId};
 use rustc_hir::{ItemId, Node, find_attr};
 use rustc_middle::query::Providers;
 use rustc_middle::ty::TyCtxt;
-use rustc_session::config::{CrateType, EntryFnType, sigpipe};
+use rustc_session::config::{EntryFnType, sigpipe};
 use rustc_span::{RemapPathScopeComponents, Span};
 
 use crate::errors::{ExternMain, MultipleRustcMain, NoMainErr};
@@ -21,8 +22,7 @@ struct EntryContext<'tcx> {
 }
 
 fn entry_fn(tcx: TyCtxt<'_>, (): ()) -> Option<(DefId, EntryFnType)> {
-    let any_exe = tcx.crate_types().contains(&CrateType::Executable);
-    if !any_exe {
+    if !matches!(tcx.crate_types(), CrateTypes::Executable) {
         // No need to find a main function.
         return None;
     }

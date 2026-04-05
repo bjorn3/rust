@@ -37,7 +37,7 @@ use rustc_target::spec::{
 use crate::code_stats::CodeStats;
 pub use crate::code_stats::{DataTypeKind, FieldInfo, FieldKind, SizeKind, VariantInfo};
 use crate::config::{
-    self, Cfg, CheckCfg, CoverageLevel, CoverageOptions, CrateType, DebugInfo, ErrorOutputType,
+    self, Cfg, CheckCfg, CliCrateType, CoverageLevel, CoverageOptions, DebugInfo, ErrorOutputType,
     FunctionReturn, Input, InstrumentCoverage, OptLevel, OutFileName, OutputType,
     SwitchWithOptPath,
 };
@@ -374,7 +374,7 @@ impl Session {
     }
 
     /// Check whether this compile session and crate type use static crt.
-    pub fn crt_static(&self, crate_type: Option<CrateType>) -> bool {
+    pub fn crt_static(&self, crate_type: Option<CliCrateType>) -> bool {
         if !self.target.crt_static_respected {
             // If the target does not opt in to crt-static support, use its default.
             return self.target.crt_static_default;
@@ -388,8 +388,8 @@ impl Session {
         #[allow(rustc::bad_opt_access)]
         if found_positive || found_negative {
             found_positive
-        } else if crate_type == Some(CrateType::ProcMacro)
-            || crate_type == None && self.opts.crate_types.contains(&CrateType::ProcMacro)
+        } else if crate_type == Some(CliCrateType::ProcMacro)
+            || crate_type == None && self.opts.crate_types.contains(&CliCrateType::ProcMacro)
         {
             // FIXME: When crate_type is not available,
             // we use compiler options to determine the crate_type.

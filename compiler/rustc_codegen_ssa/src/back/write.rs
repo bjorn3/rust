@@ -15,6 +15,7 @@ use rustc_errors::{
     Level, MultiSpan, Style, Suggestions, catch_fatal_errors,
 };
 use rustc_fs_util::link_or_copy;
+use rustc_hir::attrs::CrateTypes;
 use rustc_hir::find_attr;
 use rustc_incremental::{
     copy_cgu_workproduct_to_incr_comp_cache_dir, in_incr_comp_dir, in_incr_comp_dir_sess,
@@ -26,8 +27,7 @@ use rustc_middle::dep_graph::{WorkProduct, WorkProductId};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::Session;
 use rustc_session::config::{
-    self, CrateType, Lto, OptLevel, OutFileName, OutputFilenames, OutputType, Passes,
-    SwitchWithOptPath,
+    self, Lto, OptLevel, OutFileName, OutputFilenames, OutputType, Passes, SwitchWithOptPath,
 };
 use rustc_span::source_map::SourceMap;
 use rustc_span::{FileName, InnerSpan, Span, SpanData};
@@ -326,7 +326,7 @@ pub struct CodegenContext {
     pub save_temps: bool,
     pub fewer_names: bool,
     pub time_trace: bool,
-    pub crate_types: Vec<CrateType>,
+    pub crate_types: CrateTypes,
     pub output_filenames: Arc<OutputFilenames>,
     pub module_config: Arc<ModuleConfig>,
     pub opt_level: OptLevel,
@@ -401,7 +401,7 @@ enum MaybeLtoModules<B: WriteBackendMethods> {
 fn need_bitcode_in_object(tcx: TyCtxt<'_>) -> bool {
     let sess = tcx.sess;
     sess.opts.cg.embed_bitcode
-        && tcx.crate_types().contains(&CrateType::Rlib)
+        && tcx.crate_types().any_rlib()
         && sess.opts.output_types.contains_key(&OutputType::Exe)
 }
 
@@ -780,7 +780,7 @@ pub(crate) enum ComputedLtoType {
 pub(crate) fn compute_per_cgu_lto_type(
     sess_lto: &Lto,
     linker_does_lto: bool,
-    sess_crate_types: &[CrateType],
+    sess_crate_types: &CrateTypes,
 ) -> ComputedLtoType {
     // If the linker does LTO, we don't have to do it. Note that we
     // keep doing full LTO, if it is requested, as not to break the
@@ -794,7 +794,7 @@ pub(crate) fn compute_per_cgu_lto_type(
     // require LTO so the request for LTO is always unconditionally
     // passed down to the backend, but we don't actually want to do
     // anything about it yet until we've got a final product.
-    let is_rlib = matches!(sess_crate_types, [CrateType::Rlib]);
+    let is_rlib = sess_crate_types.only_rlib();
 
     match sess_lto {
         Lto::ThinLocal if !linker_does_lto => ComputedLtoType::Thin,
@@ -1253,7 +1253,7 @@ fn start_executing_work<B: ExtraBackendMethods>(
     };
 
     let cgcx = CodegenContext {
-        crate_types: tcx.crate_types().to_vec(),
+        crate_types: tcx.crate_types().clone(),
         lto: sess.lto(),
         use_linker_plugin_lto: sess.opts.cg.linker_plugin_lto.enabled(),
         dylib_lto: sess.opts.unstable_opts.dylib_lto,
@@ -2254,8 +2254,7 @@ fn msvc_imps_needed(tcx: TyCtxt<'_>) -> bool {
     // We need to generate _imp__ symbol if we are generating an rlib or we include one
     // indirectly from ThinLTO. In theory these are not needed as ThinLTO could resolve
     // these, but it currently does not do so.
-    let can_have_static_objects =
-        tcx.sess.lto() == Lto::Thin || tcx.crate_types().contains(&CrateType::Rlib);
+    let can_have_static_objects = tcx.sess.lto() == Lto::Thin || tcx.crate_types().any_rlib();
 
     tcx.sess.target.is_like_windows &&
     can_have_static_objects   &&

@@ -7,7 +7,6 @@ use rustc_hir::lang_items::{self, LangItem};
 use rustc_hir::weak_lang_items::WEAK_LANG_ITEMS;
 use rustc_middle::middle::lang_items::required;
 use rustc_middle::ty::TyCtxt;
-use rustc_session::config::CrateType;
 use rustc_target::spec::Os;
 
 use crate::errors::{
@@ -64,16 +63,7 @@ impl<'ast> visit::Visitor<'ast> for WeakLangItemVisitor<'_, '_> {
 fn verify(tcx: TyCtxt<'_>, items: &lang_items::LanguageItems) {
     // We only need to check for the presence of weak lang items if we're
     // emitting something that's not an rlib.
-    let needs_check = tcx.crate_types().iter().any(|kind| match *kind {
-        CrateType::Dylib
-        | CrateType::ProcMacro
-        | CrateType::Cdylib
-        | CrateType::Executable
-        | CrateType::StaticLib
-        | CrateType::Sdylib => true,
-        CrateType::Rlib => false,
-    });
-    if !needs_check {
+    if tcx.crate_types().only_rlib() {
         return;
     }
 

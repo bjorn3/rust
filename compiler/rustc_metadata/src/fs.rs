@@ -3,9 +3,10 @@ use std::{fs, io};
 
 use rustc_data_structures::temp_dir::MaybeTempDir;
 use rustc_fs_util::TempDirBuilder;
+use rustc_hir::attrs::CrateTypes;
 use rustc_middle::ty::TyCtxt;
 use rustc_session::Session;
-use rustc_session::config::{CrateType, OutFileName, OutputType};
+use rustc_session::config::{OutFileName, OutputType};
 use rustc_session::output::filename_for_metadata;
 
 use crate::errors::{
@@ -47,7 +48,7 @@ pub fn encode_and_write_metadata(tcx: TyCtxt<'_>) -> EncodedMetadata {
     let metadata_tmpdir = MaybeTempDir::new(metadata_tmpdir, tcx.sess.opts.cg.save_temps);
     let metadata_filename = metadata_tmpdir.as_ref().join("full.rmeta");
     let metadata_stub_filename = if !tcx.sess.opts.unstable_opts.embed_metadata
-        && !tcx.crate_types().contains(&CrateType::ProcMacro)
+        && !matches!(tcx.crate_types(), CrateTypes::ProcMacro)
     {
         Some(metadata_tmpdir.as_ref().join("stub.rmeta"))
     } else {

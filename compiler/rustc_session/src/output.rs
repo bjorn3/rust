@@ -5,12 +5,12 @@ use std::path::Path;
 use rustc_span::{Span, Symbol};
 
 use crate::Session;
-use crate::config::{CrateType, OutFileName, OutputFilenames, OutputType};
+use crate::config::{CliCrateType, OutFileName, OutputFilenames, OutputType};
 use crate::errors::{CrateNameEmpty, FileIsNotWriteable, InvalidCharacterInCrateName};
 
 pub fn out_filename(
     sess: &Session,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
     outputs: &OutputFilenames,
     crate_name: Symbol,
 ) -> OutFileName {
@@ -86,25 +86,25 @@ pub fn filename_for_metadata(sess: &Session, outputs: &OutputFilenames) -> OutFi
 
 pub fn filename_for_input(
     sess: &Session,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
     crate_name: Symbol,
     outputs: &OutputFilenames,
 ) -> OutFileName {
     let libname = format!("{}{}", crate_name, sess.opts.cg.extra_filename);
 
     match crate_type {
-        CrateType::Rlib => {
+        CliCrateType::Rlib => {
             OutFileName::Real(outputs.out_directory.join(&format!("lib{libname}.rlib")))
         }
-        CrateType::Cdylib | CrateType::ProcMacro | CrateType::Dylib | CrateType::Sdylib => {
+        CliCrateType::Cdylib | CliCrateType::ProcMacro | CliCrateType::Dylib | CliCrateType::Sdylib => {
             let (prefix, suffix) = (&sess.target.dll_prefix, &sess.target.dll_suffix);
             OutFileName::Real(outputs.out_directory.join(&format!("{prefix}{libname}{suffix}")))
         }
-        CrateType::StaticLib => {
+        CliCrateType::StaticLib => {
             let (prefix, suffix) = sess.staticlib_components(false);
             OutFileName::Real(outputs.out_directory.join(&format!("{prefix}{libname}{suffix}")))
         }
-        CrateType::Executable => {
+        CliCrateType::Executable => {
             let suffix = &sess.target.exe_suffix;
             let out_filename = outputs.path(OutputType::Exe);
             if let OutFileName::Real(ref path) = out_filename {
@@ -121,8 +121,8 @@ pub fn filename_for_input(
 }
 
 /// Checks if target supports crate_type as output
-pub fn invalid_output_for_target(sess: &Session, crate_type: CrateType) -> bool {
-    if let CrateType::Cdylib | CrateType::Dylib | CrateType::ProcMacro = crate_type {
+pub fn invalid_output_for_target(sess: &Session, crate_type: CliCrateType) -> bool {
+    if let CliCrateType::Cdylib | CliCrateType::Dylib | CliCrateType::ProcMacro = crate_type {
         if !sess.target.dynamic_linking {
             return true;
         }
@@ -130,12 +130,12 @@ pub fn invalid_output_for_target(sess: &Session, crate_type: CrateType) -> bool 
             return true;
         }
     }
-    if let CrateType::ProcMacro | CrateType::Dylib = crate_type
+    if let CliCrateType::ProcMacro | CliCrateType::Dylib = crate_type
         && sess.target.only_cdylib
     {
         return true;
     }
-    if let CrateType::Executable = crate_type
+    if let CliCrateType::Executable = crate_type
         && !sess.target.executables
     {
         return true;

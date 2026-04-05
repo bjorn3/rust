@@ -51,7 +51,7 @@ use rustc_middle::ty::TyCtxt;
 use rustc_parse::lexer::StripTokens;
 use rustc_parse::{new_parser_from_file, new_parser_from_source_str, unwrap_or_emit_fatal};
 use rustc_session::config::{
-    CG_OPTIONS, CrateType, ErrorOutputType, Input, OptionDesc, OutFileName, OutputType, Sysroot,
+    CG_OPTIONS, CliCrateType, ErrorOutputType, Input, OptionDesc, OutFileName, OutputType, Sysroot,
     UnstableOptions, Z_OPTIONS, nightly_options, parse_target_triple,
 };
 use rustc_session::getopts::{self, Matches};
@@ -843,10 +843,10 @@ fn print_crate_info(
                 }
             }
             SupportedCrateTypes => {
-                let supported_crate_types = CrateType::all()
+                let supported_crate_types = CliCrateType::all()
                     .iter()
                     .filter(|(_, crate_type)| !invalid_output_for_target(sess, *crate_type))
-                    .filter(|(_, crate_type)| *crate_type != CrateType::Sdylib)
+                    .filter(|(_, crate_type)| *crate_type != CliCrateType::Sdylib)
                     .map(|(crate_type_sym, _)| *crate_type_sym)
                     .collect::<BTreeSet<_>>();
                 for supported_crate_type in supported_crate_types {

@@ -10,7 +10,7 @@ use rustc_middle::dep_graph::{WorkProduct, WorkProductId};
 use rustc_middle::ty::TyCtxt;
 use rustc_middle::util::Providers;
 use rustc_session::Session;
-use rustc_session::config::{CrateType, OutputFilenames, PrintRequest};
+use rustc_session::config::{CliCrateType, OutputFilenames, PrintRequest};
 use rustc_span::Symbol;
 
 use super::CodegenObject;
@@ -57,15 +57,15 @@ pub trait CodegenBackend {
         }
     }
 
-    fn supported_crate_types(&self, _sess: &Session) -> Vec<CrateType> {
+    fn supported_crate_types(&self, _sess: &Session) -> Vec<CliCrateType> {
         vec![
-            CrateType::Executable,
-            CrateType::Dylib,
-            CrateType::Rlib,
-            CrateType::StaticLib,
-            CrateType::Cdylib,
-            CrateType::ProcMacro,
-            CrateType::Sdylib,
+            CliCrateType::Executable,
+            CliCrateType::Dylib,
+            CliCrateType::Rlib,
+            CliCrateType::StaticLib,
+            CliCrateType::Cdylib,
+            CliCrateType::ProcMacro,
+            CliCrateType::Sdylib,
         ]
     }
 

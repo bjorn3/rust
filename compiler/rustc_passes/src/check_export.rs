@@ -4,6 +4,7 @@ use std::ops::ControlFlow;
 use rustc_abi::ExternAbi;
 use rustc_data_structures::fx::{FxIndexMap, FxIndexSet};
 use rustc_hir as hir;
+use rustc_hir::attrs::CrateTypes;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_hir::find_attr;
@@ -14,7 +15,6 @@ use rustc_middle::query::{LocalCrate, Providers};
 use rustc_middle::ty::{
     self, Ty, TyCtxt, TypeSuperVisitable, TypeVisitable, TypeVisitor, Unnormalized, Visibility,
 };
-use rustc_session::config::CrateType;
 use rustc_span::Span;
 
 use crate::errors::UnexportableItem;
@@ -329,7 +329,7 @@ impl<'tcx, 'a> TypeVisitor<TyCtxt<'tcx>> for ExportableItemsChecker<'tcx, 'a> {
 /// 3. Non-generic functions with a stable ABI (e.g. extern "C") for which every user
 ///    defined type used in the signature is also marked as `#[export]`.
 fn exportable_items_provider_local<'tcx>(tcx: TyCtxt<'tcx>, _: LocalCrate) -> &'tcx [DefId] {
-    if !tcx.crate_types().contains(&CrateType::Sdylib) && !tcx.is_sdylib_interface_build() {
+    if !matches!(tcx.crate_types(), CrateTypes::Sdylib) && !tcx.is_sdylib_interface_build() {
         return &[];
     }
 
@@ -385,7 +385,7 @@ fn stable_order_of_exportable_impls<'tcx>(
     tcx: TyCtxt<'tcx>,
     _: LocalCrate,
 ) -> &'tcx FxIndexMap<DefId, usize> {
-    if !tcx.crate_types().contains(&CrateType::Sdylib) && !tcx.is_sdylib_interface_build() {
+    if !matches!(tcx.crate_types(), CrateTypes::Sdylib) && !tcx.is_sdylib_interface_build() {
         return tcx.arena.alloc(FxIndexMap::<DefId, usize>::default());
     }
 

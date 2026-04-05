@@ -1,7 +1,7 @@
 use std::io;
 use std::path::Path;
 
-use rustc_hir::attrs::CrateType;
+use rustc_hir::attrs::CliCrateType;
 use rustc_macros::Diagnostic;
 use rustc_span::{Span, Symbol};
 use rustc_target::spec::TargetTuple;
@@ -130,13 +130,13 @@ pub(crate) struct AbiRequiredTargetFeature<'a> {
 #[derive(Diagnostic)]
 #[diag("dropping unsupported crate type `{$crate_type}` for codegen backend `{$codegen_backend}`")]
 pub(crate) struct UnsupportedCrateTypeForCodegenBackend {
-    pub(crate) crate_type: CrateType,
+    pub(crate) crate_type: CliCrateType,
     pub(crate) codegen_backend: &'static str,
 }
 
 #[derive(Diagnostic)]
 #[diag("dropping unsupported crate type `{$crate_type}` for target `{$target_triple}`")]
 pub(crate) struct UnsupportedCrateTypeForTarget<'a> {
-    pub(crate) crate_type: CrateType,
+    pub(crate) crate_type: CliCrateType,
     pub(crate) target_triple: &'a TargetTuple,
 }

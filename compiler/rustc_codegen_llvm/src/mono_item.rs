@@ -11,7 +11,7 @@ use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrs;
 use rustc_middle::mono::Visibility;
 use rustc_middle::ty::layout::{FnAbiOf, HasTypingEnv, LayoutOf};
 use rustc_middle::ty::{self, Instance, Ty, TypeVisitableExt};
-use rustc_session::config::CrateType;
+use rustc_session::config::CliCrateType;
 use rustc_target::callconv::{FnAbi, PassMode};
 use rustc_target::spec::{Arch, RelocModel};
 use tracing::debug;
@@ -251,7 +251,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         }
 
         // Symbols from executables can't really be imported any further.
-        let all_exe = self.tcx.crate_types().iter().all(|ty| *ty == CrateType::Executable);
+        let all_exe = self.tcx.crate_types().iter().all(|ty| *ty == CliCrateType::Executable);
         let is_declaration_for_linker =
             is_declaration || linkage == llvm::Linkage::AvailableExternallyLinkage;
         if all_exe && !is_declaration_for_linker {

@@ -26,8 +26,7 @@ use rustc_middle::ty::{TyCtxt, TyCtxtFeed};
 use rustc_proc_macro::bridge::client::ProcMacro;
 use rustc_session::config::mitigation_coverage::DeniedPartialMitigationLevel;
 use rustc_session::config::{
-    CrateType, ExtendedTargetModifierInfo, ExternLocation, Externs, OptionsTargetModifiers,
-    TargetModifier,
+    ExtendedTargetModifierInfo, ExternLocation, Externs, OptionsTargetModifiers, TargetModifier,
 };
 use rustc_session::cstore::{CrateDepKind, CrateSource, ExternCrate, ExternCrateSource};
 use rustc_session::output::validate_crate_name;
@@ -808,9 +807,7 @@ impl CStore {
                 tcx.sess,
                 &*self.metadata_loader,
                 name,
-                // The all loop is because `--crate-type=rlib --crate-type=rlib` is
-                // legal and produces both inside this type.
-                tcx.crate_types().iter().all(|c| *c == CrateType::Rlib),
+                tcx.crate_types().only_rlib(),
                 hash,
                 extra_filename,
                 path_kind,
@@ -977,8 +974,7 @@ impl CStore {
     fn inject_panic_runtime(&mut self, tcx: TyCtxt<'_>, krate: &ast::Crate) {
         // If we're only compiling an rlib, then there's no need to select a
         // panic runtime, so we just skip this section entirely.
-        let only_rlib = tcx.crate_types().iter().all(|ct| *ct == CrateType::Rlib);
-        if only_rlib {
+        if tcx.crate_types().only_rlib() {
             info!("panic runtime injection skipped, only generating rlib");
             return;
         }
@@ -1109,8 +1105,7 @@ impl CStore {
         // At this point we've determined that we need an allocator. Let's see
         // if our compilation session actually needs an allocator based on what
         // we're emitting.
-        let all_rlib = tcx.crate_types().iter().all(|ct| matches!(*ct, CrateType::Rlib));
-        if all_rlib {
+        if tcx.crate_types().only_rlib() {
             return;
         }
 

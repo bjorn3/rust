@@ -36,7 +36,7 @@ use rustc_middle::util::Providers;
 use rustc_serialize::opaque::{FileEncoder, MemDecoder};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 use rustc_session::Session;
-use rustc_session::config::{CrateType, OutputFilenames, OutputType};
+use rustc_session::config::{CliCrateType, OutputFilenames, OutputType};
 use rustc_session::cstore::{self, CrateSource};
 use rustc_session::lint::builtin::LINKER_MESSAGES;
 use rustc_span::Symbol;
@@ -240,9 +240,9 @@ impl From<&cstore::NativeLib> for NativeLib {
 pub struct CrateInfo {
     pub target_cpu: String,
     pub target_features: Vec<String>,
-    pub crate_types: Vec<CrateType>,
-    pub exported_symbols: UnordMap<CrateType, Vec<(String, SymbolExportKind)>>,
-    pub linked_symbols: FxIndexMap<CrateType, Vec<(String, SymbolExportKind)>>,
+    pub crate_types: Vec<CliCrateType>,
+    pub exported_symbols: UnordMap<CliCrateType, Vec<(String, SymbolExportKind)>>,
+    pub linked_symbols: FxIndexMap<CliCrateType, Vec<(String, SymbolExportKind)>>,
     pub local_crate_name: Symbol,
     pub compiler_builtins: Option<CrateNum>,
     pub profiler_runtime: Option<CrateNum>,

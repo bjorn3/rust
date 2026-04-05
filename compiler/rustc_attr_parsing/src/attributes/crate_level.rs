@@ -1,4 +1,4 @@
-use rustc_hir::attrs::{CrateType, WindowsSubsystemKind};
+use rustc_hir::attrs::{CliCrateType, WindowsSubsystemKind};
 use rustc_session::lint::builtin::UNKNOWN_CRATE_TYPES;
 use rustc_span::Symbol;
 use rustc_span::edit_distance::find_best_match_for_name;
@@ -27,7 +27,7 @@ pub(crate) struct CrateTypeParser;
 
 impl CombineAttributeParser for CrateTypeParser {
     const PATH: &[Symbol] = &[sym::crate_type];
-    type Item = CrateType;
+    type Item = CliCrateType;
     const CONVERT: ConvertFn<Self::Item> = |items, _| AttributeKind::CrateType(items);
 
     const ALLOWED_TARGETS: AllowedTargets = AllowedTargets::AllowList(&[Allow(Target::Crate)]);
@@ -47,7 +47,7 @@ impl CombineAttributeParser for CrateTypeParser {
             // We don't error on invalid `#![crate_type]` when not applied to a crate
             if cx.shared.target == Target::Crate {
                 let candidate = find_best_match_for_name(
-                    &CrateType::all_stable().iter().map(|(name, _)| *name).collect::<Vec<_>>(),
+                    &CliCrateType::all_stable().iter().map(|(name, _)| *name).collect::<Vec<_>>(),
                     crate_type,
                     None,
                 );

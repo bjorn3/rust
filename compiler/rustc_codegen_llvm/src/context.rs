@@ -23,7 +23,8 @@ use rustc_middle::ty::{self, Instance, Ty, TyCtxt};
 use rustc_middle::{bug, span_bug};
 use rustc_session::Session;
 use rustc_session::config::{
-    BranchProtection, CFGuard, CFProtection, CrateType, DebugInfo, FunctionReturn, PAuthKey, PacRet,
+    BranchProtection, CFGuard, CFProtection, CliCrateType, DebugInfo, FunctionReturn, PAuthKey,
+    PacRet,
 };
 use rustc_span::{DUMMY_SP, Span, Spanned, Symbol, sym};
 use rustc_symbol_mangling::mangle_internal_symbol;
@@ -256,7 +257,7 @@ pub(crate) unsafe fn create_module<'ll>(
         // PIE is potentially more effective than PIC, but can only be used in executables.
         // If all our outputs are executables, then we can relax PIC to PIE.
         if reloc_model == RelocModel::Pie
-            || tcx.crate_types().iter().all(|ty| *ty == CrateType::Executable)
+            || tcx.crate_types().iter().all(|ty| *ty == CliCrateType::Executable)
         {
             unsafe {
                 llvm::LLVMRustSetModulePIELevel(llmod);

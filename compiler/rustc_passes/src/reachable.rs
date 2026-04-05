@@ -36,7 +36,6 @@ use rustc_middle::mir::interpret::{ConstAllocation, ErrorHandled, GlobalAlloc};
 use rustc_middle::query::Providers;
 use rustc_middle::ty::{self, ExistentialTraitRef, TyCtxt};
 use rustc_privacy::DefIdVisitor;
-use rustc_session::config::CrateType;
 use tracing::debug;
 
 /// Determines whether this item is recursive for reachability. See `is_recursively_reachable_local`
@@ -458,12 +457,13 @@ fn has_custom_linkage(tcx: TyCtxt<'_>, def_id: LocalDefId) -> bool {
 fn reachable_set(tcx: TyCtxt<'_>, (): ()) -> LocalDefIdSet {
     let effective_visibilities = &tcx.effective_visibilities(());
 
-    let any_library = tcx.crate_types().iter().any(|ty| {
-        *ty == CrateType::Rlib
-            || *ty == CrateType::Dylib
-            || *ty == CrateType::ProcMacro
-            || *ty == CrateType::Sdylib
-    });
+    // TODO
+    let any_library = true/*tcx.crate_types().iter().any(|ty| {
+        *ty == CliCrateType::Rlib
+            || *ty == CliCrateType::Dylib
+            || *ty == CliCrateType::ProcMacro
+            || *ty == CliCrateType::Sdylib
+    })*/;
     let mut reachable_context = ReachableContext {
         tcx,
         maybe_typeck_results: None,

@@ -22,7 +22,7 @@ use rustc_middle::dep_graph::{WorkProduct, WorkProductId};
 use rustc_middle::ty::{CurrentGcx, TyCtxt};
 use rustc_query_impl::{CollectActiveJobsKind, collect_active_query_jobs};
 use rustc_session::config::{
-    Cfg, CrateType, OutFileName, OutputFilenames, OutputTypes, Sysroot, host_tuple,
+    Cfg, CliCrateType, OutFileName, OutputFilenames, OutputTypes, Sysroot, host_tuple,
 };
 use rustc_session::{EarlyDiagCtxt, Session, filesearch};
 use rustc_span::edition::Edition;
@@ -396,12 +396,12 @@ impl CodegenBackend for DummyCodegenBackend {
         }
     }
 
-    fn supported_crate_types(&self, _sess: &Session) -> Vec<CrateType> {
+    fn supported_crate_types(&self, _sess: &Session) -> Vec<CliCrateType> {
         // This includes bin despite failing on the link step to ensure that you
         // can still get the frontend handling for binaries. For all library
         // like crate types cargo will fallback to rlib unless you specifically
         // say that only a different crate type must be used.
-        vec![CrateType::Rlib, CrateType::Executable]
+        vec![CliCrateType::Rlib, CliCrateType::Executable]
     }
 
     fn target_cpu(&self, _sess: &Session) -> String {
@@ -433,7 +433,7 @@ impl CodegenBackend for DummyCodegenBackend {
         // JUSTIFICATION: TyCtxt no longer available here
         #[allow(rustc::bad_opt_access)]
         if let Some(&crate_type) =
-            crate_info.crate_types.iter().find(|&&crate_type| crate_type != CrateType::Rlib)
+            crate_info.crate_types.iter().find(|&&crate_type| crate_type != CliCrateType::Rlib)
             && outputs.outputs.should_link()
         {
             sess.dcx().fatal(format!(

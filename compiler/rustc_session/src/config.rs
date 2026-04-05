@@ -1521,7 +1521,7 @@ pub enum EntryFnType {
     },
 }
 
-pub use rustc_hir::attrs::CrateType;
+pub use rustc_hir::attrs::CliCrateType;
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Encodable, Decodable)]
 pub enum Passes {
@@ -2825,19 +2825,19 @@ pub fn make_crate_type_option() -> RustcOptGroup {
     )
 }
 
-pub fn parse_crate_types_from_list(list_list: Vec<String>) -> Result<Vec<CrateType>, String> {
-    let mut crate_types: Vec<CrateType> = Vec::new();
+pub fn parse_crate_types_from_list(list_list: Vec<String>) -> Result<Vec<CliCrateType>, String> {
+    let mut crate_types: Vec<CliCrateType> = Vec::new();
     for unparsed_crate_type in &list_list {
         for part in unparsed_crate_type.split(',') {
             let new_part = match part {
-                "lib" => CrateType::default(),
-                "rlib" => CrateType::Rlib,
-                "staticlib" => CrateType::StaticLib,
-                "dylib" => CrateType::Dylib,
-                "cdylib" => CrateType::Cdylib,
-                "bin" => CrateType::Executable,
-                "proc-macro" => CrateType::ProcMacro,
-                "sdylib" => CrateType::Sdylib,
+                "lib" => CliCrateType::default(),
+                "rlib" => CliCrateType::Rlib,
+                "staticlib" => CliCrateType::StaticLib,
+                "dylib" => CliCrateType::Dylib,
+                "cdylib" => CliCrateType::Cdylib,
+                "bin" => CliCrateType::Executable,
+                "proc-macro" => CliCrateType::ProcMacro,
+                "sdylib" => CliCrateType::Sdylib,
                 _ => {
                     return Err(format!(
                         "unknown crate type: `{part}`, expected one of: \
@@ -3046,7 +3046,7 @@ pub(crate) mod dep_tracking {
 
     use super::{
         AnnotateMoves, AutoDiff, BranchProtection, CFGuard, CFProtection, CoverageOptions,
-        CrateType, DebugInfo, DebugInfoCompression, ErrorOutputType, FmtDebug, FunctionReturn,
+        CliCrateType, DebugInfo, DebugInfoCompression, ErrorOutputType, FmtDebug, FunctionReturn,
         InliningThreshold, InstrumentCoverage, InstrumentXRay, LinkerPluginLto, LocationDetail,
         LtoCli, MirStripDebugInfo, NextSolverConfig, Offload, OptLevel, OutFileName, OutputType,
         OutputTypes, PatchableFunctionEntry, Polonius, ResolveDocLinks, SourceFileHashAlgorithm,
@@ -3113,7 +3113,7 @@ pub(crate) mod dep_tracking {
         InstrumentCoverage,
         CoverageOptions,
         InstrumentXRay,
-        CrateType,
+        CliCrateType,
         MergeFunctions,
         OnBrokenPipe,
         PanicStrategy,

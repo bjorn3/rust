@@ -10,6 +10,7 @@
 use rustc_ast as ast;
 use rustc_ast::visit;
 use rustc_data_structures::fx::FxHashMap;
+use rustc_hir::attrs::CrateTypes;
 use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_hir::lang_items::GenericRequirement;
 use rustc_hir::{LangItem, LanguageItems, MethodKind, Target};
@@ -236,7 +237,7 @@ impl<'ast, 'tcx> LanguageItemCollector<'ast, 'tcx> {
             }
         }
 
-        if self.tcx.crate_types().contains(&rustc_session::config::CrateType::Sdylib) {
+        if matches!(self.tcx.crate_types(), CrateTypes::Sdylib) {
             self.tcx.dcx().emit_err(IncorrectCrateType { span: attr_span });
         }
 

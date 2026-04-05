@@ -35,7 +35,7 @@ use rustc_middle::middle::debugger_visualizer::DebuggerVisualizerFile;
 use rustc_middle::middle::dependency_format::Linkage;
 use rustc_middle::middle::exported_symbols::SymbolExportKind;
 use rustc_session::config::{
-    self, CFGuard, CrateType, DebugInfo, LinkerFeaturesCli, OutFileName, OutputFilenames,
+    self, CFGuard, CliCrateType, DebugInfo, LinkerFeaturesCli, OutFileName, OutputFilenames,
     OutputType, PrintKind, SplitDwarfKind, Strip,
 };
 use rustc_session::lint::builtin::LINKER_MESSAGES;
@@ -88,7 +88,7 @@ pub fn link_binary(
         // Ignore executable crates if we have -Z no-codegen, as they will error.
         if (sess.opts.unstable_opts.no_codegen || !sess.opts.output_types.should_codegen())
             && !output_metadata
-            && crate_type == CrateType::Executable
+            && crate_type == CliCrateType::Executable
         {
             continue;
         }
@@ -114,7 +114,7 @@ pub fn link_binary(
             let crate_name = format!("{}", crate_info.local_crate_name);
             let out_filename = output.file_for_writing(outputs, OutputType::Exe, &crate_name);
             match crate_type {
-                CrateType::Rlib => {
+                CliCrateType::Rlib => {
                     let _timer = sess.timer("link_rlib");
                     info!("preparing rlib to {:?}", out_filename);
                     link_rlib(
@@ -128,7 +128,7 @@ pub fn link_binary(
                     )
                     .build(&out_filename);
                 }
-                CrateType::StaticLib => {
+                CliCrateType::StaticLib => {
                     link_staticlib(
                         sess,
                         archive_builder_builder,
@@ -240,7 +240,7 @@ pub fn link_binary(
 // crate types must use the same dependency formats.
 pub fn each_linked_rlib(
     info: &CrateInfo,
-    crate_type: Option<CrateType>,
+    crate_type: Option<CliCrateType>,
     f: &mut dyn FnMut(CrateNum, &Path),
 ) -> Result<(), errors::LinkRlibError> {
     let fmts = if let Some(crate_type) = crate_type {
@@ -500,7 +500,7 @@ fn link_staticlib(
     );
     let mut all_native_libs = vec![];
 
-    let res = each_linked_rlib(crate_info, Some(CrateType::StaticLib), &mut |cnum, path| {
+    let res = each_linked_rlib(crate_info, Some(CliCrateType::StaticLib), &mut |cnum, path| {
         let lto = are_upstream_rust_objects_already_included(sess)
             && !ignored_for_lto(sess, crate_info, cnum);
 
@@ -556,7 +556,7 @@ fn link_staticlib(
 
     let fmts = crate_info
         .dependency_formats
-        .get(&CrateType::StaticLib)
+        .get(&CliCrateType::StaticLib)
         .expect("no dependency formats for staticlib");
 
     let mut all_rust_dylibs = vec![];
@@ -878,7 +878,7 @@ fn report_linker_output(
 fn link_natively(
     sess: &Session,
     archive_builder_builder: &dyn ArchiveBuilderBuilder,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
     out_filename: &Path,
     compiled_modules: &CompiledModules,
     crate_info: &CrateInfo,
@@ -894,7 +894,7 @@ fn link_natively(
     // the expected format is lib<name>.a(libname.so) for the actual
     // dynamic library. So we link to a temporary .so file to be archived
     // at the final out_filename location
-    let should_archive = crate_type != CrateType::Executable && sess.target.is_like_aix;
+    let should_archive = crate_type != CliCrateType::Executable && sess.target.is_like_aix;
     let archive_member =
         should_archive.then(|| tmpdir.join(out_filename.file_name().unwrap()).with_extension("so"));
     let temp_filename = archive_member.as_deref().unwrap_or(out_filename);
@@ -1190,7 +1190,7 @@ fn link_natively(
             // Per the manpage, --discard-all is the maximum safe strip level for dynamic libraries. (#93988)
             (
                 Strip::Symbols,
-                CrateType::Dylib | CrateType::Cdylib | CrateType::ProcMacro | CrateType::Sdylib,
+                CliCrateType::Dylib | CliCrateType::Cdylib | CliCrateType::ProcMacro | CliCrateType::Sdylib,
             ) => strip_with_external_utility(sess, stripcmd, out_filename, &["--discard-all"]),
             (Strip::Symbols, _) => {
                 strip_with_external_utility(sess, stripcmd, out_filename, &["--strip-all"])
@@ -1356,7 +1356,7 @@ mod win {
 fn add_sanitizer_libraries(
     sess: &Session,
     flavor: LinkerFlavor,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
     linker: &mut dyn Linker,
 ) {
     if sess.target.is_like_android {
@@ -1371,7 +1371,7 @@ fn add_sanitizer_libraries(
         return;
     }
 
-    if matches!(crate_type, CrateType::Rlib | CrateType::StaticLib) {
+    if matches!(crate_type, CliCrateType::Rlib | CliCrateType::StaticLib) {
         return;
     }
 
@@ -1381,7 +1381,7 @@ fn add_sanitizer_libraries(
     // libraries which should be linked to executables only.
     if matches!(
         crate_type,
-        CrateType::Dylib | CrateType::Cdylib | CrateType::ProcMacro | CrateType::Sdylib
+        CliCrateType::Dylib | CliCrateType::Cdylib | CliCrateType::ProcMacro | CliCrateType::Sdylib
     ) && !(sess.target.is_like_darwin || sess.target.is_like_msvc)
     {
         return;
@@ -1893,17 +1893,17 @@ fn exec_linker(
     }
 }
 
-fn link_output_kind(sess: &Session, crate_type: CrateType) -> LinkOutputKind {
+fn link_output_kind(sess: &Session, crate_type: CliCrateType) -> LinkOutputKind {
     let kind = match (crate_type, sess.crt_static(Some(crate_type)), sess.relocation_model()) {
-        (CrateType::Executable, _, _) if sess.is_wasi_reactor() => LinkOutputKind::WasiReactorExe,
-        (CrateType::Executable, false, RelocModel::Pic | RelocModel::Pie) => {
+        (CliCrateType::Executable, _, _) if sess.is_wasi_reactor() => LinkOutputKind::WasiReactorExe,
+        (CliCrateType::Executable, false, RelocModel::Pic | RelocModel::Pie) => {
             LinkOutputKind::DynamicPicExe
         }
-        (CrateType::Executable, false, _) => LinkOutputKind::DynamicNoPicExe,
-        (CrateType::Executable, true, RelocModel::Pic | RelocModel::Pie) => {
+        (CliCrateType::Executable, false, _) => LinkOutputKind::DynamicNoPicExe,
+        (CliCrateType::Executable, true, RelocModel::Pic | RelocModel::Pie) => {
             LinkOutputKind::StaticPicExe
         }
-        (CrateType::Executable, true, _) => LinkOutputKind::StaticNoPicExe,
+        (CliCrateType::Executable, true, _) => LinkOutputKind::StaticNoPicExe,
         (_, true, _) => LinkOutputKind::StaticDylib,
         (_, false, _) => LinkOutputKind::DynamicDylib,
     };
@@ -1943,7 +1943,7 @@ fn detect_self_contained_mingw(sess: &Session, linker: &Path) -> bool {
 /// We only provide such support for a very limited number of targets.
 fn self_contained_components(
     sess: &Session,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
     linker: &Path,
 ) -> LinkSelfContainedComponents {
     // Turn the backwards compatible bool values for `self_contained` into fully inferred
@@ -2037,9 +2037,9 @@ fn add_pre_link_args(cmd: &mut dyn Linker, sess: &Session, flavor: LinkerFlavor)
 }
 
 /// Add a link script embedded in the target, if applicable.
-fn add_link_script(cmd: &mut dyn Linker, sess: &Session, tmpdir: &Path, crate_type: CrateType) {
+fn add_link_script(cmd: &mut dyn Linker, sess: &Session, tmpdir: &Path, crate_type: CliCrateType) {
     match (crate_type, &sess.target.link_script) {
-        (CrateType::Cdylib | CrateType::Executable, Some(script)) => {
+        (CliCrateType::Cdylib | CliCrateType::Executable, Some(script)) => {
             if !sess.target.linker_flavor.is_gnu() {
                 sess.dcx().emit_fatal(errors::LinkScriptUnavailable);
             }
@@ -2069,11 +2069,11 @@ fn add_late_link_args(
     cmd: &mut dyn Linker,
     sess: &Session,
     flavor: LinkerFlavor,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
     crate_info: &CrateInfo,
 ) {
-    let any_dynamic_crate = crate_type == CrateType::Dylib
-        || crate_type == CrateType::Sdylib
+    let any_dynamic_crate = crate_type == CliCrateType::Dylib
+        || crate_type == CliCrateType::Sdylib
         || crate_info.dependency_formats.iter().any(|(ty, list)| {
             *ty == crate_type && list.iter().any(|&linkage| linkage == Linkage::Dynamic)
         });
@@ -2247,7 +2247,7 @@ fn add_local_crate_allocator_objects(
     cmd: &mut dyn Linker,
     compiled_modules: &CompiledModules,
     crate_info: &CrateInfo,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
 ) {
     if needs_allocator_shim_for_linking(&crate_info.dependency_formats, crate_type) {
         if let Some(obj) =
@@ -2263,7 +2263,7 @@ fn add_local_crate_metadata_objects(
     cmd: &mut dyn Linker,
     sess: &Session,
     archive_builder_builder: &dyn ArchiveBuilderBuilder,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
     tmpdir: &Path,
     crate_info: &CrateInfo,
     metadata: &EncodedMetadata,
@@ -2271,7 +2271,7 @@ fn add_local_crate_metadata_objects(
     // When linking a dynamic library, we put the metadata into a section of the
     // executable. This metadata is in a separate object file from the main
     // object file, so we create and link it in here.
-    if matches!(crate_type, CrateType::Dylib | CrateType::ProcMacro) {
+    if matches!(crate_type, CliCrateType::Dylib | CliCrateType::ProcMacro) {
         let data = archive_builder_builder.create_dylib_metadata_wrapper(
             sess,
             &metadata,
@@ -2424,7 +2424,7 @@ fn linker_with_args(
     flavor: LinkerFlavor,
     sess: &Session,
     archive_builder_builder: &dyn ArchiveBuilderBuilder,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
     tmpdir: &Path,
     out_filename: &Path,
     compiled_modules: &CompiledModules,
@@ -2446,7 +2446,7 @@ fn linker_with_args(
 
     let mut export_symbols = crate_info.exported_symbols[&crate_type].clone();
 
-    if crate_type == CrateType::Cdylib {
+    if crate_type == CliCrateType::Cdylib {
         let mut seen = FxHashSet::default();
 
         for lib in &crate_info.used_libraries {
@@ -2707,7 +2707,7 @@ fn add_order_independent_options(
     link_output_kind: LinkOutputKind,
     self_contained_components: LinkSelfContainedComponents,
     flavor: LinkerFlavor,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
     crate_info: &CrateInfo,
     out_filename: &Path,
     tmpdir: &Path,
@@ -2720,7 +2720,7 @@ fn add_order_independent_options(
     let apple_sdk_root = add_apple_sdk(cmd, sess, flavor);
 
     if sess.target.os == Os::Fuchsia
-        && crate_type == CrateType::Executable
+        && crate_type == CliCrateType::Executable
         && !matches!(flavor, LinkerFlavor::Gnu(Cc::Yes, _))
     {
         let prefix = if sess.sanitizers().contains(SanitizerSet::ADDRESS) { "asan/" } else { "" };
@@ -2776,7 +2776,7 @@ fn add_order_independent_options(
 
     cmd.output_filename(out_filename);
 
-    if crate_type == CrateType::Executable
+    if crate_type == CliCrateType::Executable
         && sess.target.is_like_windows
         && let Some(s) = &crate_info.windows_subsystem
     {
@@ -2791,7 +2791,7 @@ fn add_order_independent_options(
         // some functions. If we are generating a profile we shouldn't strip those metadata
         // sections to ensure we have all the data for PGO.
         let keep_metadata =
-            crate_type == CrateType::Dylib || sess.opts.cg.profile_generate.enabled();
+            crate_type == CliCrateType::Dylib || sess.opts.cg.profile_generate.enabled();
         cmd.gc_sections(keep_metadata);
     }
 
@@ -2997,7 +2997,7 @@ fn add_upstream_rust_crates(
     sess: &Session,
     archive_builder_builder: &dyn ArchiveBuilderBuilder,
     crate_info: &CrateInfo,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
     tmpdir: &Path,
     link_output_kind: LinkOutputKind,
 ) {

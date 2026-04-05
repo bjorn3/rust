@@ -30,7 +30,7 @@ use rustc_lint_defs::builtin::EXPLICIT_BUILTIN_CFGS_IN_FLAGS;
 use rustc_span::{Symbol, sym};
 use rustc_target::spec::{PanicStrategy, RelocModel, SanitizerSet, Target};
 
-use crate::config::{CrateType, FmtDebug};
+use crate::config::{CliCrateType, FmtDebug};
 use crate::{Session, errors};
 
 /// The parsed `--cfg` options that define the compilation environment of the
@@ -224,7 +224,7 @@ pub(crate) fn default_configuration(sess: &Session) -> Cfg {
 
     // JUSTIFICATION: before wrapper fn is available
     #[allow(rustc::bad_opt_access)]
-    if sess.opts.crate_types.contains(&CrateType::ProcMacro) {
+    if sess.opts.crate_types.contains(&CliCrateType::ProcMacro) {
         ins_none!(sym::proc_macro);
     }
 

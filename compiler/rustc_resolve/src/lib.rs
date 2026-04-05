@@ -50,7 +50,7 @@ use rustc_data_structures::unord::{UnordItems, UnordMap, UnordSet};
 use rustc_errors::{Applicability, Diag, ErrCode, ErrorGuaranteed, LintBuffer};
 use rustc_expand::base::{DeriveResolution, SyntaxExtension, SyntaxExtensionKind};
 use rustc_feature::BUILTIN_ATTRIBUTES;
-use rustc_hir::attrs::StrippedCfgItem;
+use rustc_hir::attrs::{CrateTypes, StrippedCfgItem};
 use rustc_hir::def::Namespace::{self, *};
 use rustc_hir::def::{
     self, CtorOf, DefKind, DocLinkResMap, LifetimeRes, MacroKinds, NonMacroAttrKind, PartialRes,
@@ -69,7 +69,6 @@ use rustc_middle::ty::{
     ResolverAstLowering, ResolverGlobalCtxt, TyCtxt, TyCtxtFeed, Visibility,
 };
 use rustc_middle::{bug, span_bug};
-use rustc_session::config::CrateType;
 use rustc_session::lint::builtin::PRIVATE_MACRO_USE;
 use rustc_span::hygiene::{ExpnId, LocalExpnId, MacroKind, SyntaxContext, Transparency};
 use rustc_span::{DUMMY_SP, Ident, Span, Symbol, kw, sym};
@@ -2652,9 +2651,8 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
     }
 
     fn resolve_main(&mut self) {
-        let any_exe = self.tcx.crate_types().contains(&CrateType::Executable);
         // Don't try to resolve main unless it's an executable
-        if !any_exe {
+        if !matches!(self.tcx.crate_types(), CrateTypes::Executable) {
             return;
         }
 

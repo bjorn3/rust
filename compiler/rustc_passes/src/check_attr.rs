@@ -17,8 +17,8 @@ use rustc_errors::{DiagCtxtHandle, IntoDiagArg, MultiSpan, msg};
 use rustc_feature::BUILTIN_ATTRIBUTE_MAP;
 use rustc_hir::attrs::diagnostic::Directive;
 use rustc_hir::attrs::{
-    AttributeKind, DocAttribute, DocInline, EiiDecl, EiiImpl, EiiImplResolution, InlineAttr,
-    ReprAttr, SanitizerSet,
+    AttributeKind, CrateTypes, DocAttribute, DocInline, EiiDecl, EiiImpl, EiiImplResolution,
+    InlineAttr, ReprAttr, SanitizerSet,
 };
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::LocalModDefId;
@@ -35,7 +35,6 @@ use rustc_middle::traits::ObligationCause;
 use rustc_middle::ty::error::{ExpectedFound, TypeError};
 use rustc_middle::ty::{self, TyCtxt, TypingMode, Unnormalized};
 use rustc_middle::{bug, span_bug};
-use rustc_session::config::CrateType;
 use rustc_session::errors::feature_err;
 use rustc_session::lint;
 use rustc_session::lint::builtin::{
@@ -1522,12 +1521,7 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                     };
                     return;
                 } else {
-                    let never_needs_link = self
-                        .tcx
-                        .crate_types()
-                        .iter()
-                        .all(|kind| matches!(kind, CrateType::Rlib | CrateType::StaticLib));
-                    if never_needs_link {
+                    if self.tcx.crate_types().never_linked() {
                         errors::UnusedNote::LinkerMessagesBinaryCrateOnly
                     } else {
                         return;
@@ -1539,7 +1533,7 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                 && meta.iter().any(|meta| {
                     meta.meta_item().is_some_and(|item| item.path == sym::dead_code_pub_in_binary)
                 })
-                && !self.tcx.crate_types().contains(&CrateType::Executable)
+                && !matches!(self.tcx.crate_types(), CrateTypes::Executable)
             {
                 errors::UnusedNote::NoEffectDeadCodePubInBinary
             } else if attr.has_name(sym::default_method_body_is_const) {

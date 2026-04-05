@@ -5,7 +5,7 @@ use rustc_codegen_ssa::traits::*;
 use rustc_hir::attrs::DebuggerVisualizerType;
 use rustc_hir::def_id::LOCAL_CRATE;
 use rustc_middle::bug;
-use rustc_session::config::{CrateType, DebugInfo};
+use rustc_session::config::{CliCrateType, DebugInfo};
 
 use crate::builder::Builder;
 use crate::common::CodegenCx;
@@ -89,22 +89,22 @@ pub(crate) fn needs_gdb_debug_scripts_section(cx: &CodegenCx<'_, '_>) -> bool {
     // in the `.debug_gdb_scripts` section. For that reason, we make sure that the
     // section is only emitted for leaf crates.
     let embed_visualizers = cx.tcx.crate_types().iter().any(|&crate_type| match crate_type {
-        CrateType::Executable
-        | CrateType::Dylib
-        | CrateType::Cdylib
-        | CrateType::StaticLib
-        | CrateType::Sdylib => {
+        CliCrateType::Executable
+        | CliCrateType::Dylib
+        | CliCrateType::Cdylib
+        | CliCrateType::StaticLib
+        | CliCrateType::Sdylib => {
             // These are crate types for which we will embed pretty printers since they
             // are treated as leaf crates.
             true
         }
-        CrateType::ProcMacro => {
+        CliCrateType::ProcMacro => {
             // We could embed pretty printers for proc macro crates too but it does not
             // seem like a good default, since this is a rare use case and we don't
             // want to slow down the common case.
             false
         }
-        CrateType::Rlib => {
+        CliCrateType::Rlib => {
             // As per the above description, embedding pretty printers for rlibs could
             // lead to ODR violations so we skip this crate type as well.
             false

@@ -22,7 +22,7 @@ use rustc_middle::ty::layout::{FnAbiOf, HasTyCtxt, HasTypingEnv, LayoutOf};
 use rustc_middle::ty::offload_meta::OffloadMetadata;
 use rustc_middle::ty::{self, GenericArgsRef, Instance, SimdAlign, Ty, TyCtxt, TypingEnv};
 use rustc_middle::{bug, span_bug};
-use rustc_session::config::CrateType;
+use rustc_session::config::CliCrateType;
 use rustc_session::errors::feature_err;
 use rustc_session::lint::builtin::DEPRECATED_LLVM_INTRINSIC;
 use rustc_span::{ErrorGuaranteed, Span, Symbol, sym};
@@ -1834,7 +1834,7 @@ fn codegen_autodiff<'ll, 'tcx>(
 
     let ct = tcx.crate_types();
     let lto = tcx.sess.lto();
-    if ct.len() == 1 && ct.contains(&CrateType::Executable) {
+    if ct.len() == 1 && ct.contains(&CliCrateType::Executable) {
         if lto != rustc_session::config::Lto::Fat {
             let _ = tcx.dcx().emit_almost_fatal(AutoDiffWithoutLto);
         }

@@ -17,7 +17,7 @@ use rustc_middle::middle::exported_symbols::{
 };
 use rustc_middle::ty::TyCtxt;
 use rustc_session::Session;
-use rustc_session::config::{self, CrateType, DebugInfo, LinkerPluginLto, Lto, OptLevel, Strip};
+use rustc_session::config::{self, CliCrateType, DebugInfo, LinkerPluginLto, Lto, OptLevel, Strip};
 use rustc_target::spec::{Arch, Cc, CfgAbi, LinkOutputKind, LinkerFlavor, Lld, Os};
 use tracing::{debug, warn};
 
@@ -303,7 +303,7 @@ pub(crate) trait Linker {
     fn set_output_kind(
         &mut self,
         output_kind: LinkOutputKind,
-        crate_type: CrateType,
+        crate_type: CliCrateType,
         out_filename: &Path,
     );
     fn link_dylib_by_name(&mut self, _name: &str, _verbatim: bool, _as_needed: bool) {
@@ -343,7 +343,7 @@ pub(crate) trait Linker {
     fn export_symbols(
         &mut self,
         tmpdir: &Path,
-        crate_type: CrateType,
+        crate_type: CliCrateType,
         symbols: &[(String, SymbolExportKind)],
     );
     fn windows_subsystem(&mut self, subsystem: WindowsSubsystemKind);
@@ -439,7 +439,7 @@ impl<'a> GccLinker<'a> {
         ]);
     }
 
-    fn build_dylib(&mut self, crate_type: CrateType, out_filename: &Path) {
+    fn build_dylib(&mut self, crate_type: CliCrateType, out_filename: &Path) {
         // On mac we need to tell the linker to let this library be rpathed
         if self.sess.target.is_like_darwin {
             if self.is_cc() {
@@ -473,7 +473,7 @@ impl<'a> GccLinker<'a> {
                     let mut out_implib = OsString::from("--out-implib=");
                     out_implib.push(out_filename.with_file_name(implib_name));
                     self.link_arg(out_implib);
-                } else if crate_type == CrateType::Dylib {
+                } else if crate_type == CliCrateType::Dylib {
                     // When dylibs are linked by a full path this value will get into `DT_NEEDED`
                     // instead of the full path, so the library can be later found in some other
                     // location than that specific path.
@@ -523,7 +523,7 @@ impl<'a> Linker for GccLinker<'a> {
     fn set_output_kind(
         &mut self,
         output_kind: LinkOutputKind,
-        crate_type: CrateType,
+        crate_type: CliCrateType,
         out_filename: &Path,
     ) {
         match output_kind {
@@ -799,11 +799,11 @@ impl<'a> Linker for GccLinker<'a> {
     fn export_symbols(
         &mut self,
         tmpdir: &Path,
-        crate_type: CrateType,
+        crate_type: CliCrateType,
         symbols: &[(String, SymbolExportKind)],
     ) {
         // Symbol visibility in object files typically takes care of this.
-        if crate_type == CrateType::Executable {
+        if crate_type == CliCrateType::Executable {
             let should_export_executable_symbols =
                 self.sess.opts.unstable_opts.export_executable_symbols;
             if self.sess.target.override_export_symbols.is_none()
@@ -861,7 +861,7 @@ impl<'a> Linker for GccLinker<'a> {
             for (sym, _) in symbols {
                 self.link_arg("--export").link_arg(sym);
             }
-        } else if crate_type == CrateType::Executable && !self.sess.target.is_like_solaris {
+        } else if crate_type == CliCrateType::Executable && !self.sess.target.is_like_solaris {
             let res = try {
                 let mut f = File::create_buffered(&path)?;
                 writeln!(f, "{{")?;
@@ -962,7 +962,7 @@ impl<'a> Linker for MsvcLinker<'a> {
     fn set_output_kind(
         &mut self,
         output_kind: LinkOutputKind,
-        _crate_type: CrateType,
+        _crate_type: CliCrateType,
         out_filename: &Path,
     ) {
         match output_kind {
@@ -1143,11 +1143,11 @@ impl<'a> Linker for MsvcLinker<'a> {
     fn export_symbols(
         &mut self,
         tmpdir: &Path,
-        crate_type: CrateType,
+        crate_type: CliCrateType,
         symbols: &[(String, SymbolExportKind)],
     ) {
         // Symbol visibility takes care of this typically
-        if crate_type == CrateType::Executable {
+        if crate_type == CliCrateType::Executable {
             let should_export_executable_symbols =
                 self.sess.opts.unstable_opts.export_executable_symbols;
             if !should_export_executable_symbols {
@@ -1226,7 +1226,7 @@ impl<'a> Linker for EmLinker<'a> {
     fn set_output_kind(
         &mut self,
         output_kind: LinkOutputKind,
-        _crate_type: CrateType,
+        _crate_type: CliCrateType,
         _out_filename: &Path,
     ) {
         match output_kind {
@@ -1318,7 +1318,7 @@ impl<'a> Linker for EmLinker<'a> {
     fn export_symbols(
         &mut self,
         _tmpdir: &Path,
-        _crate_type: CrateType,
+        _crate_type: CliCrateType,
         symbols: &[(String, SymbolExportKind)],
     ) {
         debug!("EXPORTED SYMBOLS:");
@@ -1365,7 +1365,7 @@ impl<'a> Linker for WasmLd<'a> {
     fn set_output_kind(
         &mut self,
         output_kind: LinkOutputKind,
-        _crate_type: CrateType,
+        _crate_type: CliCrateType,
         _out_filename: &Path,
     ) {
         match output_kind {
@@ -1458,7 +1458,7 @@ impl<'a> Linker for WasmLd<'a> {
     fn export_symbols(
         &mut self,
         _tmpdir: &Path,
-        _crate_type: CrateType,
+        _crate_type: CliCrateType,
         symbols: &[(String, SymbolExportKind)],
     ) {
         for (sym, _) in symbols {
@@ -1512,7 +1512,7 @@ impl<'a> Linker for L4Bender<'a> {
     fn set_output_kind(
         &mut self,
         _output_kind: LinkOutputKind,
-        _crate_type: CrateType,
+        _crate_type: CliCrateType,
         _out_filename: &Path,
     ) {
     }
@@ -1583,7 +1583,7 @@ impl<'a> Linker for L4Bender<'a> {
         self.cc_arg("-nostdlib");
     }
 
-    fn export_symbols(&mut self, _: &Path, _: CrateType, _: &[(String, SymbolExportKind)]) {
+    fn export_symbols(&mut self, _: &Path, _: CliCrateType, _: &[(String, SymbolExportKind)]) {
         // ToDo, not implemented, copy from GCC
         self.sess.dcx().emit_warn(errors::L4BenderExportingSymbolsUnimplemented);
     }
@@ -1661,7 +1661,7 @@ impl<'a> Linker for AixLinker<'a> {
     fn set_output_kind(
         &mut self,
         output_kind: LinkOutputKind,
-        _crate_type: CrateType,
+        _crate_type: CliCrateType,
         out_filename: &Path,
     ) {
         match output_kind {
@@ -1740,7 +1740,7 @@ impl<'a> Linker for AixLinker<'a> {
     fn export_symbols(
         &mut self,
         tmpdir: &Path,
-        _crate_type: CrateType,
+        _crate_type: CliCrateType,
         symbols: &[(String, SymbolExportKind)],
     ) {
         let path = tmpdir.join("list.exp");
@@ -1775,7 +1775,7 @@ impl<'a> Linker for AixLinker<'a> {
 
 fn for_each_exported_symbols_include_dep<'tcx>(
     tcx: TyCtxt<'tcx>,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
     mut callback: impl FnMut(ExportedSymbol<'tcx>, SymbolExportInfo, CrateNum),
 ) {
     let formats = tcx.dependency_formats(());
@@ -1796,7 +1796,7 @@ fn for_each_exported_symbols_include_dep<'tcx>(
 
 pub(crate) fn exported_symbols(
     tcx: TyCtxt<'_>,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
 ) -> Vec<(String, SymbolExportKind)> {
     if let Some(ref exports) = tcx.sess.target.override_export_symbols {
         return exports
@@ -1813,13 +1813,13 @@ pub(crate) fn exported_symbols(
             .collect();
     }
 
-    let mut symbols = if let CrateType::ProcMacro = crate_type {
+    let mut symbols = if let CliCrateType::ProcMacro = crate_type {
         exported_symbols_for_proc_macro_crate(tcx)
     } else {
         exported_symbols_for_non_proc_macro(tcx, crate_type)
     };
 
-    if crate_type == CrateType::Dylib || crate_type == CrateType::ProcMacro {
+    if crate_type == CliCrateType::Dylib || crate_type == CliCrateType::ProcMacro {
         let metadata_symbol_name = exported_symbols::metadata_symbol_name(tcx);
         symbols.push((metadata_symbol_name, SymbolExportKind::Data));
     }
@@ -1829,7 +1829,7 @@ pub(crate) fn exported_symbols(
 
 fn exported_symbols_for_non_proc_macro(
     tcx: TyCtxt<'_>,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
 ) -> Vec<(String, SymbolExportKind)> {
     let mut symbols = Vec::new();
     let export_threshold = symbol_export::crates_export_threshold(&[crate_type]);
@@ -1871,15 +1871,15 @@ fn exported_symbols_for_proc_macro_crate(tcx: TyCtxt<'_>) -> Vec<(String, Symbol
 
 pub(crate) fn linked_symbols(
     tcx: TyCtxt<'_>,
-    crate_type: CrateType,
+    crate_type: CliCrateType,
 ) -> Vec<(String, SymbolExportKind)> {
     match crate_type {
-        CrateType::Executable
-        | CrateType::ProcMacro
-        | CrateType::Cdylib
-        | CrateType::Dylib
-        | CrateType::Sdylib => (),
-        CrateType::StaticLib | CrateType::Rlib => {
+        CliCrateType::Executable
+        | CliCrateType::ProcMacro
+        | CliCrateType::Cdylib
+        | CliCrateType::Dylib
+        | CliCrateType::Sdylib => (),
+        CliCrateType::StaticLib | CliCrateType::Rlib => {
             // These are not linked, so no need to generate symbols.o for them.
             return Vec::new();
         }
@@ -1935,7 +1935,7 @@ impl<'a> Linker for PtxLinker<'a> {
     fn set_output_kind(
         &mut self,
         _output_kind: LinkOutputKind,
-        _crate_type: CrateType,
+        _crate_type: CliCrateType,
         _out_filename: &Path,
     ) {
     }
@@ -1987,7 +1987,7 @@ impl<'a> Linker for PtxLinker<'a> {
     fn export_symbols(
         &mut self,
         _tmpdir: &Path,
-        _crate_type: CrateType,
+        _crate_type: CliCrateType,
         _symbols: &[(String, SymbolExportKind)],
     ) {
     }
@@ -2011,7 +2011,7 @@ impl<'a> Linker for LlbcLinker<'a> {
     fn set_output_kind(
         &mut self,
         _output_kind: LinkOutputKind,
-        _crate_type: CrateType,
+        _crate_type: CliCrateType,
         _out_filename: &Path,
     ) {
     }
@@ -2060,11 +2060,11 @@ impl<'a> Linker for LlbcLinker<'a> {
     fn export_symbols(
         &mut self,
         _tmpdir: &Path,
-        _crate_type: CrateType,
+        _crate_type: CliCrateType,
         symbols: &[(String, SymbolExportKind)],
     ) {
         match _crate_type {
-            CrateType::Cdylib => {
+            CliCrateType::Cdylib => {
                 for (sym, _) in symbols {
                     self.link_args(&["--export-symbol", sym]);
                 }
@@ -2091,7 +2091,7 @@ impl<'a> Linker for BpfLinker<'a> {
     fn set_output_kind(
         &mut self,
         _output_kind: LinkOutputKind,
-        _crate_type: CrateType,
+        _crate_type: CliCrateType,
         _out_filename: &Path,
     ) {
     }
@@ -2140,7 +2140,7 @@ impl<'a> Linker for BpfLinker<'a> {
     fn export_symbols(
         &mut self,
         tmpdir: &Path,
-        _crate_type: CrateType,
+        _crate_type: CliCrateType,
         symbols: &[(String, SymbolExportKind)],
     ) {
         let path = tmpdir.join("symbols");

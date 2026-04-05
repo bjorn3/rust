@@ -57,7 +57,7 @@ use rustc_index::IndexVec;
 use rustc_middle::bug;
 use rustc_middle::middle::dependency_format::{Dependencies, DependencyList, Linkage};
 use rustc_middle::ty::TyCtxt;
-use rustc_session::config::CrateType;
+use rustc_session::config::CliCrateType;
 use rustc_session::cstore::CrateDepKind;
 use rustc_session::cstore::LinkagePreference::{self, RequireDynamic, RequireStatic};
 use rustc_span::sym;
@@ -72,59 +72,60 @@ use crate::errors::{
 };
 
 pub(crate) fn calculate(tcx: TyCtxt<'_>) -> Dependencies {
-    tcx.crate_types()
-        .iter()
-        .map(|&ty| {
-            let linkage = calculate_type(tcx, ty);
-            verify_ok(tcx, &linkage);
-            (ty, linkage)
-        })
-        .collect()
+    /*tcx.crate_types()
+    .iter()
+    .map(|&ty| {
+        let linkage = calculate_type(tcx, ty);
+        verify_ok(tcx, &linkage);
+        (ty, linkage)
+    })
+    .collect()*/
+    // TODO
+    todo!()
 }
 
-fn calculate_type(tcx: TyCtxt<'_>, ty: CrateType) -> DependencyList {
+fn calculate_type(tcx: TyCtxt<'_>, ty: CliCrateType) -> DependencyList {
     let sess = &tcx.sess;
 
     if !sess.opts.output_types.should_link() {
         return IndexVec::new();
     }
 
-    let preferred_linkage =
-        match ty {
-            // Generating a dylib without `-C prefer-dynamic` means that we're going
-            // to try to eagerly statically link all dependencies. This is normally
-            // done for end-product dylibs, not intermediate products.
-            //
-            // Treat cdylibs and staticlibs similarly. If `-C prefer-dynamic` is set,
-            // the caller may be code-size conscious, but without it, it makes sense
-            // to statically link a cdylib or staticlib. For staticlibs we use
-            // `-Z staticlib-prefer-dynamic` for now. This may be merged into
-            // `-C prefer-dynamic` in the future.
-            CrateType::Dylib | CrateType::Cdylib | CrateType::Sdylib => {
-                if sess.opts.cg.prefer_dynamic { Linkage::Dynamic } else { Linkage::Static }
-            }
-            CrateType::StaticLib => {
-                if sess.opts.unstable_opts.staticlib_prefer_dynamic {
-                    Linkage::Dynamic
-                } else {
-                    Linkage::Static
-                }
-            }
-
-            // If the global prefer_dynamic switch is turned off, or the final
-            // executable will be statically linked, prefer static crate linkage.
-            CrateType::Executable if !sess.opts.cg.prefer_dynamic || sess.crt_static(Some(ty)) => {
+    let preferred_linkage = match ty {
+        // Generating a dylib without `-C prefer-dynamic` means that we're going
+        // to try to eagerly statically link all dependencies. This is normally
+        // done for end-product dylibs, not intermediate products.
+        //
+        // Treat cdylibs and staticlibs similarly. If `-C prefer-dynamic` is set,
+        // the caller may be code-size conscious, but without it, it makes sense
+        // to statically link a cdylib or staticlib. For staticlibs we use
+        // `-Z staticlib-prefer-dynamic` for now. This may be merged into
+        // `-C prefer-dynamic` in the future.
+        CliCrateType::Dylib | CliCrateType::Cdylib | CliCrateType::Sdylib => {
+            if sess.opts.cg.prefer_dynamic { Linkage::Dynamic } else { Linkage::Static }
+        }
+        CliCrateType::StaticLib => {
+            if sess.opts.unstable_opts.staticlib_prefer_dynamic {
+                Linkage::Dynamic
+            } else {
                 Linkage::Static
             }
-            CrateType::Executable => Linkage::Dynamic,
+        }
 
-            // proc-macro crates are mostly cdylibs, but we also need metadata.
-            CrateType::ProcMacro => Linkage::Static,
+        // If the global prefer_dynamic switch is turned off, or the final
+        // executable will be statically linked, prefer static crate linkage.
+        CliCrateType::Executable if !sess.opts.cg.prefer_dynamic || sess.crt_static(Some(ty)) => {
+            Linkage::Static
+        }
+        CliCrateType::Executable => Linkage::Dynamic,
 
-            // No linkage happens with rlibs, we just needed the metadata (which we
-            // got long ago), so don't bother with anything.
-            CrateType::Rlib => Linkage::NotLinked,
-        };
+        // proc-macro crates are mostly cdylibs, but we also need metadata.
+        CliCrateType::ProcMacro => Linkage::Static,
+
+        // No linkage happens with rlibs, we just needed the metadata (which we
+        // got long ago), so don't bother with anything.
+        CliCrateType::Rlib => Linkage::NotLinked,
+    };
 
     let mut unavailable_as_static = Vec::new();
 
@@ -140,8 +141,9 @@ fn calculate_type(tcx: TyCtxt<'_>, ty: CrateType) -> DependencyList {
 
             // Static executables must have all static dependencies.
             // If any are not found, generate some nice pretty errors.
-            if (ty == CrateType::StaticLib && !sess.opts.unstable_opts.staticlib_allow_rdylib_deps)
-                || (ty == CrateType::Executable
+            if (ty == CliCrateType::StaticLib
+                && !sess.opts.unstable_opts.staticlib_allow_rdylib_deps)
+                || (ty == CliCrateType::Executable
                     && sess.crt_static(Some(ty))
                     && !sess.target.crt_static_allows_dylibs)
             {

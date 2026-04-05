@@ -3,14 +3,13 @@ use rustc_ast as ast;
 use rustc_attr_parsing::AttributeParser;
 use rustc_errors::{Applicability, Diag, DiagCtxtHandle, Diagnostic, Level};
 use rustc_hir as hir;
-use rustc_hir::attrs::{AttributeKind, ReprAttr};
+use rustc_hir::attrs::{AttributeKind, CrateTypes, ReprAttr};
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::def_id::DefId;
 use rustc_hir::intravisit::{FnKind, Visitor};
 use rustc_hir::{Attribute, GenericParamKind, PatExprKind, PatKind, find_attr};
 use rustc_middle::hir::nested_filter::All;
 use rustc_middle::ty::AssocContainer;
-use rustc_session::config::CrateType;
 use rustc_session::{declare_lint, declare_lint_pass};
 use rustc_span::def_id::LocalDefId;
 use rustc_span::{BytePos, Ident, Span, sym};
@@ -336,7 +335,7 @@ impl<'tcx> LateLintPass<'tcx> for NonSnakeCase {
         // Issue #45127: don't enforce `snake_case` for binary crates as binaries are not intended
         // to be distributed and depended on like libraries. The lint is not suppressed for cdylib
         // or staticlib because it's not clear what the desired lint behavior for those are.
-        if cx.tcx.crate_types().iter().all(|&crate_type| crate_type == CrateType::Executable) {
+        if matches!(cx.tcx.crate_types(), CrateTypes::Executable) {
             return;
         }
 

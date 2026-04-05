@@ -8,7 +8,7 @@ use rustc_errors::DiagCtxtHandle;
 use rustc_hir::def_id::{CrateNum, LOCAL_CRATE};
 use rustc_middle::middle::exported_symbols::{ExportedSymbol, SymbolExportInfo, SymbolExportLevel};
 use rustc_middle::ty::TyCtxt;
-use rustc_session::config::{CrateType, Lto};
+use rustc_session::config::{CliCrateType, Lto};
 use tracing::info;
 
 use crate::back::symbol_export::{self, allocator_shim_symbols, symbol_name_for_instance_in_crate};
@@ -73,15 +73,15 @@ impl<M: ModuleBufferMethods> SerializedModule<M> {
     }
 }
 
-fn crate_type_allows_lto(crate_type: CrateType) -> bool {
+fn crate_type_allows_lto(crate_type: CliCrateType) -> bool {
     match crate_type {
-        CrateType::Executable
-        | CrateType::Dylib
-        | CrateType::StaticLib
-        | CrateType::Cdylib
-        | CrateType::ProcMacro
-        | CrateType::Sdylib => true,
-        CrateType::Rlib => false,
+        CliCrateType::Executable
+        | CliCrateType::Dylib
+        | CliCrateType::StaticLib
+        | CliCrateType::Cdylib
+        | CliCrateType::ProcMacro
+        | CliCrateType::Sdylib => true,
+        CliCrateType::Rlib => false,
     }
 }
 
@@ -145,11 +145,11 @@ pub(super) fn check_lto_allowed(cgcx: &CodegenContext, dcx: DiagCtxtHandle<'_>) 
     for crate_type in cgcx.crate_types.iter() {
         if !crate_type_allows_lto(*crate_type) {
             dcx.handle().emit_fatal(LtoDisallowed);
-        } else if *crate_type == CrateType::Dylib {
+        } else if *crate_type == CliCrateType::Dylib {
             if !cgcx.dylib_lto {
                 dcx.handle().emit_fatal(LtoDylib);
             }
-        } else if *crate_type == CrateType::ProcMacro && !cgcx.dylib_lto {
+        } else if *crate_type == CliCrateType::ProcMacro && !cgcx.dylib_lto {
             dcx.handle().emit_fatal(LtoProcMacro);
         }
     }
