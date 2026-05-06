@@ -22,13 +22,15 @@ use rustc_metadata::fs::copy_to_stdout;
 use rustc_middle::bug;
 use rustc_middle::dep_graph::{WorkProduct, WorkProductMap};
 use rustc_middle::ty::TyCtxt;
+use rustc_serialize::opaque::mem_encoder::MemEncoder;
+use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 use rustc_session::config::{
     self, CrateType, Lto, OptLevel, OutFileName, OutputFilenames, OutputType, Passes,
     SwitchWithOptPath,
 };
 use rustc_session::{IncrCompSession, Session};
 use rustc_span::source_map::SourceMap;
-use rustc_span::{FileName, InnerSpan, Span, SpanData};
+use rustc_span::{FileName, InnerSpan, Span, SpanData, SpanDecoder};
 use rustc_target::spec::{MergeFunctions, SanitizerSet};
 use tracing::debug;
 
@@ -403,6 +405,55 @@ enum MaybeLtoModules<B: WriteBackendMethods> {
     NoLto(CompiledModules),
     FatLto { cgcx: CodegenContext, needs_fat_lto: Vec<FatLtoInput<B>> },
     ThinLto { cgcx: CodegenContext, needs_thin_lto: Vec<ThinLtoInput<B>> },
+}
+
+impl<B: WriteBackendMethods> MaybeLtoModules<B> {
+    fn encode(self, output_filenames: &OutputFilenames) -> Vec<u8> {
+        let mut s = MemEncoder::new();
+        s.emit_u8(match self {
+            MaybeLtoModules::NoLto(_) => 0,
+            MaybeLtoModules::FatLto { .. } => 1,
+            MaybeLtoModules::ThinLto { .. } => 2,
+        });
+        match self {
+            MaybeLtoModules::NoLto(modules) => {
+                modules.encode(&mut s);
+            }
+            MaybeLtoModules::FatLto { cgcx, needs_fat_lto } => {
+                cgcx.encode(&mut s);
+                for input in needs_fat_lto {
+                    input.encode(&mut s, output_filenames);
+                }
+            }
+            MaybeLtoModules::ThinLto { cgcx, needs_thin_lto } => {
+                cgcx.encode(&mut s);
+                for input in needs_thin_lto {
+                    input.encode(&mut s, output_filenames);
+                }
+            }
+        }
+        s.finish()
+    }
+}
+
+impl<B: WriteBackendMethods, D: SpanDecoder> Decodable<D> for MaybeLtoModules<B> {
+    fn decode(d: &mut D) -> Self {
+        match Decoder::read_u8(d) {
+            0 => MaybeLtoModules::NoLto(Decodable::decode(d)),
+            1 => MaybeLtoModules::FatLto {
+                cgcx: Decodable::decode(d),
+                needs_fat_lto: Decodable::decode(d),
+            },
+            2 => MaybeLtoModules::ThinLto {
+                cgcx: Decodable::decode(d),
+                needs_thin_lto: Decodable::decode(d),
+            },
+            n => panic!(
+                "invalid enum variant tag while decoding `MaybeLtoModules`, expected 0..3, actual {}",
+                n
+            ),
+        }
+    }
 }
 
 fn need_bitcode_in_object(tcx: TyCtxt<'_>) -> bool {
@@ -784,9 +835,93 @@ pub enum FatLtoInput<B: WriteBackendMethods> {
     InMemory(ModuleCodegen<B::Module>),
 }
 
+impl<B: WriteBackendMethods> FatLtoInput<B> {
+    fn encode(self, s: &mut MemEncoder, output_filenames: &OutputFilenames) {
+        let data = match self {
+            FatLtoInput::Serialized { name, bitcode_path } => (name, bitcode_path),
+            FatLtoInput::InMemory(module) => {
+                let buffer = B::serialize_module(module.module_llvm, false);
+                let bitcode_path = output_filenames.temp_path_ext_for_cgu("rlink-bc", &module.name);
+                fs::write(&bitcode_path, buffer.data()).unwrap_or_else(|e| {
+                    panic!(
+                        "Error writing pre-link bitcode file `{}`: {}",
+                        bitcode_path.display(),
+                        e
+                    );
+                });
+                (module.name, bitcode_path)
+            }
+        };
+        data.encode(s)
+    }
+}
+
+impl<D: Decoder, B: WriteBackendMethods> Decodable<D> for FatLtoInput<B> {
+    fn decode(d: &mut D) -> Self {
+        let (name, bitcode_path) = Decodable::decode(d);
+        FatLtoInput::Serialized { name, bitcode_path }
+    }
+}
+
 pub enum ThinLtoInput<B: WriteBackendMethods> {
     Red { name: String, buffer: SerializedModule<B::ModuleBuffer> },
     Green { wp: WorkProduct, bitcode_path: PathBuf },
+}
+
+impl<B: WriteBackendMethods> ThinLtoInput<B> {
+    fn encode(self, s: &mut MemEncoder, output_filenames: &OutputFilenames) {
+        s.emit_u8(match self {
+            ThinLtoInput::Red { .. } => 0,
+            ThinLtoInput::Green { .. } => 1,
+        });
+        match self {
+            ThinLtoInput::Red { name, buffer } => {
+                let bitcode_path = output_filenames.temp_path_ext_for_cgu("rlink-bc", &name);
+                fs::write(&bitcode_path, buffer.data()).unwrap_or_else(|e| {
+                    panic!(
+                        "Error writing pre-link bitcode file `{}`: {}",
+                        bitcode_path.display(),
+                        e
+                    );
+                });
+
+                name.encode(s);
+                bitcode_path.encode(s);
+            }
+            ThinLtoInput::Green { wp, bitcode_path } => {
+                wp.encode(s);
+                bitcode_path.encode(s);
+            }
+        }
+    }
+}
+
+impl<B: WriteBackendMethods, D: SpanDecoder> Decodable<D> for ThinLtoInput<B> {
+    fn decode(d: &mut D) -> Self {
+        match Decoder::read_u8(d) {
+            0 => {
+                let name = Decodable::decode(d);
+                let bitcode_path = <PathBuf as Decodable<D>>::decode(d);
+                let buffer = SerializedModule::from_file(&bitcode_path);
+                // FIXME can this be done on windows while the above mmap is active?
+                std::fs::remove_file(&bitcode_path).unwrap_or_else(|e| {
+                    panic!(
+                        "Error remove pre-link bitcode file `{}`: {}",
+                        bitcode_path.display(),
+                        e
+                    );
+                });
+                ThinLtoInput::Red { name, buffer }
+            }
+            1 => {
+                ThinLtoInput::Green { wp: Decodable::decode(d), bitcode_path: Decodable::decode(d) }
+            }
+            n => panic!(
+                "invalid enum variant tag while decoding `ThinLtoInput`, expected 0..2, actual {}",
+                n
+            ),
+        }
+    }
 }
 
 /// Actual LTO type we end up choosing based on multiple factors.
