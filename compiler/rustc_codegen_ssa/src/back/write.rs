@@ -2246,6 +2246,7 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
         self,
         sess: &Session,
         incr_comp_session: Option<&IncrCompSession>,
+        output_filenames: &OutputFilenames,
         crate_info: &CrateInfo,
     ) -> (CompiledModules, WorkProductMap) {
         self.shared_emitter_main.check(sess, true);
@@ -2262,6 +2263,11 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
         });
 
         sess.dcx().abort_if_errors();
+
+        let data = maybe_lto_modules.encode(output_filenames);
+        std::fs::write("/tmp/foo.bin", &data).unwrap();
+
+        todo!();
 
         let (shared_emitter, shared_emitter_main) = SharedEmitter::new();
 
