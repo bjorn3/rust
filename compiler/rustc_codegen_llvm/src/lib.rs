@@ -387,7 +387,7 @@ impl CodegenBackend for LlvmCodegenBackend {
         let (compiled_modules, work_products) = ongoing_codegen
             .downcast::<rustc_codegen_ssa::back::write::OngoingCodegen<LlvmCodegenBackend>>()
             .expect("Expected LlvmCodegenBackend's OngoingCodegen, found Box<Any>")
-            .join(sess, incr_comp_session, crate_info);
+            .join(sess, incr_comp_session, outputs, crate_info);
 
         if sess.opts.unstable_opts.llvm_time_trace {
             sess.time("llvm_dump_timing_file", || {

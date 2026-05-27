@@ -298,13 +298,13 @@ impl CodegenBackend for GccCodegenBackend {
         ongoing_codegen: Box<dyn Any>,
         sess: &Session,
         incr_comp_session: Option<&IncrCompSession>,
-        _outputs: &OutputFilenames,
+        outputs: &OutputFilenames,
         crate_info: &CrateInfo,
     ) -> (CompiledModules, WorkProductMap) {
         ongoing_codegen
             .downcast::<rustc_codegen_ssa::back::write::OngoingCodegen<GccCodegenBackend>>()
             .expect("Expected GccCodegenBackend's OngoingCodegen, found Box<Any>")
-            .join(sess, incr_comp_session, crate_info)
+            .join(sess, incr_comp_session, outputs, crate_info)
     }
 
     fn target_config(&self, sess: &Session) -> TargetConfig {
