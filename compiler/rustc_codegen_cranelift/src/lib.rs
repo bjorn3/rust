@@ -238,13 +238,13 @@ impl CodegenBackend for CraneliftCodegenBackend {
         ongoing_codegen: Box<dyn Any>,
         sess: &Session,
         incr_comp_session: Option<&IncrCompSession>,
-        _outputs: &OutputFilenames,
+        outputs: &OutputFilenames,
         crate_info: &CrateInfo,
     ) -> (CompiledModules, WorkProductMap) {
         ongoing_codegen
             .downcast::<rustc_codegen_ssa::back::write::OngoingCodegen<driver::aot::AotDriver>>()
             .unwrap()
-            .join(sess, incr_comp_session, crate_info)
+            .join(sess, incr_comp_session, outputs, crate_info)
     }
 }
 
