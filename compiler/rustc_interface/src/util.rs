@@ -483,14 +483,14 @@ impl CodegenBackend for DummyCodegenBackend {
         _incr_comp_session: Option<&mut IncrCompSession>,
         _outputs: &OutputFilenames,
         _crate_info: &CrateInfo,
-    ) -> CompiledModules {
-        *ongoing_codegen.downcast().unwrap()
+    ) -> Box<dyn Any> {
+        ongoing_codegen
     }
 
     fn link(
         &self,
         sess: &Session,
-        compiled_modules: CompiledModules,
+        compiled_modules: Box<dyn Any>,
         crate_info: CrateInfo,
         metadata: EncodedMetadata,
         outputs: &OutputFilenames,
@@ -509,7 +509,7 @@ impl CodegenBackend for DummyCodegenBackend {
         link_binary(
             sess,
             &DummyArchiveBuilderBuilder,
-            compiled_modules,
+            *compiled_modules.downcast().expect("Expected CompiledModules, found Box<Any>"),
             crate_info,
             metadata,
             outputs,

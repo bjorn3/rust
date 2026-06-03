@@ -57,7 +57,7 @@ impl Linker {
         let compiled_modules = sess.time("finish_ongoing_codegen", || {
             match self.ongoing_codegen.downcast::<CompiledModules>() {
                 // This was a check only build
-                Ok(compiled_modules) => *compiled_modules,
+                Ok(compiled_modules) => compiled_modules as Box<dyn Any>,
 
                 Err(ongoing_codegen) => codegen_backend.join_codegen(
                     ongoing_codegen,
