@@ -201,6 +201,10 @@ impl CodegenBackend for CraneliftCodegenBackend {
         println!("Cranelift version: {}", cranelift_codegen::VERSION);
     }
 
+    fn fallback_intrinsics(&self) -> Vec<Symbol> {
+        vec![sym::type_id_eq]
+    }
+
     fn has_mnemonic(&self, sess: &Session, mnemonic: &str) -> bool {
         // All Cranelift supported targets support ret except for s390x
         mnemonic == "ret" && sess.target.arch != Arch::S390x
@@ -243,8 +247,23 @@ impl CodegenBackend for CraneliftCodegenBackend {
             .join(sess, incr_comp_session, outputs, crate_info)
     }
 
-    fn fallback_intrinsics(&self) -> Vec<Symbol> {
-        vec![sym::type_id_eq]
+    fn link(
+        &self,
+        sess: &Session,
+        compiled_modules: Box<dyn Any>,
+        crate_info: CrateInfo,
+        metadata: EncodedMetadata,
+        outputs: &OutputFilenames,
+    ) {
+        link_binary(
+            sess,
+            &ArArchiveBuilderBuilder,
+            compiled_modules,
+            crate_info,
+            metadata,
+            outputs,
+            self.name(),
+        );
     }
 }
 

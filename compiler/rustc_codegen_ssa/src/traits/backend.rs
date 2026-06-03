@@ -13,9 +13,7 @@ use rustc_session::{IncrCompSession, Session};
 use rustc_span::Symbol;
 
 use super::CodegenObject;
-use crate::back::archive::ArArchiveBuilderBuilder;
-use crate::back::link::link_binary;
-use crate::{CompiledModules, CrateInfo, ModuleCodegen, TargetConfig};
+use crate::{CrateInfo, ModuleCodegen, TargetConfig};
 
 pub trait BackendTypes {
     type Function: CodegenObject;
@@ -130,7 +128,7 @@ pub trait CodegenBackend {
         incr_comp_session: Option<&IncrCompSession>,
         outputs: &OutputFilenames,
         crate_info: &CrateInfo,
-    ) -> (CompiledModules, WorkProductMap);
+    ) -> (Box<dyn Any>, WorkProductMap);
 
     fn print_pass_timings(&self) {}
 
@@ -140,25 +138,19 @@ pub trait CodegenBackend {
         String::new()
     }
 
-    /// This is called on the returned [`CompiledModules`] from [`join_codegen`](Self::join_codegen).
+    /// This is called on the returned `Box<dyn Any>` from [`join_codegen`](Self::join_codegen).
+    ///
+    /// # Panics
+    ///
+    /// Panics when the passed `Box<dyn Any>` was not returned by [`join_codegen`](Self::join_codegen).
     fn link(
         &self,
         sess: &Session,
-        compiled_modules: CompiledModules,
+        compiled_modules: Box<dyn Any>,
         crate_info: CrateInfo,
         metadata: EncodedMetadata,
         outputs: &OutputFilenames,
-    ) {
-        link_binary(
-            sess,
-            &ArArchiveBuilderBuilder,
-            compiled_modules,
-            crate_info,
-            metadata,
-            outputs,
-            self.name(),
-        );
-    }
+    );
 }
 
 pub trait ExtraBackendMethods: Send + Sync + DynSend + DynSync {
