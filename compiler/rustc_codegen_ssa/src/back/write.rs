@@ -9,6 +9,7 @@ use std::{assert_matches, fs, io, str, thread};
 use rustc_abi::Size;
 use rustc_data_structures::jobserver::{self, Acquired};
 use rustc_data_structures::profiling::{SelfProfilerRef, VerboseTimingGuard};
+use rustc_data_structures::unord::UnordMap;
 use rustc_errors::emitter::Emitter;
 use rustc_errors::{
     Diag, DiagCtxt, DiagCtxtHandle, DiagInner, FatalError, FatalErrorMarker, Level,
@@ -20,7 +21,7 @@ use rustc_incremental::{
 };
 use rustc_macros::{Decodable, Encodable};
 use rustc_metadata::fs::copy_to_stdout;
-use rustc_middle::dep_graph::{WorkProduct, WorkProductMap};
+use rustc_middle::dep_graph::{WorkProduct, WorkProductId, WorkProductMap};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::config::{
     self, Lto, OptLevel, OutFileName, OutputFilenames, OutputType, Passes, SwitchWithOptPath,
@@ -766,17 +767,25 @@ pub(crate) enum WorkItemResult<B: WriteBackendMethods> {
 
     /// The backend has finished compiling a CGU, which now needs to go through
     /// thin LTO.
-    NeedsThinLto(String, B::ModuleBuffer),
+    NeedsThinLto(WorkProduct, B::ModuleBuffer),
 }
 
 pub enum FatLtoInput<B: WriteBackendMethods> {
-    Serialized { name: String, bitcode_path: PathBuf },
+    Serialized { wp: WorkProduct, bitcode_path: PathBuf },
     InMemory(ModuleCodegen<B::Module>),
 }
 
 pub enum ThinLtoInput<B: WriteBackendMethods> {
-    Red { name: String, buffer: SerializedModule<B::ModuleBuffer> },
-    Green { wp: WorkProduct, bitcode_path: PathBuf },
+    Red {
+        /// Contains only pre-LTO bitcode
+        wp: WorkProduct,
+        buffer: SerializedModule<B::ModuleBuffer>,
+    },
+    Green {
+        /// Contains pre-LTO bitcode and post-LTO artifacts
+        wp: WorkProduct,
+        bitcode_path: PathBuf,
+    },
 }
 
 /// Actual LTO type we end up choosing based on multiple factors.
@@ -853,7 +862,16 @@ fn execute_optimize_work_item<B: WriteBackendMethods>(
                     panic!("Error writing pre-lto-bitcode file `{}`: {}", path.display(), e);
                 });
             }
-            WorkItemResult::NeedsThinLto(module.name, thin_buffer)
+            WorkItemResult::NeedsThinLto(
+                WorkProduct {
+                    cgu_name: module.name.clone(),
+                    saved_files: UnordMap::from_iter([(
+                        PRE_LTO_BC_EXT.to_owned(),
+                        pre_lto_bitcode_filename(&module.name),
+                    )]),
+                },
+                thin_buffer,
+            )
         }
         ComputedLtoType::Fat => match bitcode {
             Some(path) => {
@@ -862,7 +880,13 @@ fn execute_optimize_work_item<B: WriteBackendMethods>(
                     panic!("Error writing pre-lto-bitcode file `{}`: {}", path.display(), e);
                 });
                 WorkItemResult::NeedsFatLto(FatLtoInput::Serialized {
-                    name: module.name,
+                    wp: WorkProduct {
+                        cgu_name: module.name.clone(),
+                        saved_files: UnordMap::from_iter([(
+                            PRE_LTO_BC_EXT.to_owned(),
+                            pre_lto_bitcode_filename(&module.name),
+                        )]),
+                    },
                     bitcode_path: path,
                 })
             }
@@ -1687,10 +1711,10 @@ fn start_executing_work<B: WriteBackendMethods>(
                             assert!(needs_thin_lto.is_empty());
                             needs_fat_lto.push(fat_lto_input);
                         }
-                        Ok(WorkItemResult::NeedsThinLto(name, thin_buffer)) => {
+                        Ok(WorkItemResult::NeedsThinLto(wp, thin_buffer)) => {
                             assert!(needs_fat_lto.is_empty());
                             needs_thin_lto.push(ThinLtoInput::Red {
-                                name,
+                                wp,
                                 buffer: SerializedModule::Local(thin_buffer),
                             });
                         }
@@ -1736,7 +1760,7 @@ fn start_executing_work<B: WriteBackendMethods>(
             }
 
             for (bitcode_path, wp) in lto_import_only_modules {
-                needs_fat_lto.push(FatLtoInput::Serialized { name: wp.cgu_name, bitcode_path })
+                needs_fat_lto.push(FatLtoInput::Serialized { wp, bitcode_path })
             }
 
             return Ok(MaybeLtoModules::FatLto { cgcx, needs_fat_lto });
@@ -1764,7 +1788,10 @@ fn start_executing_work<B: WriteBackendMethods>(
                 if let Some(allocator_module) = allocator_module.take() {
                     let thin_buffer = B::serialize_module(allocator_module.module_llvm, true);
                     needs_thin_lto.push(ThinLtoInput::Red {
-                        name: allocator_module.name,
+                        wp: WorkProduct {
+                            cgu_name: allocator_module.name,
+                            saved_files: UnordMap::default(),
+                        },
                         buffer: SerializedModule::Local(thin_buffer),
                     });
                 }
@@ -2152,8 +2179,18 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
             MaybeLtoModules::FatLto { cgcx, needs_fat_lto } => {
                 let tm_factory = self.backend.target_machine_factory(sess, cgcx.opt_level);
 
-                // FIXME cache local pre-LTO bitcode
-                let work_products = WorkProductMap::default();
+                let mut work_products = WorkProductMap::default();
+                if sess.opts.incremental.is_some() {
+                    for module in &needs_fat_lto {
+                        match module {
+                            FatLtoInput::Serialized { wp, bitcode_path: _ } => {
+                                work_products
+                                    .insert(WorkProductId::from_cgu_name(&wp.cgu_name), wp.clone());
+                            }
+                            FatLtoInput::InMemory(_) => {}
+                        }
+                    }
+                }
 
                 let compiled_modules = CompiledModules {
                     modules: vec![do_fat_lto(
