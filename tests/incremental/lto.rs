@@ -7,9 +7,9 @@
 #![rustc_partition_codegened(module = "lto", cfg = "rpass1")]
 #![rustc_partition_codegened(module = "lto-x", cfg = "rpass1")]
 #![rustc_partition_codegened(module = "lto-y", cfg = "rpass1")]
-#![rustc_partition_codegened(module = "lto", cfg = "rpass2")] // FIXME should be reused
+#![rustc_partition_reused(module = "lto", cfg = "rpass2")]
 #![rustc_partition_codegened(module = "lto-x", cfg = "rpass2")]
-#![rustc_partition_codegened(module = "lto-y", cfg = "rpass2")] // FIXME should be reused
+#![rustc_partition_reused(module = "lto-y", cfg = "rpass2")]
 
 mod x {
     pub struct X {
