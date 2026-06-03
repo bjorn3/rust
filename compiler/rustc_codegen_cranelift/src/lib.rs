@@ -246,6 +246,25 @@ impl CodegenBackend for CraneliftCodegenBackend {
             .unwrap()
             .join(sess, incr_comp_session, outputs, crate_info)
     }
+
+    fn link(
+        &self,
+        sess: &Session,
+        compiled_modules: Box<dyn Any>,
+        crate_info: CrateInfo,
+        metadata: EncodedMetadata,
+        outputs: &OutputFilenames,
+    ) {
+        link_binary(
+            sess,
+            &ArArchiveBuilderBuilder,
+            compiled_modules,
+            crate_info,
+            metadata,
+            outputs,
+            self.name(),
+        );
+    }
 }
 
 /// Determine if the Cranelift ir verifier should run.

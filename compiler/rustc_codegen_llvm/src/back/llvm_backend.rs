@@ -13,7 +13,7 @@ use rustc_codegen_ssa::back::write::{
     TargetMachineFactoryFn, ThinLtoInput,
 };
 use rustc_codegen_ssa::traits::{CodegenBackend, ExtraBackendMethods, WriteBackendMethods};
-use rustc_codegen_ssa::{CompiledModule, CompiledModules, CrateInfo, ModuleCodegen, TargetConfig};
+use rustc_codegen_ssa::{CompiledModule, CrateInfo, ModuleCodegen, TargetConfig};
 use rustc_data_structures::profiling::SelfProfilerRef;
 use rustc_errors::{DiagCtxt, DiagCtxtHandle};
 use rustc_metadata::EncodedMetadata;
@@ -367,7 +367,7 @@ impl CodegenBackend for LlvmCodegenBackend {
         incr_comp_session: Option<&IncrCompSession>,
         outputs: &OutputFilenames,
         crate_info: &CrateInfo,
-    ) -> (CompiledModules, WorkProductMap) {
+    ) -> (Box<dyn Any>, WorkProductMap) {
         let (compiled_modules, work_products) = ongoing_codegen
             .downcast::<rustc_codegen_ssa::back::write::OngoingCodegen<LlvmCodegenBackend>>()
             .expect("Expected LlvmCodegenBackend's OngoingCodegen, found Box<Any>")
@@ -380,7 +380,7 @@ impl CodegenBackend for LlvmCodegenBackend {
             });
         }
 
-        (compiled_modules, work_products)
+        (Box::new(compiled_modules), work_products)
     }
 
     fn print_pass_timings(&self) {
@@ -400,7 +400,7 @@ impl CodegenBackend for LlvmCodegenBackend {
     fn link(
         &self,
         sess: &Session,
-        compiled_modules: CompiledModules,
+        compiled_modules: Box<dyn Any>,
         crate_info: CrateInfo,
         metadata: EncodedMetadata,
         outputs: &OutputFilenames,
@@ -414,7 +414,7 @@ impl CodegenBackend for LlvmCodegenBackend {
         link_binary(
             sess,
             &LlvmArchiveBuilderBuilder,
-            compiled_modules,
+            *compiled_modules.downcast().expect("Expected CompiledModules, found Box<Any>"),
             crate_info,
             metadata,
             outputs,
