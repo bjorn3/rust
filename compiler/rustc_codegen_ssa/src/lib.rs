@@ -24,10 +24,11 @@ use rustc_data_structures::unord::UnordMap;
 use rustc_hir::CRATE_HIR_ID;
 use rustc_hir::attrs::{CfgEntry, NativeLibKind, WindowsSubsystemKind};
 use rustc_hir::def_id::CrateNum;
+use rustc_incremental::copy_cgu_workproduct_to_incr_comp_cache_dir;
 use rustc_lint_defs::builtin::LINKER_INFO;
 use rustc_macros::{Decodable, Encodable};
 use rustc_metadata::EncodedMetadata;
-use rustc_middle::dep_graph::WorkProduct;
+use rustc_middle::dep_graph::{WorkProduct, WorkProductId};
 use rustc_middle::lint::StableLevelSpec;
 use rustc_middle::middle::debugger_visualizer::DebuggerVisualizerFile;
 use rustc_middle::middle::dependency_format::Dependencies;
@@ -36,10 +37,10 @@ use rustc_middle::ty::TyCtxt;
 use rustc_middle::util::Providers;
 use rustc_serialize::opaque::{FileEncoder, MemDecoder};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
-use rustc_session::Session;
 use rustc_session::config::{CrateType, OutputFilenames, OutputType};
 use rustc_session::cstore::{self, CrateSource};
 use rustc_session::lint::builtin::LINKER_MESSAGES;
+use rustc_session::{IncrCompSession, Session};
 use rustc_span::{Span, Symbol};
 
 pub mod assert_module_sources;
@@ -146,6 +147,38 @@ impl CompiledModule {
         if let Some(path) = self.assembly.as_deref() {
             emit(path, OutputType::Assembly);
         }
+    }
+
+    pub fn copy_workproduct_to_incr_comp_cache_dir(
+        &self,
+        sess: &Session,
+        incr_comp_session: &IncrCompSession,
+    ) -> (WorkProductId, WorkProduct) {
+        let mut files = Vec::new();
+        if let Some(object_file_path) = &self.object {
+            files.push((OutputType::Object.extension(), object_file_path.as_path()));
+        }
+        if let Some(global_asm_object_file_path) = &self.global_asm_object {
+            files.push(("asm.o", global_asm_object_file_path.as_path()));
+        }
+        if let Some(dwarf_object_file_path) = &self.dwarf_object {
+            files.push(("dwo", dwarf_object_file_path.as_path()));
+        }
+        if let Some(path) = &self.assembly {
+            files.push((OutputType::Assembly.extension(), path.as_path()));
+        }
+        if let Some(path) = &self.llvm_ir {
+            files.push((OutputType::LlvmAssembly.extension(), path.as_path()));
+        }
+        if let Some(path) = &self.bytecode {
+            files.push((OutputType::Bitcode.extension(), path.as_path()));
+        }
+        copy_cgu_workproduct_to_incr_comp_cache_dir(
+            sess,
+            incr_comp_session,
+            &self.name,
+            files.as_slice(),
+        )
     }
 }
 

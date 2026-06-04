@@ -16,9 +16,7 @@ use rustc_errors::{
 };
 use rustc_fs_util::link_or_copy;
 use rustc_hir::find_attr;
-use rustc_incremental::{
-    copy_cgu_workproduct_to_incr_comp_cache_dir, in_incr_comp_dir_sess, in_old_incr_comp_dir_sess,
-};
+use rustc_incremental::{in_incr_comp_dir_sess, in_old_incr_comp_dir_sess};
 use rustc_macros::{Decodable, Encodable};
 use rustc_metadata::fs::copy_to_stdout;
 use rustc_middle::bug;
@@ -484,31 +482,8 @@ fn copy_all_cgu_workproducts_to_incr_comp_cache_dir(
     let _timer = sess.timer("copy_all_cgu_workproducts_to_incr_comp_cache_dir");
 
     for module in compiled_modules.modules.iter().filter(|m| m.kind == ModuleKind::Regular) {
-        let mut files = Vec::new();
-        if let Some(object_file_path) = &module.object {
-            files.push((OutputType::Object.extension(), object_file_path.as_path()));
-        }
-        if let Some(global_asm_object_file_path) = &module.global_asm_object {
-            files.push(("asm.o", global_asm_object_file_path.as_path()));
-        }
-        if let Some(dwarf_object_file_path) = &module.dwarf_object {
-            files.push(("dwo", dwarf_object_file_path.as_path()));
-        }
-        if let Some(path) = &module.assembly {
-            files.push((OutputType::Assembly.extension(), path.as_path()));
-        }
-        if let Some(path) = &module.llvm_ir {
-            files.push((OutputType::LlvmAssembly.extension(), path.as_path()));
-        }
-        if let Some(path) = &module.bytecode {
-            files.push((OutputType::Bitcode.extension(), path.as_path()));
-        }
-        let (id, product) = copy_cgu_workproduct_to_incr_comp_cache_dir(
-            sess,
-            incr_comp_session.unwrap(),
-            &module.name,
-            files.as_slice(),
-        );
+        let (id, product) =
+            module.copy_workproduct_to_incr_comp_cache_dir(sess, incr_comp_session.unwrap());
         work_products.insert(id, product);
     }
 
