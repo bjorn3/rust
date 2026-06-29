@@ -8,12 +8,14 @@ use std::{iter, ptr};
 use libc::c_uint;
 use metadata::create_subroutine_type;
 use rustc_abi::Size;
-use rustc_codegen_ssa::debuginfo::type_names;
+use rustc_codegen_ssa::debuginfo::{
+    CodegenUnitDebugContext as CodegenUnitDebugContextSsa, type_names,
+};
 use rustc_codegen_ssa::mir::debuginfo::VariableKind;
 use rustc_codegen_ssa::mir::debuginfo::VariableKind::*;
 use rustc_codegen_ssa::traits::*;
 use rustc_data_structures::unord::UnordMap;
-use rustc_hir::def_id::{DefId, DefIdMap};
+use rustc_hir::def_id::DefId;
 use rustc_middle::ty::layout::{HasTypingEnv, LayoutOf};
 use rustc_middle::ty::{self, GenericArgsRef, Instance, Ty, TypeVisitableExt, Unnormalized};
 use rustc_session::Session;
@@ -31,11 +33,11 @@ pub(crate) use self::metadata::build_global_var_di_node;
 use self::metadata::{
     UNKNOWN_COLUMN_NUMBER, UNKNOWN_LINE_NUMBER, file_metadata, spanned_type_di_node, type_di_node,
 };
-use self::namespace::mangled_name_of_instance;
 use self::utils::{DIB, create_DIArray, is_node_local_to_unit};
 use crate::builder::Builder;
 use crate::common::{AsCCharPtr, CodegenCx};
 use crate::debuginfo::di_builder::DIBuilderBox;
+use crate::debuginfo::utils::debug_context;
 use crate::llvm::debuginfo::{
     DIArray, DIFile, DIFlags, DILexicalBlock, DILocation, DISPFlags, DIScope,
     DITemplateTypeParameter, DIType, DIVariable,
@@ -46,17 +48,17 @@ mod di_builder;
 mod dwarf_const;
 mod gdb;
 pub(crate) mod metadata;
-mod namespace;
 mod utils;
 
 /// A context object for maintaining all state needed by the debuginfo module.
 pub(crate) struct CodegenUnitDebugContext<'ll, 'tcx> {
+    inner: CodegenUnitDebugContextSsa<'tcx, CodegenCx<'ll, 'tcx>>,
+
     builder: DIBuilderBox<'ll>,
     created_files: RefCell<UnordMap<Option<(StableSourceFileId, SourceFileHash)>, &'ll DIFile>>,
 
     type_map: metadata::TypeMap<'ll, 'tcx>,
     adt_stack: RefCell<Vec<(DefId, GenericArgsRef<'tcx>)>>,
-    namespace_map: RefCell<DefIdMap<&'ll DIScope>>,
     recursion_marker_type: OnceCell<&'ll DIType>,
 }
 
@@ -105,11 +107,11 @@ impl<'ll, 'tcx> CodegenUnitDebugContext<'ll, 'tcx> {
         let builder = DIBuilderBox::new(llmod);
         // DIBuilder inherits context from the module, so we'd better use the same one
         CodegenUnitDebugContext {
+            inner: CodegenUnitDebugContextSsa::default(),
             builder,
             created_files: Default::default(),
             type_map: Default::default(),
             adt_stack: Default::default(),
-            namespace_map: RefCell::new(Default::default()),
             recursion_marker_type: OnceCell::new(),
         }
     }
@@ -163,7 +165,7 @@ impl<'ll, 'tcx> DebugInfoBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
 
         let template_parameters = get_template_parameters(self, generics, args);
 
-        let linkage_name = &mangled_name_of_instance(self, instance).name;
+        let linkage_name = self.tcx.symbol_name(instance).name;
         // Omit the linkage_name if it is the same as subprogram name.
         let linkage_name = if &name == linkage_name { "" } else { linkage_name };
 
@@ -348,12 +350,12 @@ impl<'ll, 'tcx> DebugInfoBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                     if cx.sess().opts.debuginfo == DebugInfo::Full && !impl_self_ty.has_param() {
                         return (type_di_node(cx, impl_self_ty), true);
                     } else {
-                        return (namespace::item_namespace(cx, def.did()), false);
+                        return (debug_context(cx).inner.item_namespace(cx, def.did()), false);
                     }
                 }
             }
 
-            let scope = namespace::item_namespace(
+            let scope = debug_context(cx).inner.item_namespace(
                 cx,
                 DefId {
                     krate: instance.def_id().krate,
@@ -741,6 +743,18 @@ impl<'ll> CodegenCx<'ll, '_> {
 }
 
 impl<'ll, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
+    fn create_namespace(&self, parent_scope: Option<Self::DIScope>, name: &str) -> Self::DIScope {
+        unsafe {
+            llvm::LLVMDIBuilderCreateNameSpace(
+                DIB(self),
+                parent_scope,
+                name.as_ptr(),
+                name.len(),
+                llvm::FALSE, // ExportSymbols (only relevant for C++ anonymous namespaces)
+            )
+        }
+    }
+
     fn create_vtable_debuginfo(
         &self,
         ty: Ty<'tcx>,

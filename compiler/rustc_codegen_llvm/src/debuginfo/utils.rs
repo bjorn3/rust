@@ -6,7 +6,6 @@ use rustc_middle::ty::{self, Ty};
 use tracing::trace;
 
 use super::CodegenUnitDebugContext;
-use super::namespace::item_namespace;
 use crate::common::CodegenCx;
 use crate::llvm;
 use crate::llvm::debuginfo::{DIArray, DIBuilder, DIDescriptor, DIScope};
@@ -45,7 +44,7 @@ pub(crate) fn DIB<'a, 'll>(cx: &'a CodegenCx<'ll, '_>) -> &'a DIBuilder<'ll> {
 }
 
 pub(crate) fn get_namespace_for_item<'ll>(cx: &CodegenCx<'ll, '_>, def_id: DefId) -> &'ll DIScope {
-    item_namespace(cx, cx.tcx.parent(def_id))
+    debug_context(cx).inner.item_namespace(cx, cx.tcx.parent(def_id))
 }
 
 #[derive(Debug, PartialEq, Eq)]
