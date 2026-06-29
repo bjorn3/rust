@@ -28,7 +28,6 @@ use tracing::{debug, instrument};
 pub(crate) use self::type_map::TypeMap;
 use self::type_map::{DINodeCreationResult, Stub, UniqueTypeId};
 use super::CodegenUnitDebugContext;
-use super::namespace::mangled_name_of_instance;
 use super::type_names::{compute_debuginfo_type_name, compute_debuginfo_vtable_name};
 use super::utils::{DIB, debug_context, get_namespace_for_item, is_node_local_to_unit};
 use crate::common::{AsCCharPtr, CodegenCx};
@@ -1496,7 +1495,7 @@ pub(crate) fn build_global_var_di_node<'ll>(
     let type_di_node = type_di_node(cx, variable_type);
     let var_name = tcx.item_name(def_id);
     let var_name = var_name.as_str();
-    let linkage_name = mangled_name_of_instance(cx, Instance::mono(tcx, def_id)).name;
+    let linkage_name = cx.tcx.symbol_name(Instance::mono(tcx, def_id)).name;
     // When empty, linkage_name field is omitted,
     // which is what we want for no_mangle statics
     let linkage_name = if var_name == linkage_name { "" } else { linkage_name };

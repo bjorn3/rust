@@ -33,7 +33,6 @@ pub(crate) use self::metadata::build_global_var_di_node;
 use self::metadata::{
     UNKNOWN_COLUMN_NUMBER, UNKNOWN_LINE_NUMBER, file_metadata, spanned_type_di_node, type_di_node,
 };
-use self::namespace::mangled_name_of_instance;
 use self::utils::{DIB, create_DIArray, is_node_local_to_unit};
 use crate::builder::Builder;
 use crate::common::{AsCCharPtr, CodegenCx};
@@ -49,7 +48,6 @@ mod di_builder;
 mod dwarf_const;
 mod gdb;
 pub(crate) mod metadata;
-mod namespace;
 mod utils;
 
 /// A context object for maintaining all state needed by the debuginfo module.
@@ -167,7 +165,7 @@ impl<'ll, 'tcx> DebugInfoBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
 
         let template_parameters = get_template_parameters(self, generics, args);
 
-        let linkage_name = &mangled_name_of_instance(self, instance).name;
+        let linkage_name = self.tcx.symbol_name(instance).name;
         // Omit the linkage_name if it is the same as subprogram name.
         let linkage_name = if &name == linkage_name { "" } else { linkage_name };
 
