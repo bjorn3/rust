@@ -1,10 +1,54 @@
+use std::cell::RefCell;
+use std::marker::PhantomData;
+
 use rustc_abi::{Integer, Primitive, Size, TagEncoding, Variants};
+use rustc_hir::def_id::{DefId, DefIdMap};
 use rustc_middle::bug;
-use rustc_middle::ty::layout::{IntegerExt, PrimitiveExt, TyAndLayout};
+use rustc_middle::ty::layout::{self, IntegerExt, PrimitiveExt, TyAndLayout};
 use rustc_middle::ty::{self, Ty, TyCtxt};
+
+use crate::traits::DebugInfoCodegenMethods;
 
 // FIXME(eddyb) find a place for this (or a way to replace it).
 pub mod type_names;
+
+/// A context object for maintaining all state needed by the debuginfo module.
+pub struct CodegenUnitDebugContext<'tcx, Cx: DebugInfoCodegenMethods<'tcx>> {
+    namespace_map: RefCell<DefIdMap<Cx::DIScope>>,
+    _marker: PhantomData<&'tcx ()>,
+}
+
+impl<'tcx, Cx: DebugInfoCodegenMethods<'tcx>> Default for CodegenUnitDebugContext<'tcx, Cx> {
+    fn default() -> Self {
+        Self { namespace_map: Default::default(), _marker: Default::default() }
+    }
+}
+
+impl<'tcx, Cx: DebugInfoCodegenMethods<'tcx> + layout::HasTyCtxt<'tcx>>
+    CodegenUnitDebugContext<'tcx, Cx>
+{
+    pub fn item_namespace(&self, cx: &Cx, def_id: DefId) -> Cx::DIScope {
+        if let Some(&scope) = self.namespace_map.borrow().get(&def_id) {
+            return scope;
+        }
+
+        let def_key = cx.tcx().def_key(def_id);
+        let parent_scope = def_key
+            .parent
+            .map(|parent| self.item_namespace(cx, DefId { krate: def_id.krate, index: parent }));
+
+        let namespace_name_string = {
+            let mut output = String::with_capacity(64);
+            type_names::push_item_name(cx.tcx(), def_id, false, &mut output);
+            output
+        };
+
+        let scope = cx.create_namespace(parent_scope, &namespace_name_string);
+
+        self.namespace_map.borrow_mut().insert(def_id, scope);
+        scope
+    }
+}
 
 /// Returns true if we want to generate a DW_TAG_enumeration_type description for
 /// this instead of a DW_TAG_struct_type with DW_TAG_variant_part.

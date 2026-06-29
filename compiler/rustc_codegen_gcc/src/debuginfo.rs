@@ -170,6 +170,10 @@ impl<'gcc, 'tcx> CodegenCx<'gcc, 'tcx> {
 }
 
 impl<'gcc, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'gcc, 'tcx> {
+    fn create_namespace(&self, _parent_scope: Option<Self::DIScope>, _name: &str) -> Self::DIScope {
+        unimplemented!()
+    }
+
     fn create_vtable_debuginfo(
         &self,
         _ty: Ty<'tcx>,

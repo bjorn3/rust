@@ -9,6 +9,8 @@ use super::BackendTypes;
 use crate::mir::debuginfo::VariableKind;
 
 pub trait DebugInfoCodegenMethods<'tcx>: BackendTypes {
+    fn create_namespace(&self, parent_scope: Option<Self::DIScope>, name: &str) -> Self::DIScope;
+
     fn create_vtable_debuginfo(
         &self,
         ty: Ty<'tcx>,
