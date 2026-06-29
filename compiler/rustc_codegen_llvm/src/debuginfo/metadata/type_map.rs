@@ -23,7 +23,7 @@ mod private {
     // `UniqueTypeId` from being constructed directly, without asserting
     // the preconditions.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, StableHash)]
-    pub(crate) struct HiddenZst;
+    pub(in crate::debuginfo) struct HiddenZst;
 }
 
 /// A unique identifier for anything that we create a debuginfo node for.
@@ -49,17 +49,17 @@ pub(super) enum UniqueTypeId<'tcx> {
 }
 
 impl<'tcx> UniqueTypeId<'tcx> {
-    pub(crate) fn for_ty(tcx: TyCtxt<'tcx>, t: Ty<'tcx>) -> Self {
+    pub(super) fn for_ty(tcx: TyCtxt<'tcx>, t: Ty<'tcx>) -> Self {
         tcx.assert_fully_normalized(ty::TypingEnv::fully_monomorphized(), t);
         UniqueTypeId::Ty(t, private::HiddenZst)
     }
 
-    pub(crate) fn for_enum_variant_part(tcx: TyCtxt<'tcx>, enum_ty: Ty<'tcx>) -> Self {
+    pub(super) fn for_enum_variant_part(tcx: TyCtxt<'tcx>, enum_ty: Ty<'tcx>) -> Self {
         tcx.assert_fully_normalized(ty::TypingEnv::fully_monomorphized(), enum_ty);
         UniqueTypeId::VariantPart(enum_ty, private::HiddenZst)
     }
 
-    pub(crate) fn for_enum_variant_struct_type(
+    pub(super) fn for_enum_variant_struct_type(
         tcx: TyCtxt<'tcx>,
         enum_ty: Ty<'tcx>,
         variant_idx: VariantIdx,
@@ -68,7 +68,7 @@ impl<'tcx> UniqueTypeId<'tcx> {
         UniqueTypeId::VariantStructType(enum_ty, variant_idx, private::HiddenZst)
     }
 
-    pub(crate) fn for_enum_variant_struct_type_wrapper(
+    pub(super) fn for_enum_variant_struct_type_wrapper(
         tcx: TyCtxt<'tcx>,
         enum_ty: Ty<'tcx>,
         variant_idx: VariantIdx,
@@ -77,7 +77,7 @@ impl<'tcx> UniqueTypeId<'tcx> {
         UniqueTypeId::VariantStructTypeCppLikeWrapper(enum_ty, variant_idx, private::HiddenZst)
     }
 
-    pub(crate) fn for_vtable_ty(
+    pub(super) fn for_vtable_ty(
         tcx: TyCtxt<'tcx>,
         self_type: Ty<'tcx>,
         implemented_trait: Option<ExistentialTraitRef<'tcx>>,
@@ -99,7 +99,7 @@ impl<'tcx> UniqueTypeId<'tcx> {
         hasher.finish::<Fingerprint>().to_hex()
     }
 
-    pub(crate) fn expect_ty(self) -> Ty<'tcx> {
+    pub(super) fn expect_ty(self) -> Ty<'tcx> {
         match self {
             UniqueTypeId::Ty(ty, _) => ty,
             _ => bug!("Expected `UniqueTypeId::Ty` but found `{:?}`", self),
@@ -111,7 +111,7 @@ impl<'tcx> UniqueTypeId<'tcx> {
 /// created so far. The debuginfo nodes are identified by `UniqueTypeId`.
 #[derive(Default)]
 pub(crate) struct TypeMap<'ll, 'tcx> {
-    pub(super) unique_id_to_di_node: RefCell<FxHashMap<UniqueTypeId<'tcx>, &'ll DIType>>,
+    unique_id_to_di_node: RefCell<FxHashMap<UniqueTypeId<'tcx>, &'ll DIType>>,
 }
 
 impl<'ll, 'tcx> TypeMap<'ll, 'tcx> {
@@ -123,6 +123,22 @@ impl<'ll, 'tcx> TypeMap<'ll, 'tcx> {
         }
     }
 
+    /// Adds a `UniqueTypeId` to metadata mapping to the `TypeMap`. The method will
+    /// not fail if the mapping already exists.
+    pub(super) fn insert_maybe_replace(
+        &self,
+        unique_type_id: UniqueTypeId<'tcx>,
+        metadata: &'ll DIType,
+    ) {
+        self.unique_id_to_di_node.borrow_mut().insert(unique_type_id, metadata);
+    }
+
+    /// Remove a `UniqueTypeId` to metadata mapping from the `TypeMap`. The method will
+    /// not fail if the mapping doesn't exist.
+    pub(super) fn maybe_remove(&self, unique_type_id: &UniqueTypeId<'tcx>) {
+        self.unique_id_to_di_node.borrow_mut().remove(unique_type_id);
+    }
+
     pub(super) fn di_node_for_unique_id(
         &self,
         unique_type_id: UniqueTypeId<'tcx>,
@@ -131,25 +147,25 @@ impl<'ll, 'tcx> TypeMap<'ll, 'tcx> {
     }
 }
 
-pub(crate) struct DINodeCreationResult<'ll> {
+pub(super) struct DINodeCreationResult<'ll> {
     pub di_node: &'ll DIType,
     pub already_stored_in_typemap: bool,
 }
 
 impl<'ll> DINodeCreationResult<'ll> {
-    pub(crate) fn new(di_node: &'ll DIType, already_stored_in_typemap: bool) -> Self {
+    pub(super) fn new(di_node: &'ll DIType, already_stored_in_typemap: bool) -> Self {
         DINodeCreationResult { di_node, already_stored_in_typemap }
     }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub(crate) enum Stub<'ll> {
+pub(super) enum Stub<'ll> {
     Struct,
     Union,
     VTableTy { vtable_holder: &'ll DIType },
 }
 
-pub(crate) struct StubInfo<'ll, 'tcx> {
+pub(super) struct StubInfo<'ll, 'tcx> {
     metadata: &'ll DIType,
     unique_type_id: UniqueTypeId<'tcx>,
 }

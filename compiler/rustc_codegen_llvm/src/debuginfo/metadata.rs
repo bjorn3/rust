@@ -289,11 +289,10 @@ fn build_subroutine_type_di_node<'ll, 'tcx>(
     // fn foo() -> <recursive_type>
     //
     // Once that is created, we replace the marker in the typemap with the actual type.
+    // FIXME can this use insert?
     debug_context(cx)
         .type_map
-        .unique_id_to_di_node
-        .borrow_mut()
-        .insert(unique_type_id, recursion_marker_type_di_node(cx));
+        .insert_maybe_replace(unique_type_id, recursion_marker_type_di_node(cx));
 
     let fn_ty = unique_type_id.expect_ty();
     let signature =
@@ -315,7 +314,8 @@ fn build_subroutine_type_di_node<'ll, 'tcx>(
     )
     .collect();
 
-    debug_context(cx).type_map.unique_id_to_di_node.borrow_mut().remove(&unique_type_id);
+    // FIXME can this check that the type existed?
+    debug_context(cx).type_map.maybe_remove(&unique_type_id);
 
     let fn_di_node = create_subroutine_type(cx, &signature_di_nodes[..]);
 
