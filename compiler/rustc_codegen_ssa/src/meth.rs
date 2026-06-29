@@ -99,27 +99,27 @@ fn dyn_trait_in_self<'tcx>(
 /// The `trait_ref` encodes the erased self type. Hence if we are
 /// making an object `Foo<dyn Trait>` from a value of type `Foo<T>`, then
 /// `trait_ref` would map `T: Trait`.
-#[instrument(level = "debug", skip(cx))]
-pub(crate) fn get_vtable<'tcx, Cx: CodegenMethods<'tcx>>(
-    cx: &Cx,
+#[instrument(level = "debug", skip(bx))]
+pub(crate) fn get_vtable<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
+    bx: &mut Bx,
     ty: Ty<'tcx>,
     trait_ref: Option<ty::ExistentialTraitRef<'tcx>>,
-) -> Cx::Value {
-    let tcx = cx.tcx();
+) -> Bx::Value {
+    let tcx = bx.tcx();
 
     // Check the cache.
-    if let Some(&val) = cx.vtables().borrow().get(&(ty, trait_ref)) {
-        return val;
+    if let Some(val) = { bx.vtables().borrow().get(&(ty, trait_ref)).copied() } {
+        return bx.get_vtable_addr(val);
     }
 
     let vtable_alloc_id = tcx.vtable_allocation((ty, trait_ref));
     let vtable_allocation = tcx.global_alloc(vtable_alloc_id).unwrap_memory();
-    let vtable = cx.static_addr_of(vtable_allocation, Some("vtable"));
+    let vtable = bx.make_vtable(vtable_allocation);
 
-    cx.apply_vcall_visibility_metadata(ty, trait_ref, vtable);
-    cx.create_vtable_debuginfo(ty, trait_ref, vtable);
-    cx.vtables().borrow_mut().insert((ty, trait_ref), vtable);
-    vtable
+    bx.apply_vcall_visibility_metadata(ty, trait_ref, vtable);
+    bx.create_vtable_debuginfo(ty, trait_ref, vtable);
+    bx.vtables().borrow_mut().insert((ty, trait_ref), vtable);
+    bx.get_vtable_addr(vtable)
 }
 
 /// Call this function whenever you need to load a vtable.

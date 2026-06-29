@@ -56,7 +56,7 @@ fn set_global_alignment<'gcc, 'tcx>(
 }
 
 impl<'gcc, 'tcx> StaticCodegenMethods for CodegenCx<'gcc, 'tcx> {
-    fn static_addr_of(&self, alloc: ConstAllocation<'_>, kind: Option<&str>) -> RValue<'gcc> {
+    fn make_vtable(&self, alloc: ConstAllocation<'_>) -> RValue<'gcc> {
         let cv = const_alloc_to_gcc(self, alloc);
         let align = alloc.inner().align;
 
@@ -69,7 +69,7 @@ impl<'gcc, 'tcx> StaticCodegenMethods for CodegenCx<'gcc, 'tcx> {
             }
             return *variable;
         }
-        let global_value = self.static_addr_of_mut(cv, align, kind);
+        let global_value = self.static_addr_of_mut(cv, align);
         #[cfg(feature = "master")]
         self.global_lvalues
             .borrow()
@@ -189,25 +189,9 @@ impl<'gcc, 'tcx> CodegenCx<'gcc, 'tcx> {
         function.add_attribute(FnAttribute::Used);
     }
 
-    pub fn static_addr_of_mut(
-        &self,
-        cv: RValue<'gcc>,
-        align: Align,
-        kind: Option<&str>,
-    ) -> RValue<'gcc> {
-        let global = match kind {
-            Some(kind) if !self.tcx.sess.fewer_names() => {
-                let name = self.generate_local_symbol_name(kind);
-                // FIXME(antoyo): check if it's okay that no link_section is set.
-
-                let typ = self.val_ty(cv).get_aligned(align.bytes());
-                self.declare_private_global(&name[..], typ)
-            }
-            _ => {
-                let typ = self.val_ty(cv).get_aligned(align.bytes());
-                self.declare_unnamed_global(typ)
-            }
-        };
+    pub fn static_addr_of_mut(&self, cv: RValue<'gcc>, align: Align) -> RValue<'gcc> {
+        let typ = self.val_ty(cv).get_aligned(align.bytes());
+        let global = self.declare_unnamed_global(typ);
         global.global_set_initializer_rvalue(cv);
         // FIXME(antoyo): set unnamed address.
         let rvalue = global.get_address(None);

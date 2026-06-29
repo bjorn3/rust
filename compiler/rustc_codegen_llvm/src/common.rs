@@ -145,6 +145,7 @@ impl<'ll, CX: Borrow<SCx<'ll>>> BackendTypes for GenericCx<'ll, CX> {
     type BasicBlock = &'ll BasicBlock;
     type Funclet = Funclet<'ll>;
 
+    type Vtable = &'ll Value;
     type Value = &'ll Value;
     type Type = &'ll Type;
     type FunctionSignature = &'ll Type;

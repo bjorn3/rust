@@ -39,12 +39,12 @@ impl Default for PacMetadata {
 pub trait MiscCodegenMethods<'tcx>: BackendTypes {
     fn vtables(
         &self,
-    ) -> &RefCell<FxHashMap<(Ty<'tcx>, Option<ty::ExistentialTraitRef<'tcx>>), Self::Value>>;
+    ) -> &RefCell<FxHashMap<(Ty<'tcx>, Option<ty::ExistentialTraitRef<'tcx>>), Self::Vtable>>;
     fn apply_vcall_visibility_metadata(
         &self,
         _ty: Ty<'tcx>,
         _poly_trait_ref: Option<ty::ExistentialTraitRef<'tcx>>,
-        _vtable: Self::Value,
+        _vtable: Self::Vtable,
     ) {
     }
     fn get_fn(&self, instance: Instance<'tcx>) -> Self::Function;

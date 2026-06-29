@@ -22,6 +22,7 @@ pub trait BackendTypes {
     type BasicBlock: Copy;
     type Funclet;
 
+    type Vtable: CodegenObject + PartialEq;
     type Value: CodegenObject + PartialEq;
     type Type: CodegenObject + PartialEq;
     type FunctionSignature: CodegenObject + PartialEq;

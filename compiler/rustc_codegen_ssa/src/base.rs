@@ -210,7 +210,7 @@ fn unsized_info<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
             }
         }
         (_, ty::Dynamic(data, _)) => meth::get_vtable(
-            cx,
+            bx,
             source,
             data.principal()
                 .map(|principal| bx.tcx().instantiate_bound_regions_with_erased(principal)),

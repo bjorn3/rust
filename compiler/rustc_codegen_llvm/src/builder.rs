@@ -33,6 +33,7 @@ use tracing::{debug, instrument};
 use crate::abi::FnAbiLlvmExt;
 use crate::attributes;
 use crate::common::Funclet;
+use crate::consts::{IsInitOrFini, IsStatic, const_alloc_to_llvm};
 use crate::context::{CodegenCx, FullCx, GenericCx, SCx};
 use crate::llvm::{
     self, AtomicOrdering, AtomicRmwBinOp, BasicBlock, FromGeneric, GEPNoWrapFlags, Metadata, TRUE,
@@ -200,6 +201,7 @@ impl<'ll, CX: Borrow<SCx<'ll>>> BackendTypes for GenericBuilder<'_, 'll, CX> {
     type BasicBlock = <GenericCx<'ll, CX> as BackendTypes>::BasicBlock;
     type Funclet = <GenericCx<'ll, CX> as BackendTypes>::Funclet;
 
+    type Vtable = <GenericCx<'ll, CX> as BackendTypes>::Vtable;
     type Value = <GenericCx<'ll, CX> as BackendTypes>::Value;
     type Type = <GenericCx<'ll, CX> as BackendTypes>::Type;
     type FunctionSignature = <GenericCx<'ll, CX> as BackendTypes>::FunctionSignature;
@@ -1560,6 +1562,24 @@ impl<'ll> StaticBuilderMethods for Builder<'_, 'll, '_> {
             // Cast to default address space if globals are in a different addrspace
             self.cx().const_pointercast(global, self.type_ptr())
         }
+    }
+
+    fn get_vtable_addr(&mut self, s: Self::Vtable) -> Self::Value {
+        s
+    }
+
+    fn get_anon_static_addr(
+        &self,
+        alloc: rustc_middle::mir::interpret::ConstAllocation<'_>,
+    ) -> Self::Value {
+        // FIXME: should we cache `const_alloc_to_llvm` to avoid repeating this for the
+        // same `ConstAllocation`?
+        let cv = const_alloc_to_llvm(self, alloc.inner(), IsStatic::No, IsInitOrFini::No);
+
+        let gv = self.static_addr_of_impl(cv, alloc.inner().align, None);
+        // static_addr_of_impl returns the bare global variable, which might not be in the default
+        // address space. Cast to the default address space if necessary.
+        self.const_pointercast(gv, self.type_ptr())
     }
 }
 

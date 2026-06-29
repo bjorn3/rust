@@ -23,6 +23,7 @@ use rustc_codegen_ssa::traits::{
 use rustc_data_structures::fx::FxHashSet;
 use rustc_middle::bug;
 use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrs;
+use rustc_middle::mir::interpret::ConstAllocation;
 use rustc_middle::ty::layout::{
     FnAbiError, FnAbiOfHelpers, FnAbiRequest, HasTyCtxt, HasTypingEnv, LayoutError,
     LayoutOfHelpers, TyAndLayout,
@@ -35,6 +36,7 @@ use rustc_target::spec::{HasTargetSpec, HasX86AbiOpt, Target, X86Abi};
 
 use crate::abi::FnAbiGccExt;
 use crate::common::{SignType, TypeReflection, type_is_pointer};
+use crate::consts::const_alloc_to_gcc;
 use crate::context::CodegenCx;
 use crate::errors;
 use crate::intrinsic::llvm;
@@ -492,6 +494,7 @@ impl<'gcc, 'tcx> BackendTypes for Builder<'_, 'gcc, 'tcx> {
     type BasicBlock = <CodegenCx<'gcc, 'tcx> as BackendTypes>::BasicBlock;
     type Funclet = <CodegenCx<'gcc, 'tcx> as BackendTypes>::Funclet;
 
+    type Vtable = <CodegenCx<'gcc, 'tcx> as BackendTypes>::Vtable;
     type Value = <CodegenCx<'gcc, 'tcx> as BackendTypes>::Value;
     type Type = <CodegenCx<'gcc, 'tcx> as BackendTypes>::Type;
     type FunctionSignature = <CodegenCx<'gcc, 'tcx> as BackendTypes>::FunctionSignature;
@@ -2418,6 +2421,34 @@ impl<'a, 'gcc, 'tcx> StaticBuilderMethods for Builder<'a, 'gcc, 'tcx> {
     fn get_static(&mut self, def_id: DefId) -> RValue<'gcc> {
         // Forward to the `get_static` method of `CodegenCx`
         self.cx().get_static(def_id).get_address(self.location)
+    }
+
+    fn get_vtable_addr(&mut self, vtable: Self::Vtable) -> Self::Value {
+        vtable
+    }
+
+    fn get_anon_static_addr(&self, alloc: ConstAllocation<'_>) -> Self::Value {
+        let cv = const_alloc_to_gcc(self, alloc);
+        let align = alloc.inner().align;
+
+        if let Some(variable) = self.const_globals.borrow().get(&cv) {
+            if let Some(global_variable) = self.global_lvalues.borrow().get(variable) {
+                let alignment = align.bits() as i32;
+                if alignment > global_variable.get_alignment() {
+                    global_variable.set_alignment(alignment);
+                }
+            }
+            return *variable;
+        }
+        let global_value = self.static_addr_of_mut(cv, align);
+        #[cfg(feature = "master")]
+        self.global_lvalues
+            .borrow()
+            .get(&global_value)
+            .expect("`static_addr_of_mut` did not add the global to `self.global_lvalues`")
+            .global_set_readonly();
+        self.const_globals.borrow_mut().insert(cv, global_value);
+        global_value
     }
 }
 

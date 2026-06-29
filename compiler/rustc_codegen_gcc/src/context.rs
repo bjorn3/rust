@@ -380,6 +380,7 @@ impl<'gcc, 'tcx> BackendTypes for CodegenCx<'gcc, 'tcx> {
     type BasicBlock = Block<'gcc>;
     type Funclet = (); // FIXME(antoyo)
 
+    type Vtable = RValue<'gcc>;
     type Value = RValue<'gcc>;
     type Type = Type<'gcc>;
     type FunctionSignature = Type<'gcc>;

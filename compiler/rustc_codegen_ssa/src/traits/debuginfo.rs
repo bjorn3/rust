@@ -15,7 +15,7 @@ pub trait DebugInfoCodegenMethods<'tcx>: BackendTypes {
         &self,
         ty: Ty<'tcx>,
         trait_ref: Option<ExistentialTraitRef<'tcx>>,
-        vtable: Self::Value,
+        vtable: Self::Vtable,
     );
 }
 

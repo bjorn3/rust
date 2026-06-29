@@ -246,7 +246,7 @@ impl<'a, 'tcx, V: CodegenObject> OperandRef<'tcx, V> {
             _ if layout.is_zst() => OperandRef::zero_sized(layout),
             _ => {
                 // Neither a scalar nor scalar pair. Load from a place
-                let base_addr = bx.static_addr_of(alloc, None);
+                let base_addr = bx.get_anon_static_addr(alloc);
 
                 let llval = bx.const_ptr_byte_offset(base_addr, offset);
                 bx.load_operand(PlaceRef::new_sized(llval, layout))

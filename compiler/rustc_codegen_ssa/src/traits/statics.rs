@@ -4,10 +4,12 @@ use rustc_middle::mir::interpret::ConstAllocation;
 use super::BackendTypes;
 
 pub trait StaticCodegenMethods: BackendTypes {
-    fn static_addr_of(&self, alloc: ConstAllocation<'_>, kind: Option<&str>) -> Self::Value;
+    fn make_vtable(&self, alloc: ConstAllocation<'_>) -> Self::Vtable;
     fn codegen_static(&mut self, def_id: DefId);
 }
 
 pub trait StaticBuilderMethods: BackendTypes {
     fn get_static(&mut self, def_id: DefId) -> Self::Value;
+    fn get_vtable_addr(&mut self, s: Self::Vtable) -> Self::Value;
+    fn get_anon_static_addr(&self, alloc: ConstAllocation<'_>) -> Self::Value;
 }

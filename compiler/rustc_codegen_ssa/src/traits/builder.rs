@@ -50,6 +50,7 @@ pub trait BuilderMethods<'a, 'tcx>:
     // types within.
     type CodegenCx: CodegenMethods<
             'tcx,
+            Vtable = Self::Vtable,
             Value = Self::Value,
             Function = Self::Function,
             BasicBlock = Self::BasicBlock,
