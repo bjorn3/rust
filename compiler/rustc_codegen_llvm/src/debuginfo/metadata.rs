@@ -558,7 +558,7 @@ fn hex_encode(data: &[u8]) -> String {
     hex_string
 }
 
-pub(crate) fn file_metadata<'ll>(cx: &CodegenCx<'ll, '_>, source_file: &SourceFile) -> &'ll DIFile {
+pub(super) fn file_metadata<'ll>(cx: &CodegenCx<'ll, '_>, source_file: &SourceFile) -> &'ll DIFile {
     let cache_key = Some((source_file.stable_id, source_file.src_hash));
     return debug_context(cx)
         .created_files
@@ -608,14 +608,6 @@ pub(crate) fn file_metadata<'ll>(cx: &CodegenCx<'ll, '_>, source_file: &SourceFi
             }
         };
 
-        let hash_kind = match source_file.src_hash.kind {
-            rustc_span::SourceFileHashAlgorithm::Md5 => llvm::ChecksumKind::MD5,
-            rustc_span::SourceFileHashAlgorithm::Sha1 => llvm::ChecksumKind::SHA1,
-            rustc_span::SourceFileHashAlgorithm::Sha256 => llvm::ChecksumKind::SHA256,
-            rustc_span::SourceFileHashAlgorithm::Blake3 => llvm::ChecksumKind::None,
-        };
-        let hash_value = hex_encode(source_file.src_hash.hash_bytes());
-
         let mut source = None;
         let external_src;
         if cx.sess().opts.unstable_opts.embed_source {
@@ -627,24 +619,34 @@ pub(crate) fn file_metadata<'ll>(cx: &CodegenCx<'ll, '_>, source_file: &SourceFi
             }
         }
 
-        create_file(DIB(cx), &file_name, &directory, &hash_value, hash_kind, source)
+        create_file(DIB(cx), &file_name, &directory, Some(source_file.src_hash), source)
     }
 }
 
 fn unknown_file_metadata<'ll>(cx: &CodegenCx<'ll, '_>) -> &'ll DIFile {
-    debug_context(cx).created_files.borrow_mut().entry(None).or_insert_with(|| {
-        create_file(DIB(cx), "<unknown>", "", "", llvm::ChecksumKind::None, None)
-    })
+    debug_context(cx)
+        .created_files
+        .borrow_mut()
+        .entry(None)
+        .or_insert_with(|| create_file(DIB(cx), "<unknown>", "", None, None))
 }
 
 fn create_file<'ll>(
     builder: &DIBuilder<'ll>,
     file_name: &str,
     directory: &str,
-    hash_value: &str,
-    hash_kind: llvm::ChecksumKind,
+    hash: Option<rustc_span::SourceFileHash>,
     source: Option<&str>,
 ) -> &'ll DIFile {
+    let hash_kind = match hash.map(|hash| hash.kind) {
+        Some(rustc_span::SourceFileHashAlgorithm::Md5) => llvm::ChecksumKind::MD5,
+        Some(rustc_span::SourceFileHashAlgorithm::Sha1) => llvm::ChecksumKind::SHA1,
+        Some(rustc_span::SourceFileHashAlgorithm::Sha256) => llvm::ChecksumKind::SHA256,
+        Some(rustc_span::SourceFileHashAlgorithm::Blake3) => llvm::ChecksumKind::None,
+        None => llvm::ChecksumKind::None,
+    };
+    let hash_value = hash.map_or(String::new(), |hash| hex_encode(hash.hash_bytes()));
+
     unsafe {
         llvm::LLVMRustDIBuilderCreateFile(
             builder,
@@ -937,14 +939,8 @@ pub(crate) fn build_compile_unit_di_node<'ll, 'tcx>(
     };
 
     unsafe {
-        let compile_unit_file = create_file(
-            debug_context.builder.as_ref(),
-            &name_in_debuginfo,
-            &work_dir,
-            "",
-            llvm::ChecksumKind::None,
-            None,
-        );
+        let compile_unit_file =
+            create_file(debug_context.builder.as_ref(), &name_in_debuginfo, &work_dir, None, None);
 
         let unit_metadata = llvm::LLVMRustDIBuilderCreateCompileUnit(
             debug_context.builder.as_ref(),
@@ -1833,7 +1829,7 @@ pub(crate) fn file_metadata_from_def_id<'ll>(
         && !span.is_dummy()
     {
         let loc = cx.lookup_debug_loc(span.lo());
-        (file_metadata(cx, &loc.file), loc.line)
+        (loc.file, loc.line)
     } else {
         (unknown_file_metadata(cx), UNKNOWN_LINE_NUMBER)
     }

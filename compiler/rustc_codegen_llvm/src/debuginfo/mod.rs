@@ -2,7 +2,6 @@
 
 use std::cell::{OnceCell, RefCell};
 use std::ops::Range;
-use std::sync::Arc;
 use std::{iter, ptr};
 
 use libc::c_uint;
@@ -21,7 +20,7 @@ use rustc_middle::ty::{self, GenericArgsRef, Instance, Ty, TypeVisitableExt, Unn
 use rustc_session::Session;
 use rustc_session::config::{self, DebugInfo};
 use rustc_span::{
-    BytePos, Pos, SourceFile, SourceFileAndLine, SourceFileHash, Span, StableSourceFileId, Symbol,
+    BytePos, Pos, SourceFileAndLine, SourceFileHash, Span, StableSourceFileId, Symbol,
 };
 use rustc_target::callconv::FnAbi;
 use rustc_target::spec::DebuginfoKind;
@@ -140,7 +139,6 @@ impl<'ll, 'tcx> DebugInfoBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
         let (containing_scope, is_method) = get_containing_scope(self, instance);
         let span = tcx.def_span(def_id);
         let loc = self.lookup_debug_loc(span.lo());
-        let file_metadata = file_metadata(self, &loc.file);
 
         let function_type_metadata =
             create_subroutine_type(self, &get_function_signature(self, fn_abi));
@@ -203,7 +201,7 @@ impl<'ll, 'tcx> DebugInfoBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                 name.len(),
                 linkage_name.as_c_char_ptr(),
                 linkage_name.len(),
-                file_metadata,
+                loc.file,
                 loc.line,
                 function_type_metadata,
                 flags,
@@ -220,7 +218,7 @@ impl<'ll, 'tcx> DebugInfoBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                 name.len(),
                 linkage_name.as_c_char_ptr(),
                 linkage_name.len(),
-                file_metadata,
+                loc.file,
                 loc.line,
                 function_type_metadata,
                 scope_line,
@@ -376,12 +374,11 @@ impl<'ll, 'tcx> DebugInfoBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
         parent_scope: &'ll DIScope,
     ) -> &'ll DIScope {
         let loc = self.lookup_debug_loc(pos);
-        let file_metadata = file_metadata(self, &loc.file);
         unsafe {
             llvm::LLVMDIBuilderCreateLexicalBlock(
                 DIB(self),
                 parent_scope,
-                file_metadata,
+                loc.file,
                 loc.line,
                 loc.col,
             )
@@ -410,6 +407,7 @@ impl<'ll, 'tcx> DebugInfoBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
         let (line, col) = if span.is_dummy() && !self.sess().target.is_like_msvc {
             (0, 0)
         } else {
+            // FIXME is it correct that this ignore the file rather than calls extend_scope_to_file?
             let DebugLoc { line, col, .. } = self.lookup_debug_loc(span.lo());
             (line, col)
         };
@@ -436,7 +434,6 @@ impl<'ll, 'tcx> DebugInfoBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
         span: Span,
     ) -> &'ll DIVariable {
         let loc = self.lookup_debug_loc(span.lo());
-        let file_metadata = file_metadata(self, &loc.file);
 
         let type_metadata = spanned_type_di_node(self, variable_type, span);
 
@@ -452,7 +449,7 @@ impl<'ll, 'tcx> DebugInfoBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                     name.as_ptr(),
                     name.len(),
                     arg_index as c_uint,
-                    file_metadata,
+                    loc.file,
                     loc.line,
                     type_metadata,
                     llvm::Bool::TRUE, // (preserve descriptor during optimizations)
@@ -465,7 +462,7 @@ impl<'ll, 'tcx> DebugInfoBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                     scope_metadata,
                     name.as_ptr(),
                     name.len(),
-                    file_metadata,
+                    loc.file,
                     loc.line,
                     type_metadata,
                     llvm::Bool::TRUE, // (preserve descriptor during optimizations)
@@ -670,9 +667,9 @@ impl<'ll, 'tcx> DebugInfoBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
 // FIXME(eddyb) rename this to better indicate it's a duplicate of
 // `rustc_span::Loc` rather than `DILocation`, perhaps by making
 // `lookup_char_pos` return the right information instead.
-struct DebugLoc {
+struct DebugLoc<'ll> {
     /// Information about the original source file.
-    file: Arc<SourceFile>,
+    file: &'ll DIFile,
     /// The (1-based) line number.
     line: u32,
     /// The (1-based) column number.
@@ -684,7 +681,7 @@ impl<'ll> CodegenCx<'ll, '_> {
     // FIXME(eddyb) rename this to better indicate it's a duplicate of
     // `lookup_char_pos` rather than `dbg_loc`, perhaps by making
     // `lookup_char_pos` return the right information instead.
-    fn lookup_debug_loc(&self, pos: BytePos) -> DebugLoc {
+    fn lookup_debug_loc(&self, pos: BytePos) -> DebugLoc<'ll> {
         let (file, line, col) = match self.sess().source_map().lookup_line(pos) {
             Ok(SourceFileAndLine { sf: file, line }) => {
                 let line_pos = file.lines()[line];
@@ -697,6 +694,8 @@ impl<'ll> CodegenCx<'ll, '_> {
             }
             Err(file) => (file, UNKNOWN_LINE_NUMBER, UNKNOWN_COLUMN_NUMBER),
         };
+
+        let file = file_metadata(self, &file);
 
         // For MSVC, omit the column number.
         // Otherwise, emit it. This mimics clang behaviour.

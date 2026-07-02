@@ -17,8 +17,8 @@ use crate::debuginfo::metadata::enums::DiscrResult;
 use crate::debuginfo::metadata::type_map::{self, Stub, UniqueTypeId};
 use crate::debuginfo::metadata::{
     DINodeCreationResult, NO_GENERICS, NO_SCOPE_METADATA, SmallVec, UNKNOWN_LINE_NUMBER,
-    build_field_di_node, create_member_type, file_metadata, file_metadata_from_def_id,
-    size_and_align_of, type_di_node, unknown_file_metadata, visibility_di_flags,
+    build_field_di_node, create_member_type, file_metadata_from_def_id, size_and_align_of,
+    type_di_node, unknown_file_metadata, visibility_di_flags,
 };
 use crate::debuginfo::utils::DIB;
 use crate::llvm;
@@ -767,7 +767,7 @@ fn build_union_fields_for_direct_tag_coroutine<'ll, 'tcx>(
             let span = coroutine_layout.variant_source_info[variant_index].span;
             let source_info = if !span.is_dummy() {
                 let loc = cx.lookup_debug_loc(span.lo());
-                Some((file_metadata(cx, &loc.file), loc.line as c_uint))
+                Some((loc.file, loc.line as c_uint))
             } else {
                 None
             };

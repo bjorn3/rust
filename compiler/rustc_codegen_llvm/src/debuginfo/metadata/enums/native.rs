@@ -13,8 +13,8 @@ use crate::common::{AsCCharPtr, CodegenCx};
 use crate::debuginfo::metadata::type_map::{self, Stub, StubInfo, UniqueTypeId};
 use crate::debuginfo::metadata::{
     DINodeCreationResult, NO_GENERICS, SmallVec, UNKNOWN_LINE_NUMBER, create_member_type,
-    file_metadata, file_metadata_from_def_id, size_and_align_of, type_di_node,
-    unknown_file_metadata, visibility_di_flags,
+    file_metadata_from_def_id, size_and_align_of, type_di_node, unknown_file_metadata,
+    visibility_di_flags,
 };
 use crate::debuginfo::utils::{DIB, create_DIArray, get_namespace_for_item};
 use crate::llvm;
@@ -200,7 +200,7 @@ pub(super) fn build_coroutine_di_node<'ll, 'tcx>(
                     let span = coroutine_layout.variant_source_info[variant_index].span;
                     let source_info = if !span.is_dummy() {
                         let loc = cx.lookup_debug_loc(span.lo());
-                        Some((file_metadata(cx, &loc.file), loc.line))
+                        Some((loc.file, loc.line))
                     } else {
                         None
                     };
