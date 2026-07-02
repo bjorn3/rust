@@ -85,14 +85,19 @@ impl<'tcx, S: Copy, L: Copy> DebugScope<S, L> {
         &self,
         bx: &mut Bx,
         span: Span,
-    ) -> S {
+        mir_span: Span,
+    ) -> (S, Option<L>, Span) {
+        let span = hygiene::walk_chain_collapsed(span, mir_span);
+
         let pos = span.lo();
-        if pos < self.file_start_pos || pos >= self.file_end_pos {
+        let scope = if pos < self.file_start_pos || pos >= self.file_end_pos {
             let sm = bx.sess().source_map();
             bx.extend_scope_to_file(self.dbg_scope, &sm.lookup_char_pos(pos).file)
         } else {
             self.dbg_scope
-        }
+        };
+
+        (scope, self.inlined_at, span)
     }
 }
 
@@ -235,8 +240,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         source_info: mir::SourceInfo,
     ) -> Option<(Bx::DIScope, Option<Bx::DILocation>, Span)> {
         let scope = &self.debug_context.as_ref()?.scopes[source_info.scope];
-        let span = hygiene::walk_chain_collapsed(source_info.span, self.mir.span);
-        Some((scope.adjust_dbg_scope_for_span(bx, span), scope.inlined_at, span))
+        Some(scope.adjust_dbg_scope_for_span(bx, source_info.span, self.mir.span))
     }
 
     fn spill_operand_to_stack(
@@ -779,9 +783,9 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         };
 
         let inlined_at = scope_data.inlined.map(|(_, callsite_span)| {
-            let callsite_span = hygiene::walk_chain_collapsed(callsite_span, self.mir.span);
-            let callsite_scope = parent_scope.adjust_dbg_scope_for_span(bx, callsite_span);
-            let loc = bx.dbg_loc(callsite_scope, parent_scope.inlined_at, callsite_span);
+            let (callsite_scope, inlined_at, callsite_span) =
+                parent_scope.adjust_dbg_scope_for_span(bx, callsite_span, self.mir.span);
+            let loc = bx.dbg_loc(callsite_scope, inlined_at, callsite_span);
 
             // NB: In order to produce proper debug info for variables (particularly
             // arguments) in multiply-inlined functions, LLVM expects to see a single
