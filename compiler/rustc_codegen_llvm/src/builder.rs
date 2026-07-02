@@ -304,8 +304,6 @@ impl<'a, 'll, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         unsafe { llvm::LLVMGetInsertBlock(self.llbuilder) }
     }
 
-    fn set_span(&mut self, _span: Span) {}
-
     fn append_block(cx: &'a CodegenCx<'ll, 'tcx>, llfn: &'ll Value, name: &str) -> &'ll BasicBlock {
         unsafe {
             let name = SmallCStr::new(name);

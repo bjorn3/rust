@@ -8,7 +8,6 @@ use rustc_middle::mir;
 use rustc_middle::ty::layout::{FnAbiOf, LayoutOf, TyAndLayout};
 use rustc_middle::ty::{AtomicOrdering, Instance, Ty};
 use rustc_session::config::OptLevel;
-use rustc_span::Span;
 use rustc_target::callconv::FnAbi;
 
 use super::abi::AbiBuilderMethods;
@@ -65,8 +64,6 @@ pub trait BuilderMethods<'a, 'tcx>:
 
     fn cx(&self) -> &Self::CodegenCx;
     fn llbb(&self) -> Self::BasicBlock;
-
-    fn set_span(&mut self, span: Span);
 
     // FIXME(eddyb) replace uses of this with `append_sibling_block`.
     fn append_block(cx: &'a Self::CodegenCx, llfn: Self::Function, name: &str) -> Self::BasicBlock;

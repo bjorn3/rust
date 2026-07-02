@@ -1819,8 +1819,6 @@ impl<'a, 'gcc, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'gcc, 'tcx> {
         // FIXME(bjorn3): implement
     }
 
-    fn set_span(&mut self, _span: Span) {}
-
     fn from_immediate(&mut self, val: Self::Value) -> Self::Value {
         if self.cx().val_ty(val) == self.cx().type_i1() {
             self.zext(val, self.cx().type_i8())
