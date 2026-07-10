@@ -103,6 +103,7 @@
 //! unsupported file system and emit a warning in that case. This is not yet
 //! implemented.
 
+use std::fmt::Write;
 use std::fs as std_fs;
 use std::io::{self, ErrorKind};
 use std::path::{Path, PathBuf};
@@ -229,6 +230,7 @@ pub(crate) fn prepare_session_directory(
     sess: &Session,
     crate_name: Symbol,
     stable_crate_id: StableCrateId,
+    suffix: Option<&str>,
 ) -> IncrCompSession {
     assert!(sess.opts.incremental.is_some());
 
@@ -237,7 +239,7 @@ pub(crate) fn prepare_session_directory(
     debug!("prepare_session_directory");
 
     // {incr-comp-dir}/{crate-name-and-disambiguator}
-    let crate_dir = crate_path(sess, crate_name, stable_crate_id);
+    let crate_dir = crate_path(sess, crate_name, stable_crate_id, suffix);
     debug!("crate-dir: {}", crate_dir.display());
     create_dir(sess, &crate_dir, "crate");
 
@@ -514,11 +516,19 @@ fn string_to_timestamp(s: &str) -> Result<SystemTime, &'static str> {
     Ok(UNIX_EPOCH + duration)
 }
 
-fn crate_path(sess: &Session, crate_name: Symbol, stable_crate_id: StableCrateId) -> PathBuf {
+fn crate_path(
+    sess: &Session,
+    crate_name: Symbol,
+    stable_crate_id: StableCrateId,
+    suffix: Option<&str>,
+) -> PathBuf {
     let incr_dir = sess.opts.incremental.as_ref().unwrap().clone();
 
-    let crate_name =
+    let mut crate_name =
         format!("{crate_name}-{}", stable_crate_id.as_u64().to_base_fixed_len(CASE_INSENSITIVE));
+    if let Some(suffix) = suffix {
+        write!(crate_name, "-{suffix}").unwrap();
+    }
     incr_dir.join(crate_name)
 }
 
