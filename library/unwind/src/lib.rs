@@ -14,6 +14,8 @@
 #[cfg(not(all(windows, target_env = "msvc")))]
 extern crate libc as _;
 
+mod types;
+
 cfg_select! {
     target_env = "msvc" => {
         // Windows MSVC no extra unwinder support needed
