@@ -1,4 +1,4 @@
-//! This module contains the implementation of the `eh_personality` lang item.
+//! This crate contains the implementation of the `eh_personality` lang item.
 //!
 //! The actual implementation is heavily dependent on the target since Rust
 //! tries to use the native stack unwinding mechanism whenever possible.
@@ -9,6 +9,15 @@
 //!
 //! Additionally, ARM EHABI uses the personality function when generating
 //! backtraces.
+
+#![no_std]
+#![unstable(feature = "panic_unwind", issue = "32837")]
+#![feature(lang_items)]
+#![feature(panic_unwind)]
+#![feature(rustc_attrs)]
+#![feature(staged_api)]
+#![allow(internal_features)]
+#![deny(unsafe_op_in_unsafe_fn)]
 
 mod dwarf;
 

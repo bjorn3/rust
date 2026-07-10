@@ -20,6 +20,7 @@ panic_unwind = { path = "../panic_unwind", optional = true }
 panic_abort = { path = "../panic_abort" }
 core = { path = "../core", public = true }
 unwind = { path = "../unwind" }
+unwind_personality = { path = "../unwind_personality" }
 hashbrown = { version = "0.17.1", default-features = false, features = [
     'rustc-dep-of-std',
 ] }

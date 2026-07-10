@@ -1,0 +1,19 @@
+[package]
+name = "unwind_personality"
+version = "0.0.0"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rust-lang/rust.git"
+edition = "2024"
+
+[lib]
+test = false
+bench = false
+doc = false
+
+[dependencies]
+core = { path = "../rustc-std-workspace-core", package = "rustc-std-workspace-core" }
+unwind = { path = "../unwind" }
+
+#[lints.rust.unexpected_cfgs]
+#level = "warn"
+#check-cfg = ['cfg(target_arch, values("loongarch32"))']

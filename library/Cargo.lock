@@ -343,6 +343,7 @@ dependencies = [
  "rustc-demangle",
  "std_detect",
  "unwind",
+ "unwind_personality",
  "vex-sdk",
  "wasip1",
  "wasip2",
@@ -386,6 +387,14 @@ dependencies = [
  "libc",
  "rustc-std-workspace-core",
  "unwinding",
+]
+
+[[package]]
+name = "unwind_personality"
+version = "0.0.0"
+dependencies = [
+ "rustc-std-workspace-core",
+ "unwind",
 ]
 
 [[package]]

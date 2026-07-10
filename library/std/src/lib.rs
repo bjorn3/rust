@@ -478,6 +478,9 @@ extern crate libc;
 #[allow(unused_extern_crates)]
 extern crate unwind;
 
+#[doc(masked)]
+extern crate unwind_personality as _;
+
 // FIXME: #94122 this extern crate definition only exist here to stop
 // miniz_oxide docs leaking into std docs. Find better way to do it.
 // Remove exclusion from tidy platform check when this removed.
