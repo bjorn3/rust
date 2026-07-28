@@ -37,7 +37,7 @@
 //! and the last personality routine transfers control to the catch block.
 
 use alloc::boxed::Box;
-use alloc::panicking::PanicPayload;
+use alloc::panicking::{PanicPayload, UnwindResult};
 use core::any::Any;
 use core::ptr;
 
@@ -59,7 +59,7 @@ struct Exception {
     cause: Box<dyn Any + Send>,
 }
 
-pub(crate) fn panic(data: &mut dyn PanicPayload) -> u32 {
+pub(crate) fn panic(data: &mut dyn PanicPayload) -> UnwindResult {
     let exception = Box::new(Exception {
         _uwe: uw::_Unwind_Exception {
             exception_class: RUST_EXCEPTION_CLASS,
@@ -70,7 +70,7 @@ pub(crate) fn panic(data: &mut dyn PanicPayload) -> u32 {
         cause: data.take_box(),
     });
     let exception_param = Box::into_raw(exception) as *mut uw::_Unwind_Exception;
-    return unsafe { uw::_Unwind_RaiseException(exception_param) as u32 };
+    return UnwindResult::Error(unsafe { uw::_Unwind_RaiseException(exception_param) as u32 });
 
     extern "C" fn exception_cleanup(
         _unwind_code: uw::_Unwind_Reason_Code,

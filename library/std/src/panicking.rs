@@ -9,7 +9,7 @@
 
 #![deny(unsafe_op_in_unsafe_fn)]
 
-use alloc::panicking::PanicPayload;
+use alloc::panicking::{PanicPayload, UnwindResult};
 use core::panic::Location;
 
 // make sure to use the stderr output configured
@@ -61,7 +61,7 @@ unsafe extern "Rust" {
     /// `PanicPayload` lazily performs allocation only when needed (this avoids
     /// allocations when using the "abort" panic runtime).
     #[rustc_std_internal_symbol]
-    safe fn __rust_start_panic(payload: &mut dyn PanicPayload) -> u32;
+    safe fn __rust_start_panic(payload: &mut dyn PanicPayload) -> UnwindResult;
 }
 
 /// This function is called by the panic runtime if FFI code catches a Rust
@@ -880,8 +880,12 @@ pub fn resume_unwind(payload: Box<dyn Any + Send>) -> ! {
 #[cfg_attr(not(test), rustc_std_internal_symbol)]
 #[cfg(not(panic = "immediate-abort"))]
 fn rust_panic(msg: &mut dyn PanicPayload) -> ! {
-    let code = __rust_start_panic(msg);
-    rtabort!("failed to initiate panic, error {code}")
+    match __rust_start_panic(msg) {
+        UnwindResult::PanicAbort => crate::process::abort(),
+        UnwindResult::Error(code) => {
+            rtabort!("failed to initiate panic, error {code}")
+        }
+    }
 }
 
 #[cfg_attr(not(test), rustc_std_internal_symbol)]

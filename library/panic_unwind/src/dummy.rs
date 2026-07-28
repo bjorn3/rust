@@ -3,7 +3,7 @@
 //! Stubs that simply abort for targets that don't support unwinding otherwise.
 
 use alloc::boxed::Box;
-use alloc::panicking::PanicPayload;
+use alloc::panicking::{PanicPayload, UnwindResult};
 use core::any::Any;
 
 unsafe extern "Rust" {
@@ -16,6 +16,6 @@ pub(crate) unsafe fn cleanup(_ptr: *mut u8) -> Box<dyn Any + Send> {
     __rust_abort()
 }
 
-pub(crate) fn panic(_data: &mut dyn PanicPayload) -> u32 {
-    __rust_abort()
+pub(crate) fn panic(_data: &mut dyn PanicPayload) -> UnwindResult {
+    UnwindResult::PanicAbort
 }

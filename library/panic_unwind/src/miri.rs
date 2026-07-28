@@ -1,7 +1,7 @@
 //! Unwinding panics for Miri.
 
 use alloc::boxed::Box;
-use alloc::panicking::PanicPayload;
+use alloc::panicking::{PanicPayload, UnwindResult};
 use core::any::Any;
 
 // The type of the payload that the Miri engine propagates through unwinding for us.
@@ -13,7 +13,7 @@ unsafe extern "Rust" {
     fn miri_start_unwind(payload: *mut u8) -> !;
 }
 
-pub(crate) fn panic(payload: &mut dyn PanicPayload) -> u32 {
+pub(crate) fn panic(payload: &mut dyn PanicPayload) -> UnwindResult {
     // The payload we pass to `miri_start_unwind` will be exactly the argument we get
     // in `cleanup` below. So we just box it up once, to get something pointer-sized.
     let payload_box: Payload = Box::new(payload.take_box());

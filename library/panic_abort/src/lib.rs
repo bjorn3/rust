@@ -20,7 +20,7 @@ mod android;
 mod zkvm;
 
 use alloc::boxed::Box;
-use alloc::panicking::PanicPayload;
+use alloc::panicking::{PanicPayload, UnwindResult};
 use core::any::Any;
 
 #[rustc_std_internal_symbol]
@@ -30,18 +30,13 @@ pub unsafe fn __rust_panic_cleanup(_: *mut u8) -> Box<dyn Any + Send + 'static> 
 
 // "Leak" the payload and shim to the relevant abort on the platform in question.
 #[rustc_std_internal_symbol]
-pub fn __rust_start_panic(_payload: &mut dyn PanicPayload) -> u32 {
+pub fn __rust_start_panic(_payload: &mut dyn PanicPayload) -> UnwindResult {
+    // FIXME move to libstd to allow reusing from panic_unwind
     // Android has the ability to attach a message as part of the abort.
     #[cfg(target_os = "android")]
     android::android_set_abort_message(_payload);
     #[cfg(target_os = "zkvm")]
     zkvm::zkvm_set_abort_message(_payload);
 
-    unsafe extern "Rust" {
-        // This is defined in std::rt.
-        #[rustc_std_internal_symbol]
-        safe fn __rust_abort() -> !;
-    }
-
-    __rust_abort()
+    UnwindResult::PanicAbort
 }

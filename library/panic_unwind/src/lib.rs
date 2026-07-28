@@ -28,7 +28,7 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 use alloc::boxed::Box;
-use alloc::panicking::PanicPayload;
+use alloc::panicking::{PanicPayload, UnwindResult};
 use core::any::Any;
 
 cfg_select! {
@@ -87,6 +87,6 @@ pub unsafe fn __rust_panic_cleanup(payload: *mut u8) -> Box<dyn Any + Send + 'st
 // Entry point for raising an exception, just delegates to the platform-specific
 // implementation.
 #[rustc_std_internal_symbol]
-pub fn __rust_start_panic(payload: &mut dyn PanicPayload) -> u32 {
+pub fn __rust_start_panic(payload: &mut dyn PanicPayload) -> UnwindResult {
     imp::panic(payload)
 }

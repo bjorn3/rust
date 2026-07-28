@@ -27,3 +27,8 @@ pub trait PanicPayload: Display {
         None
     }
 }
+
+pub enum UnwindResult {
+    PanicAbort,
+    Error(u32),
+}
