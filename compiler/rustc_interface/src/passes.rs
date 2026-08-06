@@ -27,7 +27,6 @@ use rustc_hir::definitions::Definitions;
 use rustc_hir::{Attribute, find_attr};
 use rustc_incremental::setup_dep_graph;
 use rustc_lint::{BufferedEarlyLint, EarlyCheckNode, LintStore, unerased_lint_store};
-use rustc_metadata::EncodedMetadata;
 use rustc_metadata::creader::CStore;
 use rustc_middle::arena::Arena;
 use rustc_middle::ty::{self, RegisteredTools, TyCtxt};
@@ -1287,7 +1286,7 @@ fn analysis(tcx: TyCtxt<'_>, (): ()) {
 pub(crate) fn start_codegen<'tcx>(
     codegen_backend: &dyn CodegenBackend,
     tcx: TyCtxt<'tcx>,
-) -> (Box<dyn Any>, CrateInfo, EncodedMetadata) {
+) -> (Box<dyn Any>, CrateInfo) {
     tcx.sess.timings.start_section(tcx.sess.dcx(), TimingSection::Codegen);
 
     // Hook for tests.
@@ -1303,19 +1302,10 @@ pub(crate) fn start_codegen<'tcx>(
         rustc_symbol_mangling::test::dump_symbol_names_and_def_paths(tcx);
     }
 
-    // Don't do code generation if there were any errors. Likewise if
-    // there were any delayed bugs, because codegen will likely cause
-    // more ICEs, obscuring the original problem.
-    if let Some(guar) = tcx.sess.dcx().has_errors_or_delayed_bugs() {
-        guar.raise_fatal();
-    }
+    // Don't do code generation if there were any errors.
+    tcx.sess.dcx().abort_if_errors();
 
     info!("Pre-codegen\n{:?}", tcx.debug_stats());
-
-    let metadata = match rustc_metadata::fs::encode_and_write_metadata(tcx) {
-        Ok(metadata) => metadata,
-        Err(guar) => guar.raise_fatal(),
-    };
 
     let is_host_metadata = tcx
         .sess
@@ -1353,7 +1343,7 @@ pub(crate) fn start_codegen<'tcx>(
 
     let crate_info = CrateInfo::new(tcx, codegen_backend.target_cpu(tcx.sess));
 
-    (codegen, crate_info, metadata)
+    (codegen, crate_info)
 }
 
 /// Compute and validate the crate name.

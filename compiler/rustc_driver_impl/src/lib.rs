@@ -313,7 +313,14 @@ pub fn run_compiler(at_args: &[String], callbacks: &mut (dyn Callbacks + Send)) 
                 return None;
             }
 
+            let metadata = rustc_metadata::fs::encode_and_write_metadata(tcx);
+
             tcx.ensure_ok().analysis(());
+
+            let metadata = match metadata {
+                Ok(metadata) => metadata,
+                Err(guar) => guar.raise_fatal(),
+            };
 
             if let Some(metrics_dir) = &sess.opts.unstable_opts.metrics_dir {
                 dump_feature_usage_metrics(tcx, metrics_dir);
@@ -329,7 +336,7 @@ pub fn run_compiler(at_args: &[String], callbacks: &mut (dyn Callbacks + Send)) 
                 }
             }
 
-            let linker = Linker::codegen_and_build_linker(tcx, codegen_backend);
+            let linker = Linker::codegen_and_build_linker(tcx, codegen_backend, metadata);
 
             tcx.report_unused_features();
 
