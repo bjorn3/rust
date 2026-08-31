@@ -387,6 +387,14 @@ rustc_queries! {
         }
     }
 
+    query run_required_analyses1(key: ()) {
+        eval_always
+        desc {
+            "running first part of analysis passes on crate `{}`",
+            tcx.crate_name(LOCAL_CRATE),
+        }
+    }
+
     /// The root query triggering all analysis passes like typeck or borrowck.
     query analysis(key: ()) {
         eval_always

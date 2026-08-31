@@ -897,6 +897,7 @@ pub fn write_interface<'tcx>(tcx: TyCtxt<'tcx>) {
 
 pub static DEFAULT_QUERY_PROVIDERS: LazyLock<Providers> = LazyLock::new(|| {
     let providers = &mut Providers::default();
+    providers.queries.run_required_analyses1 = run_required_analyses1;
     providers.queries.analysis = analysis;
     providers.queries.resolver_for_lowering_raw = resolver_for_lowering_raw;
     providers.queries.stripped_cfg_items = |tcx, _| &tcx.resolutions(()).stripped_cfg_items[..];
@@ -1090,7 +1091,7 @@ pub fn emit_delayed_lints(tcx: TyCtxt<'_>) {
 
 /// Runs all analyses that we guarantee to run, even if errors were reported in earlier analyses.
 /// This function never fails.
-fn run_required_analyses(tcx: TyCtxt<'_>) {
+fn run_required_analyses1(tcx: TyCtxt<'_>, (): ()) {
     if tcx.sess.opts.unstable_opts.input_stats {
         rustc_passes::input_stats::print_hir_stats(tcx);
     }
@@ -1150,7 +1151,10 @@ fn run_required_analyses(tcx: TyCtxt<'_>) {
     //
     // This improves performance by allowing lock-free access to them.
     tcx.untracked().definitions.freeze();
+}
 
+fn run_required_analyses2(tcx: TyCtxt<'_>) {
+    let sess = tcx.sess;
     sess.time("MIR_borrow_checking", || {
         tcx.par_hir_body_owners(|def_id| {
             let not_typeck_child = !tcx.is_typeck_child(def_id.to_def_id());
@@ -1198,7 +1202,8 @@ fn run_required_analyses(tcx: TyCtxt<'_>) {
 /// Runs the type-checking, region checking and other miscellaneous analysis
 /// passes on the crate.
 fn analysis(tcx: TyCtxt<'_>, (): ()) {
-    run_required_analyses(tcx);
+    tcx.ensure_ok().run_required_analyses1(());
+    run_required_analyses2(tcx);
 
     let sess = tcx.sess;
 
