@@ -115,7 +115,7 @@ pub trait CodegenBackend {
     ) -> (Box<dyn Any>, WorkProductMap);
 
     /// This is called on the returned `Box<dyn Any>` from [`join_codegen`](Self::join_codegen).
-    fn perform_lto(
+    fn maybe_perform_lto(
         &self,
         pending_lto: Box<dyn Any>,
         sess: &Session,

@@ -52,25 +52,12 @@ impl Linker {
         incr_comp_session: Option<IncrCompSession>,
         codegen_backend: &dyn CodegenBackend,
     ) {
-        let (compiled_modules, mut work_products) = sess.time("finish_ongoing_codegen", || {
-            match self.ongoing_codegen.downcast::<CompiledModules>() {
+        let (pending_lto, mut work_products) = sess.time("finish_ongoing_codegen", || {
+            if self.ongoing_codegen.is::<CompiledModules>() {
                 // This was a check only build
-                Ok(compiled_modules) => (*compiled_modules, WorkProductMap::default()),
-
-                Err(ongoing_codegen) => {
-                    let (pending_lto, work_products) = codegen_backend.join_codegen(
-                        ongoing_codegen,
-                        sess,
-                        incr_comp_session.as_ref(),
-                    );
-                    let compiled_modules = codegen_backend.perform_lto(
-                        pending_lto,
-                        sess,
-                        &self.output_filenames,
-                        &self.crate_info,
-                    );
-                    (compiled_modules, work_products)
-                }
+                (self.ongoing_codegen, WorkProductMap::default())
+            } else {
+                codegen_backend.join_codegen(self.ongoing_codegen, sess, incr_comp_session.as_ref())
             }
         });
 
@@ -130,6 +117,20 @@ impl Linker {
         {
             return;
         }
+
+        let compiled_modules = sess.time("maybe_perform_lto", || {
+            match pending_lto.downcast::<CompiledModules>() {
+                // This was a check only build
+                Ok(compiled_modules) => *compiled_modules,
+
+                Err(pending_lto) => codegen_backend.maybe_perform_lto(
+                    pending_lto,
+                    sess,
+                    &self.output_filenames,
+                    &self.crate_info,
+                ),
+            }
+        });
 
         if sess.opts.unstable_opts.no_link {
             let rlink_file = self.output_filenames.with_extension(config::RLINK_EXT);

@@ -246,7 +246,7 @@ impl CodegenBackend for CraneliftCodegenBackend {
             .join(sess, incr_comp_session)
     }
 
-    fn perform_lto(
+    fn maybe_perform_lto(
         &self,
         pending_lto: Box<dyn Any>,
         sess: &Session,
