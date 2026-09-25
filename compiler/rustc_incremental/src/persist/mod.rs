@@ -10,7 +10,10 @@ mod load;
 mod save;
 mod work_product;
 
-pub use fs::{finalize_session_directory, in_incr_comp_dir_sess, in_old_incr_comp_dir_sess};
+pub use fs::{
+    finalize_session_directory, in_incr_comp_dir_sess, in_old_incr_comp_dir_sess,
+    prepare_session_directory,
+};
 pub use load::{load_query_result_cache, setup_dep_graph};
 pub(crate) use save::save_dep_graph;
 pub use save::save_work_product_index;

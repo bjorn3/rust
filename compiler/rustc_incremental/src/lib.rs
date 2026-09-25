@@ -12,7 +12,8 @@ mod persist;
 
 pub use persist::{
     copy_cgu_workproduct_to_incr_comp_cache_dir, finalize_session_directory, in_incr_comp_dir_sess,
-    in_old_incr_comp_dir_sess, load_query_result_cache, save_work_product_index, setup_dep_graph,
+    in_old_incr_comp_dir_sess, load_query_result_cache, prepare_session_directory,
+    save_work_product_index, setup_dep_graph,
 };
 use rustc_middle::util::Providers;
 
