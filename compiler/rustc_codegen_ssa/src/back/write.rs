@@ -7,8 +7,10 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use std::{assert_matches, fs, io, mem, str, thread};
 
 use rustc_abi::Size;
+use rustc_data_structures::fingerprint::Fingerprint;
 use rustc_data_structures::jobserver::{self, Acquired};
 use rustc_data_structures::profiling::{SelfProfilerRef, VerboseTimingGuard};
+use rustc_data_structures::svh::Svh;
 use rustc_data_structures::unord::UnordMap;
 use rustc_errors::emitter::Emitter;
 use rustc_errors::{
@@ -18,6 +20,7 @@ use rustc_errors::{
 use rustc_fs_util::link_or_copy;
 use rustc_incremental::{
     copy_cgu_workproduct_to_incr_comp_cache_dir, in_incr_comp_dir_sess, in_old_incr_comp_dir_sess,
+    prepare_session_directory,
 };
 use rustc_macros::{Decodable, Encodable};
 use rustc_metadata::fs::copy_to_stdout;
@@ -2258,11 +2261,35 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
             MaybeLtoModules::ThinLto { cgcx, needs_thin_lto } => {
                 let tm_factory = self.backend.target_machine_factory(sess, cgcx.opt_level);
 
+                let mut work_products = WorkProductMap::default();
+                if sess.opts.incremental.is_some() {
+                    for module in &needs_thin_lto {
+                        match module {
+                            ThinLtoInput::Green { wp, bitcode_path: _ }
+                            | ThinLtoInput::Red { wp, buffer: _ } => {
+                                work_products
+                                    .insert(WorkProductId::from_cgu_name(&wp.cgu_name), wp.clone());
+                            }
+                        }
+                    }
+                }
+
+                let thinlto_incr_comp_session = sess.opts.incremental.is_some().then(|| {
+                    prepare_session_directory(
+                        sess,
+                        crate_info.local_crate_name,
+                        crate_info.local_crate_id,
+                        "thinlto",
+                    )
+                });
+
                 let compiled_modules = CompiledModules {
                     modules: do_thin_lto::<B>(
                         &cgcx,
                         &sess.prof,
-                        incr_comp_session.map(|incr_comp_session| incr_comp_session.borrow()),
+                        thinlto_incr_comp_session
+                            .as_ref()
+                            .map(|incr_comp_session| incr_comp_session.borrow()),
                         shared_emitter,
                         tm_factory,
                         &crate_info.exported_symbols_for_lto,
@@ -2272,12 +2299,18 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
                     allocator_module: None,
                 };
 
-                // FIXME include pre-LTO bitcode in workproduct tracking
-                // FIXME add separate incr comp session for post-LTO outputs to use during link step
-                let work_products = copy_all_cgu_workproducts_to_incr_comp_cache_dir(
+                let _thinlto_work_products = copy_all_cgu_workproducts_to_incr_comp_cache_dir(
                     sess,
-                    incr_comp_session,
+                    thinlto_incr_comp_session.as_ref(),
                     &compiled_modules,
+                );
+
+                // Now that we won't touch anything in the incremental compilation directory
+                // any more, we can finalize it (which involves renaming it)
+                rustc_incremental::finalize_session_directory(
+                    sess,
+                    thinlto_incr_comp_session,
+                    Some(Svh::new(Fingerprint::ZERO)), // FIXME,
                 );
 
                 (compiled_modules, work_products)
