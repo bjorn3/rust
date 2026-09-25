@@ -446,13 +446,21 @@ impl CodegenBackend for DummyCodegenBackend {
 
     fn join_codegen(
         &self,
-        ongoing_codegen: Box<dyn Any>,
+        _ongoing_codegen: Box<dyn Any>,
         _sess: &Session,
         _incr_comp_session: Option<&mut IncrCompSession>,
+    ) -> Box<dyn Any> {
+        unreachable!("Linker::link should skip join_codegen for CompiledModules")
+    }
+
+    fn perform_lto(
+        &self,
+        _maybe_lto_modules: Box<dyn Any>,
+        _sess: &Session,
         _outputs: &OutputFilenames,
         _crate_info: &CrateInfo,
     ) -> CompiledModules {
-        *ongoing_codegen.downcast().unwrap()
+        unreachable!("Linker::link should skip perform_lto for CompiledModules")
     }
 
     fn link(
