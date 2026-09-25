@@ -453,7 +453,7 @@ impl CodegenBackend for DummyCodegenBackend {
         unreachable!("Linker::link should skip join_codegen for CompiledModules")
     }
 
-    fn perform_lto(
+    fn maybe_perform_lto(
         &self,
         _maybe_lto_modules: Box<dyn Any>,
         _sess: &Session,
