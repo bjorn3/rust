@@ -1068,6 +1068,7 @@ impl CrateInfo {
             exported_symbols,
             linked_symbols,
             local_crate_name,
+            local_crate_id: tcx.stable_crate_id(LOCAL_CRATE),
             compiler_builtins,
             profiler_runtime: None,
             is_no_builtins: Default::default(),

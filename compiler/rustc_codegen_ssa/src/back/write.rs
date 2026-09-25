@@ -7,8 +7,11 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use std::{assert_matches, fs, io, str, thread};
 
 use rustc_abi::Size;
+use rustc_data_structures::fingerprint::Fingerprint;
 use rustc_data_structures::jobserver::{self, Acquired};
 use rustc_data_structures::profiling::{SelfProfilerRef, VerboseTimingGuard};
+use rustc_data_structures::svh::Svh;
+use rustc_data_structures::unord::UnordMap;
 use rustc_errors::emitter::Emitter;
 use rustc_errors::{
     Diag, DiagCtxt, DiagCtxtHandle, DiagInner, FatalError, FatalErrorMarker, Level,
@@ -17,10 +20,13 @@ use rustc_errors::{
 use rustc_fs_util::link_or_copy;
 use rustc_incremental::{
     copy_cgu_workproduct_to_incr_comp_cache_dir, in_incr_comp_dir_sess, in_old_incr_comp_dir_sess,
+    prepare_session_directory,
 };
 use rustc_macros::{Decodable, Encodable};
 use rustc_metadata::fs::copy_to_stdout;
-use rustc_middle::dep_graph::{BorrowedIncrCompSession, IncrCompSession, WorkProduct};
+use rustc_middle::dep_graph::{
+    BorrowedIncrCompSession, IncrCompSession, WorkProduct, WorkProductId,
+};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::Session;
 use rustc_session::config::{
@@ -2165,11 +2171,44 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
             MaybeLtoModules::ThinLto { cgcx, needs_thin_lto, allocator_module } => {
                 let tm_factory = self.backend.target_machine_factory(sess);
 
+                if let Some(incr_comp_session) = incr_comp_session {
+                    for module in &needs_thin_lto {
+                        match module {
+                            ThinLtoInput::Red { name, buffer: _ } => {
+                                incr_comp_session.new_work_products.insert(
+                                    WorkProductId::from_cgu_name(name),
+                                    WorkProduct {
+                                        cgu_name: name.clone(),
+                                        saved_files: UnordMap::from_iter([(
+                                            PRE_LTO_BC_EXT.to_owned(),
+                                            pre_lto_bitcode_filename(name),
+                                        )]),
+                                    },
+                                );
+                            }
+                            ThinLtoInput::Green { wp, bitcode_path: _ } => {
+                                incr_comp_session
+                                    .new_work_products
+                                    .insert(WorkProductId::from_cgu_name(&wp.cgu_name), wp.clone());
+                            }
+                        }
+                    }
+                }
+
+                let thinlto_incr_comp_session = sess.opts.incremental.is_some().then(|| {
+                    prepare_session_directory(
+                        sess,
+                        crate_info.local_crate_name,
+                        crate_info.local_crate_id,
+                        "thinlto",
+                    )
+                });
+
                 let compiled_modules = CompiledModules {
                     modules: do_thin_lto::<B>(
                         &cgcx,
                         &sess.prof,
-                        incr_comp_session.as_deref().map(IncrCompSession::borrow),
+                        thinlto_incr_comp_session.as_ref().map(IncrCompSession::borrow),
                         shared_emitter,
                         tm_factory,
                         &crate_info.exported_symbols_for_lto,
@@ -2180,13 +2219,19 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
                     allocator_module,
                 };
 
-                // FIXME include pre-LTO bitcode in workproduct tracking
-                // FIXME add separate incr comp session for post-LTO outputs to use during link step
-                if let Some(incr_comp_session) = incr_comp_session {
+                if let Some(mut thinlto_incr_comp_session) = thinlto_incr_comp_session {
                     copy_all_cgu_workproducts_to_incr_comp_cache_dir(
                         sess,
-                        incr_comp_session,
+                        &mut thinlto_incr_comp_session,
                         &compiled_modules,
+                    );
+
+                    // Now that we won't touch anything in the incremental compilation directory
+                    // any more, we can finalize it (which involves renaming it)
+                    rustc_incremental::finalize_session_directory(
+                        sess,
+                        thinlto_incr_comp_session,
+                        Svh::new(Fingerprint::ZERO), // FIXME,
                     );
                 }
 
