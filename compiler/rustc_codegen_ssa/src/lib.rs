@@ -36,8 +36,8 @@ use rustc_middle::ty::TyCtxt;
 use rustc_middle::util::Providers;
 use rustc_serialize::opaque::{FileEncoder, MemDecoder};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
-use rustc_session::Session;
 use rustc_session::config::{OutputFilenames, OutputType};
+use rustc_session::{Session, StableCrateId};
 use rustc_span::{Span, Symbol};
 use rustc_structures::{CrateType, NativeLibKind};
 
@@ -282,6 +282,7 @@ pub struct CrateInfo {
     pub exported_symbols: UnordMap<CrateType, Vec<SymbolExport>>,
     pub linked_symbols: FxIndexMap<CrateType, Vec<(String, SymbolExportKind)>>,
     pub local_crate_name: Symbol,
+    pub local_crate_id: StableCrateId,
     pub compiler_builtins: Option<CrateNum>,
     pub profiler_runtime: Option<CrateNum>,
     pub is_no_builtins: FxHashSet<CrateNum>,
