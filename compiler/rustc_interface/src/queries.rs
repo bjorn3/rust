@@ -57,13 +57,19 @@ impl Linker {
                 // This was a check only build
                 Ok(compiled_modules) => *compiled_modules,
 
-                Err(ongoing_codegen) => codegen_backend.join_codegen(
-                    ongoing_codegen,
-                    sess,
-                    incr_comp_session.as_mut(),
-                    &self.output_filenames,
-                    &self.crate_info,
-                ),
+                Err(ongoing_codegen) => {
+                    let pending_lto = codegen_backend.join_codegen(
+                        ongoing_codegen,
+                        sess,
+                        incr_comp_session.as_mut(),
+                    );
+                    codegen_backend.perform_lto(
+                        pending_lto,
+                        sess,
+                        &self.output_filenames,
+                        &self.crate_info,
+                    )
+                }
             }
         });
 
