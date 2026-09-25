@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::marker::PhantomData;
 use std::num::NonZero;
 use std::panic::AssertUnwindSafe;
@@ -2194,8 +2195,7 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
         self,
         sess: &Session,
         incr_comp_session: Option<&IncrCompSession>,
-        crate_info: &CrateInfo,
-    ) -> (CompiledModules, WorkProductMap) {
+    ) -> (Box<dyn Any>, WorkProductMap) {
         self.shared_emitter_main.check(sess, true);
 
         let maybe_lto_modules = sess.time("join_worker_thread", || match self.coordinator.join() {
@@ -2211,27 +2211,19 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
 
         sess.dcx().abort_if_errors();
 
-        let (shared_emitter, shared_emitter_main) = SharedEmitter::new();
-
         // Catch fatal errors to ensure shared_emitter_main.check() can emit the actual diagnostics
-        let compilation_output = catch_fatal_errors(|| match maybe_lto_modules {
+        let work_products = match &maybe_lto_modules {
             MaybeLtoModules::NoLto(compiled_modules) => {
-                drop(shared_emitter);
-
-                let work_products = copy_all_cgu_workproducts_to_incr_comp_cache_dir(
+                copy_all_cgu_workproducts_to_incr_comp_cache_dir(
                     sess,
                     incr_comp_session,
                     &compiled_modules,
-                );
-
-                (compiled_modules, work_products)
+                )
             }
-            MaybeLtoModules::FatLto { cgcx, needs_fat_lto } => {
-                let tm_factory = self.backend.target_machine_factory(sess, cgcx.opt_level);
-
+            MaybeLtoModules::FatLto { cgcx: _, needs_fat_lto } => {
                 let mut work_products = WorkProductMap::default();
                 if sess.opts.incremental.is_some() {
-                    for module in &needs_fat_lto {
+                    for module in needs_fat_lto {
                         match module {
                             FatLtoInput::Serialized { wp, bitcode_path: _ } => {
                                 work_products
@@ -2241,29 +2233,12 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
                         }
                     }
                 }
-
-                (
-                    CompiledModules {
-                        modules: vec![do_fat_lto(
-                            sess,
-                            &cgcx,
-                            shared_emitter,
-                            tm_factory,
-                            &crate_info.exported_symbols_for_lto,
-                            &crate_info.each_linked_rlib_file_for_lto,
-                            needs_fat_lto,
-                        )],
-                        allocator_module: None,
-                    },
-                    work_products,
-                )
+                work_products
             }
-            MaybeLtoModules::ThinLto { cgcx, needs_thin_lto } => {
-                let tm_factory = self.backend.target_machine_factory(sess, cgcx.opt_level);
-
+            MaybeLtoModules::ThinLto { cgcx: _, needs_thin_lto } => {
                 let mut work_products = WorkProductMap::default();
                 if sess.opts.incremental.is_some() {
-                    for module in &needs_thin_lto {
+                    for module in needs_thin_lto {
                         match module {
                             ThinLtoInput::Green { wp, bitcode_path: _ }
                             | ThinLtoInput::Red { wp, buffer: _ } => {
@@ -2273,6 +2248,77 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
                         }
                     }
                 }
+                work_products
+            }
+        };
+
+        (
+            Box::new(PendingLto {
+                backend: self.backend,
+                output_filenames: self.output_filenames,
+                maybe_lto_modules,
+            }),
+            work_products,
+        )
+    }
+
+    pub(crate) fn codegen_finished(&self, tcx: TyCtxt<'_>) {
+        self.wait_for_signal_to_codegen_item();
+        self.check_for_errors(tcx.sess);
+        drop(self.coordinator.sender.send(Message::CodegenComplete::<B>));
+    }
+
+    pub(crate) fn check_for_errors(&self, sess: &Session) {
+        self.shared_emitter_main.check(sess, false);
+    }
+
+    pub(crate) fn wait_for_signal_to_codegen_item(&self) {
+        match self.codegen_worker_receive.recv() {
+            Ok(CguMessage) => {
+                // Ok to proceed.
+            }
+            Err(_) => {
+                // One of the LLVM threads must have panicked, fall through so
+                // error handling can be reached.
+            }
+        }
+    }
+}
+
+pub struct PendingLto<B: WriteBackendMethods> {
+    backend: B,
+    output_filenames: Arc<OutputFilenames>,
+    maybe_lto_modules: MaybeLtoModules<B>,
+}
+
+impl<B: WriteBackendMethods> PendingLto<B> {
+    pub fn join(self, sess: &Session, crate_info: &CrateInfo) -> CompiledModules {
+        let (shared_emitter, shared_emitter_main) = SharedEmitter::new();
+
+        // Catch fatal errors to ensure shared_emitter_main.check() can emit the actual diagnostics
+        let compilation_output = catch_fatal_errors(|| match self.maybe_lto_modules {
+            MaybeLtoModules::NoLto(compiled_modules) => {
+                drop(shared_emitter);
+                compiled_modules
+            }
+            MaybeLtoModules::FatLto { cgcx, needs_fat_lto } => {
+                let tm_factory = self.backend.target_machine_factory(sess, cgcx.opt_level);
+
+                CompiledModules {
+                    modules: vec![do_fat_lto(
+                        sess,
+                        &cgcx,
+                        shared_emitter,
+                        tm_factory,
+                        &crate_info.exported_symbols_for_lto,
+                        &crate_info.each_linked_rlib_file_for_lto,
+                        needs_fat_lto,
+                    )],
+                    allocator_module: None,
+                }
+            }
+            MaybeLtoModules::ThinLto { cgcx, needs_thin_lto } => {
+                let tm_factory = self.backend.target_machine_factory(sess, cgcx.opt_level);
 
                 let thinlto_incr_comp_session = sess.opts.incremental.is_some().then(|| {
                     prepare_session_directory(
@@ -2313,7 +2359,7 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
                     Some(Svh::new(Fingerprint::ZERO)), // FIXME,
                 );
 
-                (compiled_modules, work_products)
+                compiled_modules
             }
         });
 
@@ -2321,7 +2367,7 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
 
         sess.dcx().abort_if_errors();
 
-        let (mut compiled_modules, work_products) =
+        let mut compiled_modules =
             compilation_output.expect("fatal error emitted but not sent to SharedEmitter");
 
         // Regardless of what order these modules completed in, report them to
@@ -2331,29 +2377,7 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
 
         produce_final_output_artifacts(sess, &compiled_modules, &self.output_filenames);
 
-        (compiled_modules, work_products)
-    }
-
-    pub(crate) fn codegen_finished(&self, tcx: TyCtxt<'_>) {
-        self.wait_for_signal_to_codegen_item();
-        self.check_for_errors(tcx.sess);
-        drop(self.coordinator.sender.send(Message::CodegenComplete::<B>));
-    }
-
-    pub(crate) fn check_for_errors(&self, sess: &Session) {
-        self.shared_emitter_main.check(sess, false);
-    }
-
-    pub(crate) fn wait_for_signal_to_codegen_item(&self) {
-        match self.codegen_worker_receive.recv() {
-            Ok(CguMessage) => {
-                // Ok to proceed.
-            }
-            Err(_) => {
-                // One of the LLVM threads must have panicked, fall through so
-                // error handling can be reached.
-            }
-        }
+        compiled_modules
     }
 }
 

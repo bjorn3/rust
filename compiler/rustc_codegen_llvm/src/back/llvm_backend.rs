@@ -369,13 +369,24 @@ impl CodegenBackend for LlvmCodegenBackend {
         ongoing_codegen: Box<dyn Any>,
         sess: &Session,
         incr_comp_session: Option<&IncrCompSession>,
-        outputs: &OutputFilenames,
-        crate_info: &CrateInfo,
-    ) -> (CompiledModules, WorkProductMap) {
-        let (compiled_modules, work_products) = ongoing_codegen
+    ) -> (Box<dyn Any>, WorkProductMap) {
+        ongoing_codegen
             .downcast::<rustc_codegen_ssa::back::write::OngoingCodegen<LlvmCodegenBackend>>()
             .expect("Expected LlvmCodegenBackend's OngoingCodegen, found Box<Any>")
-            .join(sess, incr_comp_session, crate_info);
+            .join(sess, incr_comp_session)
+    }
+
+    fn perform_lto(
+        &self,
+        ongoing_codegen: Box<dyn Any>,
+        sess: &Session,
+        outputs: &OutputFilenames,
+        crate_info: &CrateInfo,
+    ) -> CompiledModules {
+        let compiled_modules = ongoing_codegen
+            .downcast::<rustc_codegen_ssa::back::write::PendingLto<LlvmCodegenBackend>>()
+            .expect("Expected LlvmCodegenBackend's PendingLto, found Box<Any>")
+            .join(sess, crate_info);
 
         if sess.opts.unstable_opts.llvm_time_trace {
             sess.time("llvm_dump_timing_file", || {
@@ -413,7 +424,7 @@ impl CodegenBackend for LlvmCodegenBackend {
             }
         }
 
-        (compiled_modules, work_products)
+        compiled_modules
     }
 
     fn link(

@@ -282,13 +282,24 @@ impl CodegenBackend for GccCodegenBackend {
         ongoing_codegen: Box<dyn Any>,
         sess: &Session,
         incr_comp_session: Option<&IncrCompSession>,
-        _outputs: &OutputFilenames,
-        crate_info: &CrateInfo,
-    ) -> (CompiledModules, WorkProductMap) {
+    ) -> (Box<dyn Any>, WorkProductMap) {
         ongoing_codegen
             .downcast::<rustc_codegen_ssa::back::write::OngoingCodegen<GccCodegenBackend>>()
             .expect("Expected GccCodegenBackend's OngoingCodegen, found Box<Any>")
-            .join(sess, incr_comp_session, crate_info)
+            .join(sess, incr_comp_session)
+    }
+
+    fn perform_lto(
+        &self,
+        pending_lto: Box<dyn Any>,
+        sess: &Session,
+        _outputs: &OutputFilenames,
+        crate_info: &CrateInfo,
+    ) -> CompiledModules {
+        pending_lto
+            .downcast::<rustc_codegen_ssa::back::write::PendingLto<GccCodegenBackend>>()
+            .expect("Expected GccCodegenBackend's PendingLto, found Box<Any>")
+            .join(sess, crate_info)
     }
 
     fn target_config(&self, sess: &EarlySession) -> TargetConfig {
