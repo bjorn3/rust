@@ -22,7 +22,7 @@ use rustc_incremental::{
 use rustc_macros::{Decodable, Encodable};
 use rustc_metadata::fs::copy_to_stdout;
 use rustc_middle::dep_graph::{
-    BorrowedIncrCompSession, IncrCompSession, WorkProduct, WorkProductId, WorkProductMap,
+    BorrowedIncrCompSession, IncrCompSession, WorkProduct, WorkProductId,
 };
 use rustc_middle::ty::TyCtxt;
 use rustc_session::Session;
@@ -464,20 +464,15 @@ pub(crate) fn start_async_codegen<B: WriteBackendMethods>(
 
 fn copy_all_cgu_workproducts_to_incr_comp_cache_dir(
     sess: &Session,
-    incr_comp_session: Option<&IncrCompSession>,
+    incr_comp_session: &mut IncrCompSession,
     compiled_modules: &CompiledModules,
-) -> WorkProductMap {
+) {
     if sess.opts.unstable_opts.disable_incr_comp_backend_caching {
-        return WorkProductMap::default();
+        return;
     }
-
-    let Some(incr_comp_session) = incr_comp_session else {
-        return WorkProductMap::default();
-    };
 
     let _timer = sess.timer("copy_all_cgu_workproducts_to_incr_comp_cache_dir");
 
-    let mut work_products = WorkProductMap::default();
     for module in compiled_modules.modules.iter().filter(|m| m.kind == ModuleKind::Regular) {
         let mut files = Vec::new();
         if let Some(object_file_path) = &module.object {
@@ -498,16 +493,13 @@ fn copy_all_cgu_workproducts_to_incr_comp_cache_dir(
         if let Some(path) = &module.bytecode {
             files.push((OutputType::Bitcode.extension(), path.as_path()));
         }
-        let (id, product) = copy_cgu_workproduct_to_incr_comp_cache_dir(
+        copy_cgu_workproduct_to_incr_comp_cache_dir(
             sess,
             incr_comp_session,
             &module.name,
             files.as_slice(),
         );
-        work_products.insert(id, product);
     }
-
-    work_products
 }
 
 pub fn produce_final_output_artifacts(
@@ -2194,9 +2186,9 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
     pub fn join(
         self,
         sess: &Session,
-        incr_comp_session: Option<&IncrCompSession>,
+        incr_comp_session: Option<&mut IncrCompSession>,
         crate_info: &CrateInfo,
-    ) -> (CompiledModules, WorkProductMap) {
+    ) -> CompiledModules {
         self.shared_emitter_main.check(sess, true);
 
         let maybe_lto_modules = sess.time("join_worker_thread", || match self.coordinator.join() {
@@ -2215,27 +2207,29 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
         let (shared_emitter, shared_emitter_main) = SharedEmitter::new();
 
         // Catch fatal errors to ensure shared_emitter_main.check() can emit the actual diagnostics
-        let compilation_output = catch_fatal_errors(|| match maybe_lto_modules {
+        let compiled_modules = catch_fatal_errors(|| match maybe_lto_modules {
             MaybeLtoModules::NoLto(compiled_modules) => {
                 drop(shared_emitter);
 
-                let work_products = copy_all_cgu_workproducts_to_incr_comp_cache_dir(
-                    sess,
-                    incr_comp_session,
-                    &compiled_modules,
-                );
+                if let Some(incr_comp_session) = incr_comp_session {
+                    copy_all_cgu_workproducts_to_incr_comp_cache_dir(
+                        sess,
+                        incr_comp_session,
+                        &compiled_modules,
+                    );
+                }
 
-                (compiled_modules, work_products)
+                compiled_modules
             }
             MaybeLtoModules::FatLto { cgcx, needs_fat_lto } => {
                 let tm_factory = self.backend.target_machine_factory(sess, cgcx.opt_level);
 
-                let mut work_products = WorkProductMap::default();
-                if sess.opts.incremental.is_some() {
+                if let Some(incr_comp_session) = incr_comp_session {
                     for module in &needs_fat_lto {
                         match module {
                             FatLtoInput::Serialized { wp, bitcode_path: _ } => {
-                                work_products
+                                incr_comp_session
+                                    .new_work_products
                                     .insert(WorkProductId::from_cgu_name(&wp.cgu_name), wp.clone());
                             }
                             FatLtoInput::InMemory(_) => {}
@@ -2243,21 +2237,18 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
                     }
                 }
 
-                (
-                    CompiledModules {
-                        modules: vec![do_fat_lto(
-                            sess,
-                            &cgcx,
-                            shared_emitter,
-                            tm_factory,
-                            &crate_info.exported_symbols_for_lto,
-                            &crate_info.each_linked_rlib_file_for_lto,
-                            needs_fat_lto,
-                        )],
-                        allocator_module: None,
-                    },
-                    work_products,
-                )
+                CompiledModules {
+                    modules: vec![do_fat_lto(
+                        sess,
+                        &cgcx,
+                        shared_emitter,
+                        tm_factory,
+                        &crate_info.exported_symbols_for_lto,
+                        &crate_info.each_linked_rlib_file_for_lto,
+                        needs_fat_lto,
+                    )],
+                    allocator_module: None,
+                }
             }
             MaybeLtoModules::ThinLto { cgcx, needs_thin_lto } => {
                 let tm_factory = self.backend.target_machine_factory(sess, cgcx.opt_level);
@@ -2266,7 +2257,7 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
                     modules: do_thin_lto::<B>(
                         &cgcx,
                         &sess.prof,
-                        incr_comp_session.map(|incr_comp_session| incr_comp_session.borrow()),
+                        incr_comp_session.as_deref().map(IncrCompSession::borrow),
                         shared_emitter,
                         tm_factory,
                         &crate_info.exported_symbols_for_lto,
@@ -2278,13 +2269,15 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
 
                 // FIXME include pre-LTO bitcode in workproduct tracking
                 // FIXME add separate incr comp session for post-LTO outputs to use during link step
-                let work_products = copy_all_cgu_workproducts_to_incr_comp_cache_dir(
-                    sess,
-                    incr_comp_session,
-                    &compiled_modules,
-                );
+                if let Some(incr_comp_session) = incr_comp_session {
+                    copy_all_cgu_workproducts_to_incr_comp_cache_dir(
+                        sess,
+                        incr_comp_session,
+                        &compiled_modules,
+                    );
+                }
 
-                (compiled_modules, work_products)
+                compiled_modules
             }
         });
 
@@ -2292,8 +2285,8 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
 
         sess.dcx().abort_if_errors();
 
-        let (mut compiled_modules, work_products) =
-            compilation_output.expect("fatal error emitted but not sent to SharedEmitter");
+        let mut compiled_modules =
+            compiled_modules.expect("fatal error emitted but not sent to SharedEmitter");
 
         // Regardless of what order these modules completed in, report them to
         // the backend in the same order every time to ensure that we're handing
@@ -2302,7 +2295,7 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
 
         produce_final_output_artifacts(sess, &compiled_modules, &self.output_filenames);
 
-        (compiled_modules, work_products)
+        compiled_modules
     }
 
     pub(crate) fn codegen_finished(&self, tcx: TyCtxt<'_>) {
