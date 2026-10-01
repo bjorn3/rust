@@ -148,11 +148,11 @@ fn fat_lto(
     for module in modules {
         match module {
             FatLtoInput::InMemory(m) => in_memory.push(m),
-            FatLtoInput::Serialized { wp, bitcode_path } => {
-                info!("pushing serialized module {:?}", wp.cgu_name);
+            FatLtoInput::Serialized { name, bitcode_path } => {
+                info!("pushing serialized module {:?}", name);
                 serialized_modules.push((
                     SerializedModule::from_file(&bitcode_path),
-                    CString::new(wp.cgu_name).unwrap(),
+                    CString::new(name).unwrap(),
                 ));
             }
         }

@@ -226,11 +226,11 @@ fn fat_lto(
     for module in modules {
         match module {
             FatLtoInput::InMemory(m) => in_memory.push(m),
-            FatLtoInput::Serialized { wp, bitcode_path } => {
-                info!("pushing serialized module {:?}", wp.cgu_name);
+            FatLtoInput::Serialized { name, bitcode_path } => {
+                info!("pushing serialized module {:?}", name);
                 serialized_modules.push((
                     SerializedModule::from_file(&bitcode_path),
-                    CString::new(wp.cgu_name).unwrap(),
+                    CString::new(name).unwrap(),
                 ));
             }
         }
@@ -401,7 +401,7 @@ fn thin_lto(
 
         for (i, module) in modules.into_iter().enumerate() {
             let (name, buffer) = match module {
-                ThinLtoInput::Red { wp, buffer } => (wp.cgu_name, buffer),
+                ThinLtoInput::Red { name, path: _, buffer } => (name, buffer),
                 ThinLtoInput::Green { wp, bitcode_path } => {
                     (wp.cgu_name, SerializedModule::from_file(&bitcode_path))
                 }

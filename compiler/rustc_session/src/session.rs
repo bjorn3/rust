@@ -1040,7 +1040,7 @@ impl Session {
         // optimized compiles (anything greater than O0).
         match self.opts.optimize {
             config::OptLevel::No => config::Lto::No,
-            _ => config::Lto::ThinLocal,
+            _ => config::Lto::Thin, // FIXME
         }
     }
 
