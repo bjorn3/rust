@@ -17,17 +17,17 @@
 #![rustc_expected_cgu_reuse(
     module = "cgu_keeps_identical_fn-foo",
     cfg = "bpass3",
-    kind = "pre-lto" // Should be "post-lto", see issue #119076
+    kind = "post-lto"
 )]
 #![rustc_expected_cgu_reuse(
     module = "cgu_keeps_identical_fn-bar",
     cfg = "bpass2",
-    kind = "pre-lto" // Should be "post-lto", see issue #119076
+    kind = "post-lto"
 )]
 #![rustc_expected_cgu_reuse(
     module = "cgu_keeps_identical_fn-bar",
     cfg = "bpass3",
-    kind = "pre-lto" // Should be "post-lto", see issue #119076
+    kind = "post-lto"
 )]
 
 mod foo {

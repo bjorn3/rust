@@ -14,14 +14,14 @@
                             kind="no")]
 #![rustc_expected_cgu_reuse(module="cgu_invalidated_via_import-foo",
                             cfg="bpass3",
-                            kind="pre-lto")] // Should be "post-lto", see issue #119076
+                            kind="post-lto")]
 
 #![rustc_expected_cgu_reuse(module="cgu_invalidated_via_import-bar",
                             cfg="bpass2",
                             kind="pre-lto")]
 #![rustc_expected_cgu_reuse(module="cgu_invalidated_via_import-bar",
                             cfg="bpass3",
-                            kind="pre-lto")] // Should be "post-lto", see issue #119076
+                            kind="post-lto")]
 
 mod foo {
 
