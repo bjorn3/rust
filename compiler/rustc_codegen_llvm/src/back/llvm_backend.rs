@@ -22,7 +22,7 @@ use rustc_codegen_ssa::{
 use rustc_data_structures::profiling::SelfProfilerRef;
 use rustc_errors::{DiagCtxt, DiagCtxtHandle};
 use rustc_metadata::EncodedMetadata;
-use rustc_middle::dep_graph::{BorrowedIncrCompSession, IncrCompSession};
+use rustc_middle::dep_graph::{BorrowedIncrCompSession, IncrCompSession, WorkProductMap};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::config::{OutputFilenames, PrintKind, PrintRequest};
 use rustc_session::{CodegenBackendInit, EarlySession, Session};
@@ -120,7 +120,7 @@ impl WriteBackendMethods for LlvmCodegenBackend {
     fn run_thin_lto(
         cgcx: &CodegenContext,
         prof: &SelfProfilerRef,
-        incr_comp_session: Option<&BorrowedIncrCompSession>,
+        incr_comp_session: Option<(&BorrowedIncrCompSession, &WorkProductMap)>,
         dcx: DiagCtxtHandle<'_>,
         exported_symbols_for_lto: &[String],
         each_linked_rlib_for_lto: &[PathBuf],

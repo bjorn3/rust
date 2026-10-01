@@ -13,21 +13,21 @@
                             kind="no")]
 #![rustc_expected_cgu_reuse(module="independent_cgus_dont_affect_each_other-foo",
                             cfg="bpass3",
-                            kind="pre-lto")] // Should be "post-lto", see issue #119076
+                            kind="post-lto")]
 
 #![rustc_expected_cgu_reuse(module="independent_cgus_dont_affect_each_other-bar",
                             cfg="bpass2",
                             kind="pre-lto")]
 #![rustc_expected_cgu_reuse(module="independent_cgus_dont_affect_each_other-bar",
                             cfg="bpass3",
-                            kind="pre-lto")] // Should be "post-lto", see issue #119076
+                            kind="post-lto")]
 
 #![rustc_expected_cgu_reuse(module="independent_cgus_dont_affect_each_other-baz",
                             cfg="bpass2",
-                            kind="pre-lto")] // Should be "post-lto", see issue #119076
+                            kind="post-lto")]
 #![rustc_expected_cgu_reuse(module="independent_cgus_dont_affect_each_other-baz",
                             cfg="bpass3",
-                            kind="pre-lto")] // Should be "post-lto", see issue #119076
+                            kind="post-lto")]
 mod foo {
 
     #[cfg(bpass1)]
