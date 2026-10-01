@@ -89,7 +89,9 @@ use rustc_codegen_ssa::{CompiledModule, CompiledModules, CrateInfo, ModuleCodege
 use rustc_data_structures::profiling::SelfProfilerRef;
 use rustc_data_structures::sync::IntoDynSyncSend;
 use rustc_errors::{DiagCtxt, DiagCtxtHandle};
-use rustc_middle::dep_graph::{BorrowedIncrCompSession, IncrCompSession, WorkProduct};
+use rustc_middle::dep_graph::{
+    BorrowedIncrCompSession, IncrCompSession, WorkProduct, WorkProductMap,
+};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::config::{OptLevel, OutputFilenames};
 use rustc_session::{CodegenBackendInit, EarlySession, Session};
@@ -414,7 +416,7 @@ impl WriteBackendMethods for GccCodegenBackend {
     fn run_thin_lto(
         _cgcx: &CodegenContext,
         _prof: &SelfProfilerRef,
-        _incr_comp_session: Option<&BorrowedIncrCompSession>,
+        _incr_comp_session: Option<(&BorrowedIncrCompSession, &WorkProductMap)>,
         _dcx: DiagCtxtHandle<'_>,
         // FIXME(bjorn3): Limit LTO exports to these symbols
         _exported_symbols_for_lto: &[String],

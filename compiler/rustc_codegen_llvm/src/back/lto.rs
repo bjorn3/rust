@@ -18,7 +18,9 @@ use rustc_data_structures::fx::FxHashMap;
 use rustc_data_structures::memmap::Mmap;
 use rustc_data_structures::profiling::SelfProfilerRef;
 use rustc_errors::{DiagCtxt, DiagCtxtHandle};
-use rustc_middle::dep_graph::{BorrowedIncrCompSession, WorkProduct};
+use rustc_middle::dep_graph::{
+    BorrowedIncrCompSession, WorkProduct, WorkProductId, WorkProductMap,
+};
 use rustc_session::config;
 use rustc_span::bug;
 use rustc_structures::SanitizerSet;
@@ -184,7 +186,7 @@ pub(crate) fn run_fat(
 pub(crate) fn run_thin(
     cgcx: &CodegenContext,
     prof: &SelfProfilerRef,
-    incr_comp_session: Option<&BorrowedIncrCompSession>,
+    incr_comp_session: Option<(&BorrowedIncrCompSession, &WorkProductMap)>,
     dcx: DiagCtxtHandle<'_>,
     exported_symbols_for_lto: &[String],
     each_linked_rlib_for_lto: &[PathBuf],
@@ -373,7 +375,7 @@ fn fat_lto(
 /// they all go out of scope.
 fn thin_lto(
     prof: &SelfProfilerRef,
-    incr_comp_session: Option<&BorrowedIncrCompSession>,
+    incr_comp_session: Option<(&BorrowedIncrCompSession, &WorkProductMap)>,
     dcx: DiagCtxtHandle<'_>,
     modules: Vec<ThinLtoInput<LlvmCodegenBackend>>,
     serialized_modules: Vec<(SerializedModule<ModuleBuffer>, CString)>,
@@ -386,8 +388,16 @@ fn thin_lto(
         let green_modules: FxHashMap<_, _> = modules
             .iter()
             .filter_map(|module| {
-                if let ThinLtoInput::Green { wp, .. } = module {
-                    Some((wp.cgu_name.clone(), wp.clone()))
+                if let ThinLtoInput::Green { name, .. } = module {
+                    Some((
+                        name.clone(),
+                        incr_comp_session
+                            .unwrap()
+                            .1
+                            .get(&WorkProductId::from_cgu_name(name))
+                            .unwrap()
+                            .clone(),
+                    ))
                 } else {
                     None
                 }
@@ -402,8 +412,8 @@ fn thin_lto(
         for (i, module) in modules.into_iter().enumerate() {
             let (name, buffer) = match module {
                 ThinLtoInput::Red { name, path: _, buffer } => (name, buffer),
-                ThinLtoInput::Green { wp, bitcode_path } => {
-                    (wp.cgu_name, SerializedModule::from_file(&bitcode_path))
+                ThinLtoInput::Green { name: cgu_name, bitcode_path } => {
+                    (cgu_name, SerializedModule::from_file(&bitcode_path))
                 }
             };
             info!("local module: {} - {}", i, name);
@@ -464,13 +474,14 @@ fn thin_lto(
 
         info!("thin LTO data created");
 
-        let new_key_map_path = incr_comp_session.as_ref().map(|incr_comp_session| {
+        let new_key_map_path = incr_comp_session.map(|(incr_comp_session, _prev_work_products)| {
             incr_comp_session.new_session_directory.join(THIN_LTO_KEYS_INCR_COMP_FILE_NAME)
         });
 
-        let prev_key_map = if let Some(ref old_incr_comp_session_dir) = incr_comp_session
-            .and_then(|incr_comp_session| incr_comp_session.old_session_directory.as_deref())
-        {
+        let prev_key_map = if let Some(ref old_incr_comp_session_dir) =
+            incr_comp_session.and_then(|(incr_comp_session, _prev_work_products)| {
+                incr_comp_session.old_session_directory.as_deref()
+            }) {
             let old_path = old_incr_comp_session_dir.join(THIN_LTO_KEYS_INCR_COMP_FILE_NAME);
 
             // If the previous file was deleted, or we get an IO error
@@ -506,7 +517,7 @@ fn thin_lto(
             if let (Some(prev_key_map), true) =
                 (prev_key_map.as_ref(), green_modules.contains_key(module_name))
             {
-                assert!(incr_comp_session.unwrap().old_session_directory.is_some());
+                assert!(incr_comp_session.unwrap().0.old_session_directory.is_some());
 
                 // If a module exists in both the current and the previous session,
                 // and has the same LTO cache key in both sessions, then we can re-use it

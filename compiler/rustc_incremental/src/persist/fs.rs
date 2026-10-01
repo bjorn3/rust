@@ -553,7 +553,7 @@ fn is_old_enough_to_be_collected(timestamp: SystemTime) -> bool {
 }
 
 /// Runs garbage collection for the current session.
-pub(crate) fn garbage_collect_session_directories(
+pub fn garbage_collect_session_directories(
     sess: &Session,
     incr_comp_session: &IncrCompSession,
 ) -> io::Result<()> {

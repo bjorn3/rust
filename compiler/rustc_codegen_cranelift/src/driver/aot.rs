@@ -19,7 +19,7 @@ use rustc_codegen_ssa::{CompiledModule, ModuleCodegen, ModuleKind};
 use rustc_data_structures::profiling::SelfProfilerRef;
 use rustc_errors::{DiagCtxt, DiagCtxtHandle};
 use rustc_hir::attrs::Linkage as RLinkage;
-use rustc_middle::dep_graph::{BorrowedIncrCompSession, WorkProduct};
+use rustc_middle::dep_graph::{BorrowedIncrCompSession, WorkProduct, WorkProductMap};
 use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
 use rustc_middle::mono::{MonoItem, MonoItemData, Visibility};
 use rustc_session::Session;
@@ -337,7 +337,7 @@ impl WriteBackendMethods for AotDriver {
     fn run_thin_lto(
         _cgcx: &CodegenContext,
         _prof: &SelfProfilerRef,
-        _incr_comp_session: Option<&BorrowedIncrCompSession>,
+        _incr_comp_session: Option<(&BorrowedIncrCompSession, &WorkProductMap)>,
         _dcx: rustc_errors::DiagCtxtHandle<'_>,
         _exported_symbols_for_lto: &[String],
         _each_linked_rlib_for_lto: &[PathBuf],

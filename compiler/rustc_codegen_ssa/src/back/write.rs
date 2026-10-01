@@ -19,12 +19,12 @@ use rustc_errors::{
 };
 use rustc_fs_util::link_or_copy;
 use rustc_incremental::{
-    copy_cgu_workproduct_to_incr_comp_cache_dir, in_old_incr_comp_dir_sess,
-    prepare_session_directory,
+    copy_cgu_workproduct_to_incr_comp_cache_dir, garbage_collect_session_directories,
+    in_old_incr_comp_dir_sess, load_work_products, prepare_session_directory,
 };
 use rustc_macros::{Decodable, Encodable};
 use rustc_metadata::fs::copy_to_stdout;
-use rustc_middle::dep_graph::{BorrowedIncrCompSession, IncrCompSession, WorkProduct};
+use rustc_middle::dep_graph::{BorrowedIncrCompSession, IncrCompSession, WorkProductMap};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::Session;
 use rustc_session::config::{
@@ -34,7 +34,7 @@ use rustc_span::source_map::SourceMap;
 use rustc_span::{FileName, InnerSpan, Span, SpanData, bug};
 use rustc_structures::CrateType;
 use rustc_target::spec::{MergeFunctions, SanitizerSet};
-use tracing::debug;
+use tracing::{debug, warn};
 
 use crate::back::link::ensure_removed;
 use crate::back::lto::{self, SerializedModule, check_lto_allowed};
@@ -366,7 +366,7 @@ pub struct CodegenContext {
 fn generate_thin_lto_work<B: WriteBackendMethods>(
     cgcx: &CodegenContext,
     prof: &SelfProfilerRef,
-    incr_comp_session: Option<&BorrowedIncrCompSession>,
+    incr_comp_session: Option<(&BorrowedIncrCompSession, &WorkProductMap)>,
     dcx: DiagCtxtHandle<'_>,
     exported_symbols_for_lto: &[String],
     each_linked_rlib_for_lto: &[PathBuf],
@@ -785,7 +785,7 @@ pub enum ThinLtoInput<B: WriteBackendMethods> {
     },
     Green {
         /// Contains only post-LTO artifacts
-        wp: WorkProduct,
+        name: String,
         bitcode_path: PathBuf,
     },
 }
@@ -953,8 +953,6 @@ fn execute_copy_from_cache_work_item(
             None
         };
     if should_emit_obj && object.is_none() {
-        dbg!(old_incr_comp_session_dir, module.source);
-        panic!();
         dcx.emit_fatal(diagnostics::NoSavedObjectFile { cgu_name: &module.name })
     }
 
@@ -1000,7 +998,7 @@ fn do_fat_lto<B: WriteBackendMethods>(
 fn do_thin_lto<B: WriteBackendMethods>(
     cgcx: &CodegenContext,
     prof: &SelfProfilerRef,
-    incr_comp_session: Option<BorrowedIncrCompSession>,
+    incr_comp_session: Option<(BorrowedIncrCompSession, &WorkProductMap)>,
     shared_emitter: SharedEmitter,
     tm_factory: TargetMachineFactoryFn<B>,
     exported_symbols_for_lto: &[String],
@@ -1043,7 +1041,9 @@ fn do_thin_lto<B: WriteBackendMethods>(
     for (i, (work, cost)) in generate_thin_lto_work::<B>(
         cgcx,
         prof,
-        incr_comp_session.as_ref(),
+        incr_comp_session.as_ref().map(|(incr_comp_session, prev_work_products)| {
+            (incr_comp_session, *prev_work_products)
+        }),
         dcx,
         &exported_symbols_for_lto,
         &each_linked_rlib_for_lto,
@@ -1095,7 +1095,7 @@ fn do_thin_lto<B: WriteBackendMethods>(
                     prof,
                     incr_comp_session
                         .as_ref()
-                        .and_then(|incr_comp_session| {
+                        .and_then(|(incr_comp_session, _prev_work_products)| {
                             incr_comp_session.old_session_directory.as_deref()
                         })
                         .map(ToOwned::to_owned),
@@ -1180,7 +1180,7 @@ pub(crate) enum Message<B: WriteBackendMethods> {
 
     /// Similar to `CodegenDone`, but for reusing a pre-LTO artifact
     /// Sent from the main thread.
-    AddImportOnlyModule { bitcode_path: PathBuf, work_product: WorkProduct },
+    AddImportOnlyModule { bitcode_path: PathBuf, name: String },
 
     /// The frontend has finished generating everything for all codegen units.
     /// Sent from the main thread.
@@ -1739,10 +1739,10 @@ fn start_executing_work<B: WriteBackendMethods>(
                     }
                 }
 
-                Message::AddImportOnlyModule { bitcode_path, work_product } => {
+                Message::AddImportOnlyModule { bitcode_path, name } => {
                     assert_eq!(codegen_state, Ongoing);
                     assert_eq!(main_thread_state, MainThreadState::Codegenning);
-                    lto_import_only_modules.push((bitcode_path, work_product));
+                    lto_import_only_modules.push((bitcode_path, name));
                     main_thread_state = MainThreadState::Idle;
                 }
             }
@@ -1768,8 +1768,8 @@ fn start_executing_work<B: WriteBackendMethods>(
                 needs_fat_lto.push(FatLtoInput::InMemory(allocator_module));
             }
 
-            for (bitcode_path, wp) in lto_import_only_modules {
-                needs_fat_lto.push(FatLtoInput::Serialized { name: wp.cgu_name, bitcode_path })
+            for (bitcode_path, name) in lto_import_only_modules {
+                needs_fat_lto.push(FatLtoInput::Serialized { name, bitcode_path })
             }
 
             return Ok(MaybeLtoModules::FatLto { cgcx, needs_fat_lto });
@@ -1777,15 +1777,15 @@ fn start_executing_work<B: WriteBackendMethods>(
             assert!(compiled_modules.is_empty());
             assert!(needs_fat_lto.is_empty());
 
-            for (bitcode_path, wp) in lto_import_only_modules {
-                needs_thin_lto.push(ThinLtoInput::Green { wp, bitcode_path })
+            for (bitcode_path, name) in lto_import_only_modules {
+                needs_thin_lto.push(ThinLtoInput::Green { name, bitcode_path })
             }
 
             if cgcx.lto == Lto::ThinLocal {
                 compiled_modules.extend(do_thin_lto::<B>(
                     &cgcx,
                     &prof,
-                    incr_comp_session,
+                    todo!(),
                     shared_emitter.clone(),
                     tm_factory,
                     &exported_symbols_for_lto,
@@ -2213,21 +2213,23 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
                 if let Some(incr_comp_session) = incr_comp_session {
                     for module in needs_thin_lto {
                         match module {
-                            ThinLtoInput::Green { wp, bitcode_path } => {
-                                copy_cgu_workproduct_to_incr_comp_cache_dir(
-                                    sess,
-                                    incr_comp_session,
-                                    &wp.cgu_name,
-                                    &[(PRE_LTO_BC_EXT, bitcode_path)],
-                                );
-                            }
-                            ThinLtoInput::Red { name, path, buffer: _ } => {
+                            ThinLtoInput::Green { name, bitcode_path } => {
                                 copy_cgu_workproduct_to_incr_comp_cache_dir(
                                     sess,
                                     incr_comp_session,
                                     name,
-                                    &[(PRE_LTO_BC_EXT, path.as_ref().unwrap())],
+                                    &[(PRE_LTO_BC_EXT, bitcode_path)],
                                 );
+                            }
+                            ThinLtoInput::Red { name, path, buffer: _ } => {
+                                if let Some(path) = path {
+                                    copy_cgu_workproduct_to_incr_comp_cache_dir(
+                                        sess,
+                                        incr_comp_session,
+                                        name,
+                                        &[(PRE_LTO_BC_EXT, path)],
+                                    );
+                                }
                             }
                         }
                     }
@@ -2301,19 +2303,40 @@ impl<B: WriteBackendMethods> PendingLto<B> {
                 let tm_factory = self.backend.target_machine_factory(sess, cgcx.opt_level);
 
                 let thinlto_incr_comp_session = sess.opts.incremental.is_some().then(|| {
-                    prepare_session_directory(
+                    let incr_comp_session = prepare_session_directory(
                         sess,
                         crate_info.local_crate_name,
                         crate_info.local_crate_id,
                         "thinlto",
-                    )
+                    );
+
+                    // Try to load the previous session's dep graph and work products.
+                    let prev_work_products = load_work_products(sess, &incr_comp_session)
+                        .unwrap_or_else(|()| WorkProductMap::default());
+
+                    sess.time("incr_comp_garbage_collect_session_directories", || {
+                        if let Err(e) =
+                            garbage_collect_session_directories(sess, &incr_comp_session)
+                        {
+                            warn!(
+                                "Error while trying to garbage collect incremental compilation \
+                cache directory: {e}",
+                            );
+                        }
+                    });
+
+                    (incr_comp_session, prev_work_products)
                 });
 
                 let compiled_modules = CompiledModules {
                     modules: do_thin_lto::<B>(
                         &cgcx,
                         &sess.prof,
-                        thinlto_incr_comp_session.as_ref().map(IncrCompSession::borrow),
+                        thinlto_incr_comp_session.as_ref().map(
+                            |(incr_comp_session, prev_work_products)| {
+                                (incr_comp_session.borrow(), prev_work_products)
+                            },
+                        ),
                         shared_emitter,
                         tm_factory,
                         &crate_info.exported_symbols_for_lto,
@@ -2323,7 +2346,9 @@ impl<B: WriteBackendMethods> PendingLto<B> {
                     allocator_module: None,
                 };
 
-                if let Some(mut thinlto_incr_comp_session) = thinlto_incr_comp_session {
+                if let Some((mut thinlto_incr_comp_session, _prev_work_products)) =
+                    thinlto_incr_comp_session
+                {
                     dbg!(
                         &*thinlto_incr_comp_session.new_session_directory,
                         &compiled_modules.modules
@@ -2333,6 +2358,8 @@ impl<B: WriteBackendMethods> PendingLto<B> {
                         &mut thinlto_incr_comp_session,
                         &compiled_modules,
                     );
+
+                    rustc_incremental::save_work_product_index(sess, &thinlto_incr_comp_session);
 
                     // Now that we won't touch anything in the incremental compilation directory
                     // any more, we can finalize it (which involves renaming it)
@@ -2409,8 +2436,7 @@ pub(crate) fn submit_pre_lto_module_to_llvm<B: WriteBackendMethods>(
     drop(
         coordinator
             .sender
-            // FIXME submit post-lto workproduct
-            .send(Message::AddImportOnlyModule::<B> { bitcode_path, work_product: module.source }),
+            .send(Message::AddImportOnlyModule::<B> { bitcode_path, name: module.name }),
     );
 }
 
