@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use rustc_data_structures::profiling::SelfProfilerRef;
 use rustc_errors::DiagCtxtHandle;
-use rustc_middle::dep_graph::{BorrowedIncrCompSession, WorkProduct};
+use rustc_middle::dep_graph::{BorrowedIncrCompSession, WorkProduct, WorkProductMap};
 use rustc_session::{Session, config};
 
 use crate::back::lto::ThinModule;
@@ -50,7 +50,7 @@ pub trait WriteBackendMethods: Clone + 'static {
     fn run_thin_lto(
         cgcx: &CodegenContext,
         prof: &SelfProfilerRef,
-        incr_comp_session: Option<&BorrowedIncrCompSession>,
+        incr_comp_session: Option<(&BorrowedIncrCompSession, &WorkProductMap)>,
         dcx: DiagCtxtHandle<'_>,
         exported_symbols_for_lto: &[String],
         each_linked_rlib_for_lto: &[PathBuf],
