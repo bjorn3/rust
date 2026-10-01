@@ -11,8 +11,9 @@ mod diagnostics;
 mod persist;
 
 pub use persist::{
-    copy_cgu_workproduct_to_incr_comp_cache_dir, finalize_session_directory, in_incr_comp_dir_sess,
-    in_old_incr_comp_dir_sess, load_query_result_cache, prepare_session_directory,
+    copy_cgu_workproduct_to_incr_comp_cache_dir, finalize_session_directory,
+    garbage_collect_session_directories, in_incr_comp_dir_sess, in_old_incr_comp_dir_sess,
+    load_query_result_cache, load_work_products, prepare_session_directory,
     save_work_product_index, setup_dep_graph,
 };
 use rustc_middle::util::Providers;

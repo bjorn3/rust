@@ -82,7 +82,7 @@ impl Linker {
 
         if let Some(incr_comp_session) = &incr_comp_session {
             sess.time("serialize_work_products", || {
-                rustc_incremental::save_work_product_index(sess, incr_comp_session, &self.dep_graph)
+                rustc_incremental::save_work_product_index(sess, incr_comp_session)
             });
         }
 
