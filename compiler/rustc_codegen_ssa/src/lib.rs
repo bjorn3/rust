@@ -136,7 +136,8 @@ impl CompiledModule {
     }
 }
 
-pub(crate) struct CachedModuleCodegen {
+#[derive(Clone)]
+pub struct CachedModuleCodegen {
     pub name: String,
     pub source: WorkProduct,
 }

@@ -16,11 +16,13 @@ use rustc_codegen_ssa::back::write::{
     TargetMachineFactoryFn, ThinLtoInput,
 };
 use rustc_codegen_ssa::traits::{CodegenBackend, ExtraBackendMethods, WriteBackendMethods};
-use rustc_codegen_ssa::{CompiledModule, CompiledModules, CrateInfo, ModuleCodegen, TargetConfig};
+use rustc_codegen_ssa::{
+    CachedModuleCodegen, CompiledModule, CompiledModules, CrateInfo, ModuleCodegen, TargetConfig,
+};
 use rustc_data_structures::profiling::SelfProfilerRef;
 use rustc_errors::{DiagCtxt, DiagCtxtHandle};
 use rustc_metadata::EncodedMetadata;
-use rustc_middle::dep_graph::{BorrowedIncrCompSession, IncrCompSession, WorkProduct};
+use rustc_middle::dep_graph::{BorrowedIncrCompSession, IncrCompSession};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::config::{OptLevel, OutputFilenames, PrintKind, PrintRequest};
 use rustc_session::{CodegenBackendInit, EarlySession, Session};
@@ -127,7 +129,7 @@ impl WriteBackendMethods for LlvmCodegenBackend {
         exported_symbols_for_lto: &[String],
         each_linked_rlib_for_lto: &[PathBuf],
         modules: Vec<ThinLtoInput<Self>>,
-    ) -> (Vec<ThinModule<Self>>, Vec<WorkProduct>) {
+    ) -> (Vec<ThinModule<Self>>, Vec<CachedModuleCodegen>) {
         back::lto::run_thin(
             cgcx,
             prof,
