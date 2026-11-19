@@ -418,7 +418,7 @@ impl<'a, 'gcc, 'tcx> Builder<'a, 'gcc, 'tcx> {
         let layout = self.tcx.layout_of(self.cx.typing_env().as_query_input(res_ty)).unwrap();
 
         let arg_abi = ArgAbi { layout, mode: PassMode::Direct(ArgAttributes::new()) };
-        let mut fn_abi = FnAbi {
+        let fn_abi = FnAbi {
             args: vec![arg_abi.clone(), arg_abi.clone(), arg_abi.clone()].into_boxed_slice(),
             ret: arg_abi,
             c_variadic: false,
@@ -426,7 +426,7 @@ impl<'a, 'gcc, 'tcx> Builder<'a, 'gcc, 'tcx> {
             conv: CanonAbi::C,
             can_unwind: false,
         };
-        fn_abi.adjust_for_foreign_abi(self.cx);
+        let fn_abi = fn_abi.adjust_for_foreign_abi(self.cx);
 
         let ret_indirect = matches!(fn_abi.ret.mode, PassMode::Indirect { .. });
 

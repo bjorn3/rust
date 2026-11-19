@@ -590,7 +590,7 @@ fn fn_abi_new_uncached<'tcx>(
         }))
     };
 
-    let mut fn_abi = FnAbi {
+    let fn_abi = FnAbi {
         ret: arg_of(sig.output(), None)?,
         args: inputs
             .iter()
@@ -620,19 +620,16 @@ fn fn_abi_new_uncached<'tcx>(
             sig.abi(),
         ),
     };
-    fn_abi_adjust_for_abi(cx, &mut fn_abi);
+
+    let fn_abi = if conv.is_rustic_abi() {
+        fn_abi.adjust_for_rust_abi(cx)
+    } else {
+        fn_abi.adjust_for_foreign_abi(cx)
+    };
+
     debug!("fn_abi_new_uncached = {:?}", fn_abi);
     fn_abi_sanity_check(cx, &fn_abi, sig.abi());
     Ok(tcx.arena.alloc(fn_abi))
-}
-
-#[tracing::instrument(level = "trace", skip(cx))]
-fn fn_abi_adjust_for_abi<'tcx>(cx: &LayoutCx<'tcx>, fn_abi: &mut FnAbi<'tcx, Ty<'tcx>>) {
-    if fn_abi.conv.is_rustic_abi() {
-        fn_abi.adjust_for_rust_abi(cx);
-    } else {
-        fn_abi.adjust_for_foreign_abi(cx);
-    }
 }
 
 #[tracing::instrument(level = "trace", skip(cx))]
