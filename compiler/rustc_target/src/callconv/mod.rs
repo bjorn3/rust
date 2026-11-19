@@ -681,7 +681,7 @@ impl<'a, Ty: fmt::Display> fmt::Debug for FnAbi<'a, Ty> {
     }
 }
 
-fn compute_abi<'a, CC, Ty, C>(cx: &C, fn_abi: &mut FnAbi<'a, Ty>)
+fn compute_abi<'a, CC, Ty, C>(cx: &C, mut fn_abi: FnAbi<'a, Ty>) -> FnAbi<'a, Ty>
 where
     CC: ComputeCallConv<'a, Ty, C>,
     Ty: TyAbiInterface<'a, C> + Copy,
@@ -723,6 +723,8 @@ where
 
         cc.compute_arg_abi(cx, arg, c_variadic && idx >= fixed_count);
     }
+
+    fn_abi
 }
 
 trait ComputeCallConv<'a, Ty, C>: Sized
@@ -740,16 +742,17 @@ where
 }
 
 impl<'a, Ty> FnAbi<'a, Ty> {
-    pub fn adjust_for_foreign_abi<C>(&mut self, cx: &C)
+    pub fn adjust_for_foreign_abi<C>(self, cx: &C) -> Self
     where
         Ty: TyAbiInterface<'a, C> + Copy,
         C: HasDataLayout + HasTargetSpec + HasX86AbiOpt,
     {
         if self.conv == CanonAbi::Interrupt(InterruptKind::X86) {
-            if let Some(arg) = self.args.first_mut() {
+            let mut this = self;
+            if let Some(arg) = this.args.first_mut() {
                 arg.pass_by_stack_offset(None);
             }
-            return;
+            return this;
         }
 
         let spec = cx.target_spec();
@@ -813,18 +816,20 @@ impl<'a, Ty> FnAbi<'a, Ty> {
         }
     }
 
-    pub fn adjust_for_rust_abi<C>(&mut self, cx: &C)
+    pub fn adjust_for_rust_abi<C>(mut self, cx: &C) -> Self
     where
         Ty: TyAbiInterface<'a, C> + Copy,
         C: HasDataLayout + HasTargetSpec,
     {
         let spec = cx.target_spec();
         match &spec.arch {
-            Arch::X86 => x86::compute_rust_abi_info(cx, self),
-            Arch::RiscV32 | Arch::RiscV64 => riscv::compute_rust_abi_info(cx, self),
-            Arch::LoongArch32 | Arch::LoongArch64 => loongarch::compute_rust_abi_info(cx, self),
-            Arch::AArch64 => aarch64::compute_rust_abi_info(cx, self),
-            Arch::Bpf => bpf::compute_rust_abi_info(self),
+            Arch::X86 => x86::compute_rust_abi_info(cx, &mut self),
+            Arch::RiscV32 | Arch::RiscV64 => riscv::compute_rust_abi_info(cx, &mut self),
+            Arch::LoongArch32 | Arch::LoongArch64 => {
+                loongarch::compute_rust_abi_info(cx, &mut self)
+            }
+            Arch::AArch64 => aarch64::compute_rust_abi_info(cx, &mut self),
+            Arch::Bpf => bpf::compute_rust_abi_info(&mut self),
             _ => {}
         };
 
@@ -981,6 +986,8 @@ impl<'a, Ty> FnAbi<'a, Ty> {
                 _ => {}
             }
         }
+
+        self
     }
 }
 
