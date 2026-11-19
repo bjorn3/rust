@@ -16,7 +16,7 @@ pub trait MiscCodegenMethods<'tcx>: BackendTypes {
         _vtable: Self::Value,
     ) {
     }
-    fn get_fn(&self, instance: Instance<'tcx>) -> Self::Function;
+    fn get_fn(&self, instance: Instance<'tcx>, is_call: bool) -> Self::Function;
     fn get_fn_addr(
         &self,
         instance: Instance<'tcx>,

@@ -14,7 +14,11 @@ use crate::context::CodegenCx;
 ///
 /// - `cx`: the crate context
 /// - `instance`: the instance to be instantiated
-pub fn get_fn<'gcc, 'tcx>(cx: &CodegenCx<'gcc, 'tcx>, instance: Instance<'tcx>) -> Function<'gcc> {
+pub fn get_fn<'gcc, 'tcx>(
+    cx: &CodegenCx<'gcc, 'tcx>,
+    instance: Instance<'tcx>,
+    is_call: bool,
+) -> Function<'gcc> {
     let tcx = cx.tcx();
 
     assert!(!instance.args.has_infer());
@@ -26,7 +30,7 @@ pub fn get_fn<'gcc, 'tcx>(cx: &CodegenCx<'gcc, 'tcx>, instance: Instance<'tcx>) 
         return func;
     }
 
-    let fn_abi = cx.fn_abi_of_instance(instance, ty::List::empty());
+    let fn_abi = cx.fn_abi_of_instance(instance, ty::List::empty(), is_call);
 
     let func = if let Some(_func) = cx.get_declared_value(sym) {
         // FIXME(antoyo): we never reach this because get_declared_value only returns global variables

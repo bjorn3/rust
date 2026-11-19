@@ -8,6 +8,28 @@ use rustc_span::{Span, Symbol};
 use crate::ty::{Instance, Ty};
 
 #[derive(Diagnostic)]
+#[diag(
+    "this function {$is_call ->
+        [true] call
+        *[false] definition
+    } uses unsized type `{$ty}` which is not supported with the chosen ABI"
+)]
+#[help("only rustic ABIs support unsized parameters")]
+pub(crate) struct AbiErrorUnsupportedUnsizedParameter<'a> {
+    #[primary_span]
+    #[label(
+        "function {$is_call ->
+            [true] called
+            *[false] defined
+        } here"
+    )]
+    pub span: Span,
+    pub ty: Ty<'a>,
+    /// Whether this is a problem at a call site or at a declaration.
+    pub is_call: bool,
+}
+
+#[derive(Diagnostic)]
 #[diag("overflow while adding drop-check rules for `{$ty}`", code = E0320)]
 #[note("overflowed on `{$overflow_ty}`")]
 pub(crate) struct DropCheckOverflow<'tcx> {

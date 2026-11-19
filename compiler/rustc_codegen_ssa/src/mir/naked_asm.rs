@@ -46,7 +46,7 @@ pub fn codegen_naked_asm<
         operands.iter().map(|op| inline_to_global_operand::<Cx>(cx, instance, op)).collect();
 
     let name = cx.mangled_name(instance);
-    let fn_abi = cx.fn_abi_of_instance(instance, ty::List::empty());
+    let fn_abi = cx.fn_abi_of_instance(instance, ty::List::empty(), /*is_call*/ false);
     let (begin, end) = prefix_and_suffix(cx.tcx(), instance, &name, item_data, fn_abi);
 
     let mut template_vec = Vec::new();

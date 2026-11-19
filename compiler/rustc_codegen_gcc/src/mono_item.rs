@@ -184,7 +184,7 @@ impl<'gcc, 'tcx> CodegenCx<'gcc, 'tcx> {
         visibility: Visibility,
         symbol_name: &str,
     ) -> Function<'gcc> {
-        let fn_abi = self.fn_abi_of_instance(instance, ty::List::empty());
+        let fn_abi = self.fn_abi_of_instance(instance, ty::List::empty(), /*is_call*/ false);
         self.linkage.set(base::linkage_to_gcc(linkage));
         let fn_decl = self.declare_fn(symbol_name, fn_abi);
 

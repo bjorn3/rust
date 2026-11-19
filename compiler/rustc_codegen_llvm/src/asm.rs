@@ -550,7 +550,7 @@ impl<'tcx> AsmCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
     }
 
     fn mangled_name(&self, instance: Instance<'tcx>) -> String {
-        let llval = self.get_fn(instance);
+        let llval = self.get_fn(instance, /*is_call*/ false);
         get_mangled_name(llval)
     }
 }

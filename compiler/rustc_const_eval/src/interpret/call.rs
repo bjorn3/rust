@@ -502,7 +502,8 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
         // them, and we don't need them in the `FnAbi`. This also avoids ICEs if the callee is
         // not actually c-variadic.
         let extra_args = ty::List::empty();
-        let callee_fn_abi = self.fn_abi_of_instance_no_deduced_attrs(instance, extra_args)?;
+        let callee_fn_abi =
+            self.fn_abi_of_instance_no_deduced_attrs(instance, extra_args, /*is_call*/ true)?;
 
         if caller_fn_abi.conv != callee_fn_abi.conv {
             throw_ub_format!(
@@ -1115,7 +1116,11 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
             let _trace = enter_trace_span!(M, resolve::resolve_drop_glue, ty = ?place.layout.ty);
             ty::Instance::resolve_drop_glue(*self.tcx, place.layout.ty)
         };
-        let fn_abi = self.fn_abi_of_instance_no_deduced_attrs(instance, ty::List::empty())?;
+        let fn_abi = self.fn_abi_of_instance_no_deduced_attrs(
+            instance,
+            ty::List::empty(),
+            /*is_call*/ true,
+        )?;
 
         let ref_ty = Ty::new_mut_ref(self.tcx.tcx, self.tcx.lifetimes.re_erased, place.layout.ty);
         let arg = self.mplace_to_imm_ptr(&place, Some(ref_ty))?;

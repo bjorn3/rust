@@ -662,6 +662,8 @@ pub enum InvalidProgramInfo<'tcx> {
     AlreadyReported(ReportedErrorInfo),
     /// An error occurred during layout computation.
     Layout(layout::LayoutError<'tcx>),
+    /// An error occurred while computing the function ABI.
+    CallConv(rustc_target::callconv::FnAbiError<Ty<'tcx>>),
 }
 
 impl<'tcx> fmt::Display for InvalidProgramInfo<'tcx> {
@@ -676,6 +678,7 @@ impl<'tcx> fmt::Display for InvalidProgramInfo<'tcx> {
                 )
             }
             Layout(e) => write!(f, "{e}"),
+            CallConv(e) => todo!(), // TODO
         }
     }
 }

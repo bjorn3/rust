@@ -40,6 +40,7 @@ impl<'tcx, B: Bridge> FnAbiOfHelpers<'tcx> for CompilerCtxt<'tcx, B> {
         &self,
         err: ty::layout::FnAbiError<'tcx>,
         _span: rustc_span::Span,
+        _is_call: bool,
         fn_abi_request: ty::layout::FnAbiRequest<'tcx>,
     ) -> B::Error {
         B::Error::new(format!("Failed to get ABI for `{fn_abi_request:?}`: {err:?}"))

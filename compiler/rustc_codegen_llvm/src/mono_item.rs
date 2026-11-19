@@ -82,7 +82,8 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         visibility: Visibility,
         symbol_name: &str,
     ) -> llvm::Value<'ll> {
-        let fn_abi: &FnAbi<'tcx, Ty<'tcx>> = self.fn_abi_of_instance(instance, ty::List::empty());
+        let fn_abi: &FnAbi<'tcx, Ty<'tcx>> =
+            self.fn_abi_of_instance(instance, ty::List::empty(), /*is_call*/ false);
         let lldecl = self.declare_fn(symbol_name, fn_abi, Some(instance));
         llvm::set_linkage(lldecl, base::linkage_to_llvm(linkage));
         base::set_link_section(lldecl, attrs);
@@ -186,8 +187,11 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
                 symbol_name.name,
             );
 
-            let fn_abi: &FnAbi<'tcx, Ty<'tcx>> =
-                self.fn_abi_of_instance(aliasee_instance, ty::List::empty());
+            let fn_abi: &FnAbi<'tcx, Ty<'tcx>> = self.fn_abi_of_instance(
+                aliasee_instance,
+                ty::List::empty(),
+                /*is_call*/ false,
+            );
 
             // both the alias and the aliasee have the same ty
             let fn_ty = fn_abi.llvm_type(self);

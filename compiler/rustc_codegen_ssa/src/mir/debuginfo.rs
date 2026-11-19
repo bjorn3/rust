@@ -789,7 +789,8 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         let dbg_scope = match scope_data.inlined {
             Some((callee, _)) => {
                 let callee = self.monomorphize(callee);
-                let callee_fn_abi = self.cx.fn_abi_of_instance(callee, ty::List::empty());
+                let callee_fn_abi =
+                    self.cx.fn_abi_of_instance(callee, ty::List::empty(), /*is_call*/ false);
                 bx.dbg_scope_fn(callee, callee_fn_abi, None)
             }
             None => bx.dbg_create_lexical_block(scope_data.span.lo(), parent_scope.dbg_scope),

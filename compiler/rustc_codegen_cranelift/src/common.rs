@@ -316,9 +316,10 @@ impl<'tcx> FnAbiOfHelpers<'tcx> for FunctionCx<'_, '_, 'tcx> {
         &self,
         err: FnAbiError<'tcx>,
         span: Span,
+        is_call: bool,
         fn_abi_request: FnAbiRequest<'tcx>,
     ) -> ! {
-        FullyMonomorphizedLayoutCx(self.tcx).handle_fn_abi_err(err, span, fn_abi_request)
+        FullyMonomorphizedLayoutCx(self.tcx).handle_fn_abi_err(err, span, is_call, fn_abi_request)
     }
 }
 
@@ -456,9 +457,10 @@ impl<'tcx> FnAbiOfHelpers<'tcx> for FullyMonomorphizedLayoutCx<'tcx> {
         &self,
         err: FnAbiError<'tcx>,
         span: Span,
+        is_call: bool,
         fn_abi_request: FnAbiRequest<'tcx>,
     ) -> ! {
-        codegen_handle_fn_abi_err(self.0, err, span, fn_abi_request).raise_fatal()
+        codegen_handle_fn_abi_err(self.0, err, span, is_call, fn_abi_request).raise_fatal()
     }
 }
 

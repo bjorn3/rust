@@ -624,7 +624,9 @@ fn fn_abi_new_uncached<'tcx>(
     let fn_abi = if conv.is_rustic_abi() {
         fn_abi.adjust_for_rust_abi(cx)
     } else {
-        fn_abi.adjust_for_foreign_abi(cx)
+        fn_abi
+            .adjust_for_foreign_abi(cx)
+            .map_err(|err| &*tcx.arena.alloc(FnAbiError::Target(err)))?
     };
 
     debug!("fn_abi_new_uncached = {:?}", fn_abi);

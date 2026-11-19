@@ -964,8 +964,8 @@ impl<'ll, 'tcx> MiscCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         apply_vcall_visibility_metadata(self, trait_hierarchy, vtable);
     }
 
-    fn get_fn(&self, instance: Instance<'tcx>) -> Value<'ll> {
-        get_fn(self, instance)
+    fn get_fn(&self, instance: Instance<'tcx>, is_call: bool) -> Value<'ll> {
+        get_fn(self, instance, is_call)
     }
 
     fn get_fn_addr(
@@ -985,7 +985,7 @@ impl<'ll, 'tcx> MiscCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         // See the discussion in the rust-lang issue:
         // <https://github.com/rust-lang/rust/issues/152532>, and comment in
         // builder's `ptrauth_operand_bundle`.
-        let llfn = get_fn(self, instance);
+        let llfn = get_fn(self, instance, /*is_call*/ true);
         match pointer_auth_schema {
             Some(schema) => common::maybe_sign_fn_ptr(self, instance, llfn, schema),
             None => llfn,
@@ -1324,8 +1324,9 @@ impl<'tcx> FnAbiOfHelpers<'tcx> for CodegenCx<'_, 'tcx> {
         &self,
         err: FnAbiError<'tcx>,
         span: Span,
+        is_call: bool,
         fn_abi_request: FnAbiRequest<'tcx>,
     ) -> ! {
-        codegen_handle_fn_abi_err(self.tcx, err, span, fn_abi_request).raise_fatal()
+        codegen_handle_fn_abi_err(self.tcx, err, span, is_call, fn_abi_request).raise_fatal()
     }
 }

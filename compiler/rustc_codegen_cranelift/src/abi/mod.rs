@@ -89,12 +89,13 @@ pub(crate) fn get_function_sig<'tcx>(
     tcx: TyCtxt<'tcx>,
     default_call_conv: CallConv,
     inst: Instance<'tcx>,
+    is_call: bool,
 ) -> Signature {
     assert!(!inst.args.has_infer());
     clif_sig_from_fn_abi(
         tcx,
         default_call_conv,
-        FullyMonomorphizedLayoutCx(tcx).fn_abi_of_instance(inst, ty::List::empty()),
+        FullyMonomorphizedLayoutCx(tcx).fn_abi_of_instance(inst, ty::List::empty(), is_call),
     )
 }
 
@@ -124,7 +125,12 @@ pub(crate) fn import_function<'tcx>(
     inst: Instance<'tcx>,
 ) -> FuncId {
     let name = tcx.symbol_name(inst).name;
-    let sig = get_function_sig(tcx, module.target_config().default_call_conv, inst);
+    let sig = get_function_sig(
+        tcx,
+        module.target_config().default_call_conv,
+        inst,
+        /*is_call*/ true,
+    );
     declare_import_function(tcx, module, name, &sig)
 }
 
@@ -507,9 +513,11 @@ pub(crate) fn codegen_terminator_call<'tcx>(
         extra_args.iter().map(|op_arg| fx.monomorphize(op_arg.node.ty(fx.mir, fx.tcx))),
     );
     let fn_abi = if let Some(instance) = instance {
-        FullyMonomorphizedLayoutCx(fx.tcx).fn_abi_of_instance(instance, extra_args)
+        FullyMonomorphizedLayoutCx(fx.tcx)
+            .fn_abi_of_instance(instance, extra_args, /*is_call*/ true)
     } else {
-        FullyMonomorphizedLayoutCx(fx.tcx).fn_abi_of_fn_ptr(fn_sig, extra_args)
+        FullyMonomorphizedLayoutCx(fx.tcx)
+            .fn_abi_of_fn_ptr(fn_sig, extra_args, /*is_call*/ true)
     };
 
     let is_cold = if fn_sig.abi() == ExternAbi::RustCold {
@@ -781,8 +789,11 @@ pub(crate) fn codegen_drop<'tcx>(
                     def: ty::InstanceKind::Virtual(drop_instance.def_id(), 0),
                     args: drop_instance.args,
                 };
-                let fn_abi = FullyMonomorphizedLayoutCx(fx.tcx)
-                    .fn_abi_of_instance(virtual_drop, ty::List::empty());
+                let fn_abi = FullyMonomorphizedLayoutCx(fx.tcx).fn_abi_of_instance(
+                    virtual_drop,
+                    ty::List::empty(),
+                    /*is_call*/ true,
+                );
 
                 let sig = clif_sig_from_fn_abi(fx.tcx, fx.target_config.default_call_conv, fn_abi);
                 let sig = fx.bcx.import_signature(sig);
@@ -798,8 +809,11 @@ pub(crate) fn codegen_drop<'tcx>(
             _ => {
                 assert!(!matches!(drop_instance.def, InstanceKind::Virtual(_, _)));
 
-                let fn_abi = FullyMonomorphizedLayoutCx(fx.tcx)
-                    .fn_abi_of_instance(drop_instance, ty::List::empty());
+                let fn_abi = FullyMonomorphizedLayoutCx(fx.tcx).fn_abi_of_instance(
+                    drop_instance,
+                    ty::List::empty(),
+                    /*is_call*/ true,
+                );
 
                 let arg_value = drop_place.place_ref(
                     fx,

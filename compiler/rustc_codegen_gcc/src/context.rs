@@ -448,8 +448,8 @@ impl<'gcc, 'tcx> MiscCodegenMethods<'tcx> for CodegenCx<'gcc, 'tcx> {
         &self.vtables
     }
 
-    fn get_fn(&self, instance: Instance<'tcx>) -> Function<'gcc> {
-        get_fn(self, instance)
+    fn get_fn(&self, instance: Instance<'tcx>, is_call: bool) -> Function<'gcc> {
+        get_fn(self, instance, is_call)
     }
 
     fn get_fn_addr(
@@ -462,7 +462,7 @@ impl<'gcc, 'tcx> MiscCodegenMethods<'tcx> for CodegenCx<'gcc, 'tcx> {
         let func = if let Some(variable) = self.get_declared_value(func_name) {
             return variable;
         } else {
-            get_fn(self, instance)
+            get_fn(self, instance, /*is_call*/ true)
         };
         let ptr = func.get_address(None);
 
@@ -511,7 +511,8 @@ impl<'gcc, 'tcx> MiscCodegenMethods<'tcx> for CodegenCx<'gcc, 'tcx> {
                 );
 
                 let symbol_name = tcx.symbol_name(instance).name;
-                let fn_abi = self.fn_abi_of_instance(instance, ty::List::empty());
+                let fn_abi =
+                    self.fn_abi_of_instance(instance, ty::List::empty(), /*is_call*/ true);
                 self.linkage.set(FunctionType::Extern);
                 self.declare_fn(symbol_name, fn_abi)
             }
@@ -612,9 +613,10 @@ impl<'gcc, 'tcx> FnAbiOfHelpers<'tcx> for CodegenCx<'gcc, 'tcx> {
         &self,
         err: FnAbiError<'tcx>,
         span: Span,
+        is_call: bool,
         fn_abi_request: FnAbiRequest<'tcx>,
     ) -> ! {
-        codegen_handle_fn_abi_err(self.tcx, err, span, fn_abi_request).raise_fatal()
+        codegen_handle_fn_abi_err(self.tcx, err, span, is_call, fn_abi_request).raise_fatal()
     }
 }
 
