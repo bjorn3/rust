@@ -225,11 +225,6 @@ impl X86_64CallConv {
         Ty: TyAbiInterface<'a, C> + Copy,
         C: HasDataLayout + HasTargetSpec,
     {
-        if !arg.layout.is_sized() {
-            // FIXME: Update int_regs?
-            // Not touching this...
-            return;
-        }
         if is_arg && arg.layout.pass_indirectly_in_non_rustic_abis(cx) {
             self.int_regs = self.int_regs.saturating_sub(1);
             arg.make_indirect();

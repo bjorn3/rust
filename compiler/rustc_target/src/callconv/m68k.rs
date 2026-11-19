@@ -14,10 +14,6 @@ fn classify_arg<'a, Ty, C>(cx: &C, arg: &mut ArgAbi<'a, Ty>)
 where
     Ty: TyAbiInterface<'a, C> + Copy,
 {
-    if !arg.layout.is_sized() {
-        // Not touching this...
-        return;
-    }
     if arg.layout.pass_indirectly_in_non_rustic_abis(cx) {
         arg.make_indirect();
         return;

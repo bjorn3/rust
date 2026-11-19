@@ -95,10 +95,6 @@ where
     Ty: TyAbiInterface<'a, C> + Copy,
     C: HasDataLayout,
 {
-    if !arg.layout.is_sized() {
-        // Not touching this...
-        return;
-    }
     if !is_ret && arg.layout.pass_indirectly_in_non_rustic_abis(cx) {
         arg.make_indirect();
         return;

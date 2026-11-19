@@ -95,16 +95,15 @@
 // mips64: https://github.com/rust-lang/rust/issues/115404
 
 extern crate minicore;
-use minicore::*;
-
-#[cfg(target_arch = "x86")]
-use arch::x86::*;
-#[cfg(target_arch = "x86_64")]
-use arch::x86_64::*;
 #[cfg(target_arch = "powerpc")]
 use arch::powerpc::*;
 #[cfg(target_arch = "powerpc64")]
 use arch::powerpc64::*;
+#[cfg(target_arch = "x86")]
+use arch::x86::*;
+#[cfg(target_arch = "x86_64")]
+use arch::x86_64::*;
+use minicore::*;
 
 /// To work cross-target this test must be no_core. This little prelude supplies what we need.
 ///

@@ -21,11 +21,6 @@ fn classify_aggregate_type<Ty>(arg: &mut ArgAbi<'_, Ty>) {
 }
 
 fn classify_ret<Ty>(ret: &mut ArgAbi<'_, Ty>) {
-    if !ret.layout.is_sized() {
-        // Not touching this...
-        return;
-    }
-
     if ret.layout.is_aggregate() || ret.layout.size.bits() > 64 {
         classify_aggregate_type(ret);
     } else {
@@ -37,10 +32,6 @@ fn classify_arg<'a, Ty, C>(cx: &C, arg: &mut ArgAbi<'a, Ty>)
 where
     Ty: TyAbiInterface<'a, C> + Copy,
 {
-    if !arg.layout.is_sized() {
-        // Not touching this...
-        return;
-    }
     if arg.layout.pass_indirectly_in_non_rustic_abis(cx) {
         arg.make_indirect();
         return;

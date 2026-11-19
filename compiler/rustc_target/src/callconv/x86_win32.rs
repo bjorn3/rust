@@ -22,7 +22,7 @@ where
     }
 
     fn compute_ret_abi(&mut self, cx: &C, ret: &mut ArgAbi<'a, Ty>) {
-        if ret.layout.is_aggregate() && ret.layout.is_sized() {
+        if ret.layout.is_aggregate() {
             // Returning a structure. Most often, this will use
             // a hidden first argument. On some platforms, though,
             // small structs are returned as integers.
@@ -62,10 +62,6 @@ where
     }
 
     fn compute_arg_abi(&mut self, cx: &C, arg: &mut ArgAbi<'a, Ty>, _is_vararg: bool) {
-        if !arg.layout.is_sized() {
-            return;
-        }
-
         if arg.layout.pass_indirectly_in_non_rustic_abis(cx) {
             arg.make_indirect();
             self.inregs.fill_inregs(cx, arg);

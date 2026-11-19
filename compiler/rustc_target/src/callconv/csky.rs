@@ -9,10 +9,6 @@ use rustc_abi::{CanonAbi, TyAbiInterface};
 use crate::callconv::{ArgAbi, ComputeCallConv, Reg, Uniform};
 
 fn classify_ret<Ty>(ret: &mut ArgAbi<'_, Ty>) {
-    if !ret.layout.is_sized() {
-        // Not touching this...
-        return;
-    }
     // For return type, aggregate which <= 2*XLen will be returned in registers.
     // Otherwise, aggregate will be returned indirectly.
     if ret.layout.is_aggregate() {
@@ -33,10 +29,6 @@ fn classify_arg<'a, Ty, C>(cx: &C, arg: &mut ArgAbi<'a, Ty>)
 where
     Ty: TyAbiInterface<'a, C> + Copy,
 {
-    if !arg.layout.is_sized() {
-        // Not touching this...
-        return;
-    }
     if arg.layout.pass_indirectly_in_non_rustic_abis(cx) {
         arg.make_indirect();
         return;

@@ -219,10 +219,6 @@ fn classify_ret<'a, Ty, C>(cx: &C, arg: &mut ArgAbi<'a, Ty>, xlen: u64, flen: u6
 where
     Ty: TyAbiInterface<'a, C> + Copy,
 {
-    if !arg.layout.is_sized() {
-        // Not touching this...
-        return false; // I guess? return value of this function is not documented
-    }
     if let Some(conv) = should_use_fp_conv(cx, &arg.layout, xlen, flen) {
         match conv {
             FloatConv::Float(f) => {
@@ -293,11 +289,6 @@ fn classify_arg<'a, Ty, C>(
 ) where
     Ty: TyAbiInterface<'a, C> + Copy,
 {
-    if !arg.layout.is_sized() {
-        // FIXME: Update avail_gprs?
-        // Not touching this...
-        return;
-    }
     if arg.layout.pass_indirectly_in_non_rustic_abis(cx) {
         arg.make_indirect();
         *avail_gprs = (*avail_gprs).saturating_sub(1);

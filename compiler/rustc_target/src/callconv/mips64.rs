@@ -255,9 +255,6 @@ where
     }
 
     fn compute_arg_abi(&mut self, cx: &C, arg: &mut ArgAbi<'a, Ty>, _is_vararg: bool) {
-        if !arg.layout.is_sized() {
-            return;
-        }
         classify_arg(cx, arg, &mut self.offset);
     }
 }
