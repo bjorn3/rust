@@ -681,7 +681,15 @@ impl<'a, Ty: fmt::Display> fmt::Debug for FnAbi<'a, Ty> {
     }
 }
 
-fn compute_abi<'a, CC, Ty, C>(cx: &C, mut fn_abi: FnAbi<'a, Ty>) -> FnAbi<'a, Ty>
+#[derive(Copy, Clone, Debug, StableHash)]
+pub enum FnAbiError<Ty> {
+    UnsizedTypeInCAbi(Ty),
+}
+
+fn compute_abi<'a, CC, Ty, C>(
+    cx: &C,
+    mut fn_abi: FnAbi<'a, Ty>,
+) -> Result<FnAbi<'a, Ty>, FnAbiError<Ty>>
 where
     CC: ComputeCallConv<'a, Ty, C>,
     Ty: TyAbiInterface<'a, C> + Copy,
@@ -710,6 +718,7 @@ where
         !arg.layout.is_repr_c()
     }
 
+    assert!(fn_abi.ret.layout.is_sized());
     if !ignore_zst(&cc, &fn_abi.ret) {
         cc.compute_ret_abi(cx, &mut fn_abi.ret);
     }
@@ -717,6 +726,10 @@ where
     let c_variadic = fn_abi.c_variadic;
     let fixed_count = fn_abi.fixed_count as usize;
     for (idx, arg) in fn_abi.args.iter_mut().enumerate() {
+        if arg.layout.is_unsized() {
+            return Err(FnAbiError::UnsizedTypeInCAbi(arg.layout.ty));
+        }
+
         if ignore_zst(&cc, arg) {
             continue;
         }
@@ -724,7 +737,7 @@ where
         cc.compute_arg_abi(cx, arg, c_variadic && idx >= fixed_count);
     }
 
-    fn_abi
+    Ok(fn_abi)
 }
 
 trait ComputeCallConv<'a, Ty, C>: Sized
@@ -742,7 +755,7 @@ where
 }
 
 impl<'a, Ty> FnAbi<'a, Ty> {
-    pub fn adjust_for_foreign_abi<C>(self, cx: &C) -> Self
+    pub fn adjust_for_foreign_abi<C>(self, cx: &C) -> Result<Self, FnAbiError<Ty>>
     where
         Ty: TyAbiInterface<'a, C> + Copy,
         C: HasDataLayout + HasTargetSpec + HasX86AbiOpt,
@@ -752,7 +765,7 @@ impl<'a, Ty> FnAbi<'a, Ty> {
             if let Some(arg) = this.args.first_mut() {
                 arg.pass_by_stack_offset(None);
             }
-            return this;
+            return Ok(this);
         }
 
         let spec = cx.target_spec();

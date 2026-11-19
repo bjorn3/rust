@@ -1000,7 +1000,8 @@ impl<'gcc, 'tcx> AsmCodegenMethods<'tcx> for CodegenCx<'gcc, 'tcx> {
                                     let global_alloc = self.tcx.global_alloc(prov.alloc_id());
                                     let symbol_name = match global_alloc {
                                         GlobalAlloc::Function { instance } => {
-                                            let function = get_fn(self, instance);
+                                            let function =
+                                                get_fn(self, instance, /*is_call*/ true);
                                             self.add_used_function(function);
                                             // FIXME(@Amanieu): Additional mangling is needed on
                                             // some targets to add a leading underscore (Mach-O)

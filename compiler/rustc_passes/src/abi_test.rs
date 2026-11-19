@@ -41,8 +41,8 @@ fn unwrap_fn_abi<'tcx>(
 ) -> &'tcx FnAbi<'tcx, Ty<'tcx>> {
     match abi {
         Ok(abi) => abi,
-        Err(FnAbiError::Layout(layout_error)) => {
-            tcx.dcx().span_fatal(tcx.def_span(item_def_id), layout_error.to_string());
+        Err(err) => {
+            todo!() //tcx.dcx().emit_fatal(Spanned { span: tcx.def_span(item_def_id), node: *err });
         }
     }
 }

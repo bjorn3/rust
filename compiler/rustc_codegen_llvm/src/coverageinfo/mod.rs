@@ -75,7 +75,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         debug!("getting pgo_func_name_var for instance={:?}", instance);
         let mut pgo_func_name_var_map = self.coverage_cx().pgo_func_name_var_map.borrow_mut();
         *pgo_func_name_var_map.entry(instance).or_insert_with(|| {
-            let llfn = self.get_fn(instance);
+            let llfn = self.get_fn(instance, /*is_call*/ true);
             let mangled_fn_name: &str = self.tcx.symbol_name(instance).name;
             llvm_cov::create_pgo_func_name_var(llfn, mangled_fn_name)
         })

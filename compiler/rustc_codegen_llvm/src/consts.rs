@@ -192,6 +192,7 @@ fn check_and_apply_linkage<'ll, 'tcx>(
     llty: Type<'ll>,
     sym: &str,
     def_id: DefId,
+    is_call: bool,
 ) -> Value<'ll> {
     if let Some(linkage) = attrs.import_linkage {
         debug!("get_static: sym={} linkage={:?}", sym, linkage);
@@ -209,7 +210,7 @@ fn check_and_apply_linkage<'ll, 'tcx>(
                 && let ty::FnPtr(sig, header) = args.type_at(0).kind()
             {
                 let fn_sig = sig.with(*header);
-                let fn_abi = cx.fn_abi_of_fn_ptr(fn_sig, ty::List::empty());
+                let fn_abi = cx.fn_abi_of_fn_ptr(fn_sig, ty::List::empty(), is_call);
                 // Decide if the initializer needs to be signed
                 if cx.sess().pointer_authentication_functions().is_some()
                     && matches!(fn_sig.abi(), ExternAbi::C { .. } | ExternAbi::System { .. })
@@ -402,7 +403,7 @@ impl<'ll> CodegenCx<'ll, '_> {
         } else if let Some(methname) = fn_attrs.objc_selector {
             self.get_objc_selref(methname)
         } else {
-            check_and_apply_linkage(self, fn_attrs, llty, sym, def_id)
+            check_and_apply_linkage(self, fn_attrs, llty, sym, def_id, /*is_call*/ true)
         };
 
         // Thread-local statics in some other crate need to *always* be linked

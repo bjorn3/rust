@@ -7,12 +7,12 @@ use rustc_abi::{
     TyAbiInterface, VariantIdx, Variants,
 };
 use rustc_attr_ir::lang_items::LangItem;
-use rustc_errors::{Diag, DiagArgValue, DiagCtxtHandle, Diagnostic, IntoDiagArg, Level};
+use rustc_errors::{DiagArgValue, IntoDiagArg};
 use rustc_hir as hir;
 use rustc_hir::def_id::DefId;
 use rustc_macros::{StableHash, TyDecodable, TyEncodable, extension};
 use rustc_session::config::OptLevel;
-use rustc_span::{DUMMY_SP, ErrorGuaranteed, Span, Spanned, Symbol, bug, span_bug, sym};
+use rustc_span::{DUMMY_SP, ErrorGuaranteed, Span, Symbol, bug, span_bug, sym};
 use rustc_structures::Limit;
 use rustc_target::callconv::FnAbi;
 use rustc_target::spec::{HasTargetSpec, HasX86AbiOpt, Target, X86Abi};
@@ -1391,15 +1391,26 @@ pub fn fn_can_unwind(tcx: TyCtxt<'_>, fn_def_id: Option<DefId>, abi: ExternAbi) 
 pub enum FnAbiError<'tcx> {
     /// Error produced by a `layout_of` call, while computing `FnAbi` initially.
     Layout(LayoutError<'tcx>),
+    /// Error produced by the target specific code computing the `FnAbi`.
+    Target(rustc_target::callconv::FnAbiError<Ty<'tcx>>),
 }
 
-impl<'a, 'b> Diagnostic<'a> for FnAbiError<'b> {
-    fn into_diag(self, dcx: DiagCtxtHandle<'a>, level: Level) -> Diag<'a> {
-        match self {
-            Self::Layout(e) => Diag::new(dcx, level, e.to_string()),
-        }
-    }
-}
+// impl<'a, 'b> Diagnostic<'a> for FnAbiError<'b> {
+//     fn into_diag(self, dcx: DiagCtxtHandle<'a>, level: Level) -> Diag<'a> {
+//         match self {
+//             FnAbiError::Layout(e) => Diag::new(dcx, level, e.to_string()),
+//             FnAbiError::Target(e) => Diag::new(
+//                 dcx,
+//                 level,
+//                 match e {
+//                     rustc_target::callconv::FnAbiError::UnsizedTypeInCAbi(ty) => {
+//                         format!("unsized type {ty} may not be used outside the Rust ABI")
+//                     }
+//                 },
+//             ),
+//         }
+//     }
+// }
 
 // FIXME(eddyb) maybe use something like this for an unified `fn_abi_of`, not
 // just for error handling.
@@ -1429,6 +1440,7 @@ pub trait FnAbiOfHelpers<'tcx>: LayoutOfHelpers<'tcx> {
         &self,
         err: FnAbiError<'tcx>,
         span: Span,
+        is_call: bool,
         fn_abi_request: FnAbiRequest<'tcx>,
     ) -> <Self::FnAbiOfResult as MaybeResult<&'tcx FnAbi<'tcx, Ty<'tcx>>>>::Error;
 }
@@ -1438,13 +1450,23 @@ pub fn codegen_handle_fn_abi_err<'tcx>(
     tcx: TyCtxt<'tcx>,
     err: FnAbiError<'tcx>,
     span: Span,
+    is_call: bool,
     fn_abi_request: FnAbiRequest<'tcx>,
 ) -> ErrorGuaranteed {
     match err {
         FnAbiError::Layout(LayoutError::ReferencesError(guar)) => guar,
-        FnAbiError::Layout(LayoutError::SizeOverflow(_) | LayoutError::InvalidSimd { .. }) => {
-            tcx.dcx().emit_err(Spanned { span, node: err })
-        }
+        FnAbiError::Layout(
+            err @ (LayoutError::SizeOverflow(_) | LayoutError::InvalidSimd { .. }),
+        ) => tcx.dcx().struct_span_err(span, err.to_string()).emit_err(),
+        FnAbiError::Target(err) => match err {
+            rustc_target::callconv::FnAbiError::UnsizedTypeInCAbi(ty) => {
+                tcx.dcx().emit_err(crate::diagnostics::AbiErrorUnsupportedUnsizedParameter {
+                    span,
+                    ty,
+                    is_call,
+                })
+            }
+        },
         _ => match fn_abi_request {
             FnAbiRequest::OfFnPtr { sig, extra_args } => {
                 span_bug!(span, "`fn_abi_of_fn_ptr({sig}, {extra_args:?})` failed: {err:?}",);
@@ -1467,6 +1489,7 @@ pub trait FnAbiOf<'tcx>: FnAbiOfHelpers<'tcx> {
         &self,
         sig: ty::PolyFnSig<'tcx>,
         extra_args: &'tcx ty::List<Ty<'tcx>>,
+        is_call: bool,
     ) -> Self::FnAbiOfResult {
         // FIXME(eddyb) get a better `span` here.
         let span = self.layout_tcx_at_span();
@@ -1474,7 +1497,14 @@ pub trait FnAbiOf<'tcx>: FnAbiOfHelpers<'tcx> {
 
         MaybeResult::from(
             tcx.fn_abi_of_fn_ptr(self.typing_env().as_query_input((sig, extra_args))).map_err(
-                |err| self.handle_fn_abi_err(*err, span, FnAbiRequest::OfFnPtr { sig, extra_args }),
+                |err| {
+                    self.handle_fn_abi_err(
+                        *err,
+                        span,
+                        is_call,
+                        FnAbiRequest::OfFnPtr { sig, extra_args },
+                    )
+                },
             ),
         )
     }
@@ -1496,6 +1526,7 @@ pub trait FnAbiOf<'tcx>: FnAbiOfHelpers<'tcx> {
         &self,
         instance: ty::Instance<'tcx>,
         extra_args: &'tcx ty::List<Ty<'tcx>>,
+        is_call: bool,
     ) -> Self::FnAbiOfResult {
         // FIXME(eddyb) get a better `span` here.
         let span = self.layout_tcx_at_span();
@@ -1514,6 +1545,7 @@ pub trait FnAbiOf<'tcx>: FnAbiOfHelpers<'tcx> {
                 self.handle_fn_abi_err(
                     *err,
                     span,
+                    is_call,
                     FnAbiRequest::OfInstance { instance, extra_args },
                 )
             }),
@@ -1535,6 +1567,7 @@ pub trait FnAbiOf<'tcx>: FnAbiOfHelpers<'tcx> {
         &self,
         instance: ty::Instance<'tcx>,
         extra_args: &'tcx ty::List<Ty<'tcx>>,
+        is_call: bool,
     ) -> Self::FnAbiOfResult {
         // FIXME(eddyb) get a better `span` here.
         let span = self.layout_tcx_at_span();
@@ -1552,6 +1585,7 @@ pub trait FnAbiOf<'tcx>: FnAbiOfHelpers<'tcx> {
                     self.handle_fn_abi_err(
                         *err,
                         span,
+                        is_call,
                         FnAbiRequest::OfInstance { instance, extra_args },
                     )
                 }),

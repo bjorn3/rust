@@ -78,7 +78,12 @@ pub(crate) fn maybe_create_entry_wrapper(
         let instance = Instance::mono(tcx, rust_main_def_id);
 
         let main_name = tcx.symbol_name(instance).name;
-        let main_sig = get_function_sig(tcx, m.target_config().default_call_conv, instance);
+        let main_sig = get_function_sig(
+            tcx,
+            m.target_config().default_call_conv,
+            instance,
+            /*is_call*/ true,
+        );
         let main_func_id = m.declare_function(main_name, Linkage::Import, &main_sig).unwrap();
 
         let mut ctx = Context::new();
@@ -120,7 +125,12 @@ pub(crate) fn maybe_create_entry_wrapper(
                 );
 
                 let report_name = tcx.symbol_name(report).name;
-                let report_sig = get_function_sig(tcx, m.target_config().default_call_conv, report);
+                let report_sig = get_function_sig(
+                    tcx,
+                    m.target_config().default_call_conv,
+                    report,
+                    /*is_call*/ true,
+                );
                 let report_func_id =
                     m.declare_function(report_name, Linkage::Import, &report_sig).unwrap();
                 let report_func_ref = m.declare_func_in_func(report_func_id, bcx.func);

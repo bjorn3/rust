@@ -206,14 +206,14 @@ pub fn codegen_mir<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
     assert!(!instance.args.has_infer());
 
     let tcx = cx.tcx();
-    let llfn = cx.get_fn(instance);
+    let llfn = cx.get_fn(instance, /*is_call*/ false);
 
     let mut mir = tcx.instance_mir(instance.def);
     // Note that the ABI logic has deduced facts about the functions' parameters based on the MIR we
     // got here (`deduce_param_attrs`). That means we can *not* apply arbitrary further MIR
     // transforms as that may invalidate those deduced facts!
 
-    let fn_abi = cx.fn_abi_of_instance(instance, ty::List::empty());
+    let fn_abi = cx.fn_abi_of_instance(instance, ty::List::empty(), /*is_call*/ false);
     debug!("fn_abi: {:?}", fn_abi);
 
     let nop_landing_pads = tcx.find_noop_landing_pads_for_instance(mir, instance, cx.typing_env());

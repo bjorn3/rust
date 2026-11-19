@@ -137,33 +137,6 @@ fn do_check_simd_vector_abi<'tcx>(
     }
 }
 
-/// Emit an error when a non-rustic ABI has unsized parameters.
-/// Unsized types do not have a stable layout, so should not be used with stable ABIs.
-/// `is_call` indicates whether this is a call-site check or a definition-site check;
-/// this is only relevant for the wording in the emitted error.
-fn do_check_unsized_params<'tcx>(
-    tcx: TyCtxt<'tcx>,
-    fn_abi: &FnAbi<'tcx, Ty<'tcx>>,
-    is_call: bool,
-    loc: impl Fn() -> (Span, HirId),
-) {
-    // Unsized parameters are allowed with the (unstable) "Rust" (and similar) ABIs.
-    if fn_abi.conv.is_rustic_abi() {
-        return;
-    }
-
-    for arg_abi in fn_abi.args.iter() {
-        if !arg_abi.layout.layout.is_sized() {
-            let (span, _hir_id) = loc();
-            tcx.dcx().emit_err(diagnostics::AbiErrorUnsupportedUnsizedParameter {
-                span,
-                ty: arg_abi.layout.ty,
-                is_call,
-            });
-        }
-    }
-}
-
 /// Checks the ABI of an Instance, emitting an error when:
 ///
 /// - a non-rustic ABI uses unsized parameters
@@ -184,6 +157,7 @@ fn check_instance_abi<'tcx>(tcx: TyCtxt<'tcx>, instance: Instance<'tcx>) {
                 tcx,
                 *err,
                 tcx.def_span(instance.def_id()),
+                /*is_call*/ false,
                 FnAbiRequest::OfInstance { instance, extra_args: ty::List::empty() },
             );
             // ABI failed to compute; this will not get through codegen.
@@ -199,7 +173,6 @@ fn check_instance_abi<'tcx>(tcx: TyCtxt<'tcx>, instance: Instance<'tcx>) {
             def_id.as_local().map(|did| tcx.local_def_id_to_hir_id(did)).unwrap_or(CRATE_HIR_ID),
         )
     };
-    do_check_unsized_params(tcx, abi, /*is_call*/ false, loc);
     do_check_simd_vector_abi(tcx, abi, instance.def_id(), /*is_call*/ false, loc);
 }
 
@@ -272,6 +245,7 @@ fn check_call_site_abi<'tcx>(
                         tcx,
                         *err,
                         loc().0,
+                        /*is_call*/ true,
                         FnAbiRequest::OfFnPtr { sig, extra_args: ty::List::empty() },
                     );
                     // ABI failed to compute; this will not get through codegen.
@@ -309,6 +283,7 @@ fn check_call_site_abi<'tcx>(
                         tcx,
                         *err,
                         loc().0,
+                        /*is_call*/ true,
                         FnAbiRequest::OfInstance { instance, extra_args: ty::List::empty() },
                     );
                     // ABI failed to compute; this will not get through codegen.
@@ -321,7 +296,6 @@ fn check_call_site_abi<'tcx>(
         }
     };
 
-    do_check_unsized_params(tcx, callee_abi, /*is_call*/ true, loc);
     do_check_simd_vector_abi(tcx, callee_abi, caller.def_id(), /*is_call*/ true, loc);
 }
 

@@ -180,11 +180,9 @@ macro_rules! test_abi_compatible {
             use super::*;
             // Declaring a `type` doesn't even check well-formedness, so we also declare a function.
             fn check_wf(_x: $t1, _y: $t2) {}
-            // Test argument only in case of unsized types, `Rust` and `C` ABIs.
+            // Test argument only in case of unsized types with the `Rust` ABI.
             #[rustc_abi(assert_eq)]
             type TestRust = (fn($t1), fn($t2));
-            #[rustc_abi(assert_eq)]
-            type TestC = (extern "C" fn($t1), extern "C" fn($t2));
         }
     };
 }

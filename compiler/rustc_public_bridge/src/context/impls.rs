@@ -610,12 +610,12 @@ impl<'tcx, B: Bridge> CompilerCtxt<'tcx, B> {
         &self,
         instance: ty::Instance<'tcx>,
     ) -> Result<&FnAbi<'tcx, Ty<'tcx>>, B::Error> {
-        Ok(self.fn_abi_of_instance(instance, List::empty())?)
+        Ok(self.fn_abi_of_instance(instance, List::empty(), /*is_call*/ true)?)
     }
 
     /// Get the ABI of a function pointer.
     pub fn fn_ptr_abi(&self, sig: PolyFnSig<'tcx>) -> Result<&FnAbi<'tcx, Ty<'tcx>>, B::Error> {
-        Ok(self.fn_abi_of_fn_ptr(sig, List::empty())?)
+        Ok(self.fn_abi_of_fn_ptr(sig, List::empty(), /*is_call*/ true)?)
     }
 
     /// Get the instance.

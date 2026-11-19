@@ -126,10 +126,12 @@ impl<'tcx, M: Machine<'tcx>> FnAbiOfHelpers<'tcx> for InterpCx<'tcx, M> {
         &self,
         err: FnAbiError<'tcx>,
         _span: Span,
+        _is_call: bool,
         _fn_abi_request: FnAbiRequest<'tcx>,
     ) -> InterpErrorKind<'tcx> {
         match err {
             FnAbiError::Layout(err) => err_inval!(Layout(err)),
+            FnAbiError::Target(err) => err_inval!(CallConv(err)),
         }
     }
 }
@@ -161,9 +163,10 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
         &self,
         sig: ty::PolyFnSig<'tcx>,
         extra_args: &'tcx ty::List<Ty<'tcx>>,
+        is_call: bool,
     ) -> <Self as FnAbiOfHelpers<'tcx>>::FnAbiOfResult {
         let _trace = enter_trace_span!(M, layouting::fn_abi_of_fn_ptr, ?sig, ?extra_args);
-        FnAbiOf::fn_abi_of_fn_ptr(self, sig, extra_args)
+        FnAbiOf::fn_abi_of_fn_ptr(self, sig, extra_args, is_call)
     }
 
     /// This inherent method takes priority over the trait method with the same name in FnAbiOf,
@@ -174,9 +177,10 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
         &self,
         instance: ty::Instance<'tcx>,
         extra_args: &'tcx ty::List<Ty<'tcx>>,
+        is_call: bool,
     ) -> <Self as FnAbiOfHelpers<'tcx>>::FnAbiOfResult {
         let _trace = enter_trace_span!(M, layouting::fn_abi_of_instance, ?instance, ?extra_args);
-        FnAbiOf::fn_abi_of_instance_no_deduced_attrs(self, instance, extra_args)
+        FnAbiOf::fn_abi_of_instance_no_deduced_attrs(self, instance, extra_args, is_call)
     }
 }
 

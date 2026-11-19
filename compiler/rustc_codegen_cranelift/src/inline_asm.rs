@@ -183,7 +183,7 @@ pub(crate) fn codegen_inline_asm_terminator<'tcx>(
                     let symbol = fx.tcx.symbol_name(instance);
 
                     if FullyMonomorphizedLayoutCx(fx.tcx)
-                        .fn_abi_of_instance(instance, ty::List::empty())
+                        .fn_abi_of_instance(instance, ty::List::empty(), /*is_call*/ true)
                         .conv
                         == CanonAbi::Custom
                     {
@@ -200,8 +200,12 @@ pub(crate) fn codegen_inline_asm_terminator<'tcx>(
                             fx.inline_asm_index,
                         );
                         fx.inline_asm_index += 1;
-                        let sig =
-                            get_function_sig(fx.tcx, fx.target_config.default_call_conv, instance);
+                        let sig = get_function_sig(
+                            fx.tcx,
+                            fx.target_config.default_call_conv,
+                            instance,
+                            /*is_call*/ true,
+                        );
                         create_wrapper_function(fx.module, sig, &wrapper_name, symbol.name);
 
                         CInlineAsmOperand::Symbol { symbol: wrapper_name }

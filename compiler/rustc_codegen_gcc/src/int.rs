@@ -426,7 +426,7 @@ impl<'a, 'gcc, 'tcx> Builder<'a, 'gcc, 'tcx> {
             conv: CanonAbi::C,
             can_unwind: false,
         };
-        let fn_abi = fn_abi.adjust_for_foreign_abi(self.cx);
+        let fn_abi = fn_abi.adjust_for_foreign_abi(self.cx).unwrap();
 
         let ret_indirect = matches!(fn_abi.ret.mode, PassMode::Indirect { .. });
 

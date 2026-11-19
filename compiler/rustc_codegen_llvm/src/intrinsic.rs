@@ -1690,7 +1690,7 @@ fn gen_fn<'a, 'll, 'tcx>(
     rust_fn_sig: ty::PolyFnSig<'tcx>,
     codegen: &mut dyn FnMut(Builder<'a, 'll, 'tcx>),
 ) -> (Type<'ll>, Value<'ll>) {
-    let fn_abi = cx.fn_abi_of_fn_ptr(rust_fn_sig, ty::List::empty());
+    let fn_abi = cx.fn_abi_of_fn_ptr(rust_fn_sig, ty::List::empty(), /*is_call*/ false);
     let llty = fn_abi.llvm_type(cx);
     let llfn = cx.declare_fn(name, fn_abi, None);
     cx.set_frame_pointer_type(llfn);
@@ -1900,7 +1900,7 @@ fn codegen_offload<'ll, 'tcx>(
     let sig = tcx.instantiate_bound_regions_with_erased(sig);
     let inputs = sig.inputs();
 
-    let fn_abi = cx.fn_abi_of_instance(fn_target, ty::List::empty());
+    let fn_abi = cx.fn_abi_of_instance(fn_target, ty::List::empty(), /*is_call*/ true);
 
     let mut metadata = Vec::new();
     let mut types = Vec::new();
@@ -1944,7 +1944,7 @@ fn get_args_from_tuple<'ll, 'tcx>(
     fn_instance: Instance<'tcx>,
 ) -> Vec<Value<'ll>> {
     let cx = bx.cx;
-    let fn_abi = cx.fn_abi_of_instance(fn_instance, ty::List::empty());
+    let fn_abi = cx.fn_abi_of_instance(fn_instance, ty::List::empty(), /*is_call*/ true);
 
     match tuple_op.val {
         OperandValue::Immediate(val) => vec![val],

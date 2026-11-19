@@ -700,7 +700,8 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 debug!("ty = {:?}", ty);
                 debug!("drop_fn = {:?}", drop_fn);
                 debug!("args = {:?}", args);
-                let fn_abi = bx.fn_abi_of_instance(virtual_drop, ty::List::empty());
+                let fn_abi =
+                    bx.fn_abi_of_instance(virtual_drop, ty::List::empty(), /*is_call*/ true);
                 let vtable = args[1];
                 // Truncate vtable off of args list
                 args = &args[..1];
@@ -715,7 +716,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             _ => (
                 false,
                 bx.get_fn_addr(drop_fn, bx.sess().pointer_authentication_functions()),
-                bx.fn_abi_of_instance(drop_fn, ty::List::empty()),
+                bx.fn_abi_of_instance(drop_fn, ty::List::empty(), /*is_call*/ true),
                 drop_fn,
             ),
         };
@@ -1217,8 +1218,8 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         }));
 
         let fn_abi = match instance {
-            Some(instance) => bx.fn_abi_of_instance(instance, extra_args),
-            None => bx.fn_abi_of_fn_ptr(sig, extra_args),
+            Some(instance) => bx.fn_abi_of_instance(instance, extra_args, /*is_call*/ true),
+            None => bx.fn_abi_of_fn_ptr(sig, extra_args, /*is_call*/ true),
         };
 
         // The arguments we'll be passing. Plus one to account for outptr, if used.

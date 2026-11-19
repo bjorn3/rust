@@ -810,7 +810,11 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                     .inlined_function_scopes
                     .entry(callee)
                     .or_insert_with(|| {
-                        let callee_fn_abi = self.cx.fn_abi_of_instance(callee, ty::List::empty());
+                        let callee_fn_abi = self.cx.fn_abi_of_instance(
+                            callee,
+                            ty::List::empty(),
+                            /*is_call*/ false,
+                        );
                         bx.dbg_scope_fn(callee, callee_fn_abi, None)
                     })
             }

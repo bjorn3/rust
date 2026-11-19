@@ -16,7 +16,11 @@ use crate::llvm::{self, Value};
 
 /// Codegens a reference to a fn/method item, monomorphizing and
 /// inlining as it goes.
-pub(crate) fn get_fn<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>, instance: Instance<'tcx>) -> Value<'ll> {
+pub(crate) fn get_fn<'ll, 'tcx>(
+    cx: &CodegenCx<'ll, 'tcx>,
+    instance: Instance<'tcx>,
+    is_call: bool,
+) -> Value<'ll> {
     let tcx = cx.tcx();
 
     debug!("get_fn(instance={:?})", instance);
@@ -31,7 +35,7 @@ pub(crate) fn get_fn<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>, instance: Instance<'t
     let sym = tcx.symbol_name(instance).name;
     debug!("get_fn({:?}: {:?}) => {}", instance, instance.ty(cx.tcx(), cx.typing_env()), sym);
 
-    let fn_abi = cx.fn_abi_of_instance(instance, ty::List::empty());
+    let fn_abi = cx.fn_abi_of_instance(instance, ty::List::empty(), is_call);
 
     let llfn = if let Some(llfn) = cx.get_declared_value(sym) {
         llfn

@@ -492,9 +492,10 @@ impl<'tcx> FnAbiOfHelpers<'tcx> for Builder<'_, '_, 'tcx> {
         &self,
         err: FnAbiError<'tcx>,
         span: Span,
+        is_call: bool,
         fn_abi_request: FnAbiRequest<'tcx>,
     ) -> ! {
-        self.cx.handle_fn_abi_err(err, span, fn_abi_request)
+        self.cx.handle_fn_abi_err(err, span, is_call, fn_abi_request)
     }
 }
 

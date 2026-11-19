@@ -26,8 +26,12 @@ fn predefine_mono_items<'tcx>(
                 MonoItem::Fn(instance) => {
                     let name = tcx.symbol_name(instance).name;
                     let _inst_guard = crate::PrintOnPanic(|| format!("{:?} {}", instance, name));
-                    let sig =
-                        get_function_sig(tcx, module.target_config().default_call_conv, instance);
+                    let sig = get_function_sig(
+                        tcx,
+                        module.target_config().default_call_conv,
+                        instance,
+                        /*is_call*/ false,
+                    );
                     let linkage = crate::linkage::get_clif_linkage(
                         mono_item,
                         data.linkage,

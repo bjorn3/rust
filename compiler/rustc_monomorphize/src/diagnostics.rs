@@ -142,28 +142,6 @@ pub(crate) struct AbiErrorDisabledVectorType<'a> {
     "this function {$is_call ->
         [true] call
         *[false] definition
-    } uses unsized type `{$ty}` which is not supported with the chosen ABI"
-)]
-#[help("only rustic ABIs support unsized parameters")]
-pub(crate) struct AbiErrorUnsupportedUnsizedParameter<'a> {
-    #[primary_span]
-    #[label(
-        "function {$is_call ->
-            [true] called
-            *[false] defined
-        } here"
-    )]
-    pub span: Span,
-    pub ty: Ty<'a>,
-    /// Whether this is a problem at a call site or at a declaration.
-    pub is_call: bool,
-}
-
-#[derive(Diagnostic)]
-#[diag(
-    "this function {$is_call ->
-        [true] call
-        *[false] definition
     } uses SIMD vector type `{$ty}` which is not currently supported with the chosen ABI"
 )]
 pub(crate) struct AbiErrorUnsupportedVectorType<'a> {

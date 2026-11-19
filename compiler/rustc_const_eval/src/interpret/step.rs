@@ -502,34 +502,44 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
             ty::FnPtr(..) => {
                 let fn_ptr = self.read_pointer(&func)?;
                 let fn_val = self.get_ptr_fn(fn_ptr)?;
-                (fn_val, Some(self.fn_abi_of_fn_ptr(fn_sig_binder, extra_args)?), false)
+                (
+                    fn_val,
+                    Some(self.fn_abi_of_fn_ptr(
+                        fn_sig_binder,
+                        extra_args,
+                        /*is_call*/ true,
+                    )?),
+                    false,
+                )
             }
             ty::FnDef(def_id, args) => {
                 let instance = self.resolve(def_id, args.no_bound_vars().unwrap())?;
-                let fn_abi =
-                    match instance.def {
-                        // Don't compute FnAbi for LLVM intrinsics. Trying to do that would panic.
-                        ty::InstanceKind::LlvmIntrinsic(_) => None,
-                        // Rust intrinsics don't really have a normal ABI, except for the case
-                        // where we call the fallback body like a regular function.
-                        // So, we compute the ABI based on the fallback body.
-                        // We can't compute the ABI based on the `instance` directly,
-                        // because `#[track_caller]` affects the ABI of the fallback body,
-                        // but not affect the "ABI" of the intrinsic itself.
-                        // Even if there is no fallback body, this computes a valid ABI
-                        // (that we then mostly ignore).
-                        ty::InstanceKind::Intrinsic(def_id) => {
-                            let fallback_instance = ty::Instance {
-                                def: ty::InstanceKind::Item(def_id),
-                                args: instance.args,
-                            };
-                            Some(self.fn_abi_of_instance_no_deduced_attrs(
-                                fallback_instance,
-                                extra_args,
-                            )?)
-                        }
-                        _ => Some(self.fn_abi_of_instance_no_deduced_attrs(instance, extra_args)?),
-                    };
+                let fn_abi = match instance.def {
+                    // Don't compute FnAbi for LLVM intrinsics. Trying to do that would panic.
+                    ty::InstanceKind::LlvmIntrinsic(_) => None,
+                    // Rust intrinsics don't really have a normal ABI, except for the case
+                    // where we call the fallback body like a regular function.
+                    // So, we compute the ABI based on the fallback body.
+                    // We can't compute the ABI based on the `instance` directly,
+                    // because `#[track_caller]` affects the ABI of the fallback body,
+                    // but not affect the "ABI" of the intrinsic itself.
+                    // Even if there is no fallback body, this computes a valid ABI
+                    // (that we then mostly ignore).
+                    ty::InstanceKind::Intrinsic(def_id) => {
+                        let fallback_instance = ty::Instance {
+                            def: ty::InstanceKind::Item(def_id),
+                            args: instance.args,
+                        };
+                        Some(self.fn_abi_of_instance_no_deduced_attrs(
+                            fallback_instance,
+                            extra_args,
+                            /*is_call*/ true,
+                        )?)
+                    }
+                    _ => Some(self.fn_abi_of_instance_no_deduced_attrs(
+                        instance, extra_args, /*is_call*/ true,
+                    )?),
+                };
                 (
                     FnVal::Instance(instance),
                     fn_abi,

@@ -1434,7 +1434,7 @@ fn gen_fn<'a, 'gcc, 'tcx>(
     rust_fn_sig: ty::PolyFnSig<'tcx>,
     codegen: &mut dyn FnMut(Builder<'a, 'gcc, 'tcx>),
 ) -> Function<'gcc> {
-    let fn_abi = cx.fn_abi_of_fn_ptr(rust_fn_sig, ty::List::empty());
+    let fn_abi = cx.fn_abi_of_fn_ptr(rust_fn_sig, ty::List::empty(), /*is_call*/ false);
     // FIXME(eddyb) find a nicer way to do this.
     cx.linkage.set(FunctionType::Internal);
     let func = cx.declare_fn(name, fn_abi);
