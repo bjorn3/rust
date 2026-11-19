@@ -59,10 +59,6 @@ where
     Ty: TyAbiInterface<'a, C> + Copy,
     C: HasDataLayout + HasTargetSpec,
 {
-    if !arg.layout.is_sized() {
-        // Not touching this...
-        return;
-    }
     if arg.is_ignore() {
         // s390x-unknown-linux-{gnu,musl,uclibc} doesn't ignore ZSTs.
         if cx.target_spec().os == Os::Linux

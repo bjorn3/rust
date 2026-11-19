@@ -5,9 +5,9 @@ use super::CastTarget;
 use crate::callconv::{ArgAbi, ComputeCallConv, Uniform};
 
 fn classify_ret<Ty>(ret: &mut ArgAbi<'_, Ty>) {
-    if ret.layout.is_aggregate() && ret.layout.is_sized() {
+    if ret.layout.is_aggregate() {
         classify_aggregate(ret)
-    } else if ret.layout.size.bits() < 32 && ret.layout.is_sized() {
+    } else if ret.layout.size.bits() < 32 {
         ret.extend_integer_width_to(32);
     }
 }
@@ -20,9 +20,9 @@ where
         arg.make_indirect();
         return;
     }
-    if arg.layout.is_aggregate() && arg.layout.is_sized() {
+    if arg.layout.is_aggregate() {
         classify_aggregate(arg)
-    } else if arg.layout.size.bits() < 32 && arg.layout.is_sized() {
+    } else if arg.layout.size.bits() < 32 {
         arg.extend_integer_width_to(32);
     }
 }

@@ -104,7 +104,7 @@ where
     // "vectorcall" returns floats in `xmm0`, and soft float also does not use the x87 stack.
     let uses_x87_return = cx.target_spec().rustc_abi != Some(RustcAbi::Softfloat)
         && opts.flavor != Flavor::Vectorcall;
-    if ret.layout.is_aggregate() && ret.layout.is_sized() {
+    if ret.layout.is_aggregate() {
         // Returning a structure. Most often, this will use
         // a hidden first argument. On some platforms, though,
         // small structs are returned as integers.
@@ -242,10 +242,6 @@ where
     }
 
     fn compute_arg_abi(&mut self, cx: &C, arg: &mut ArgAbi<'a, Ty>, _is_vararg: bool) {
-        if !arg.layout.is_sized() {
-            return;
-        }
-
         if arg.layout.pass_indirectly_in_non_rustic_abis(cx) {
             arg.make_indirect();
         } else {

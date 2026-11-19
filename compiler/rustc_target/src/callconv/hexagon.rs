@@ -7,10 +7,6 @@ where
     Ty: TyAbiInterface<'a, C> + Copy,
     C: HasDataLayout,
 {
-    if !ret.layout.is_sized() {
-        return;
-    }
-
     if !ret.layout.is_aggregate() {
         ret.extend_integer_width_to(32);
         return;
@@ -63,9 +59,6 @@ where
     Ty: TyAbiInterface<'a, C> + Copy,
     C: HasDataLayout,
 {
-    if !arg.layout.is_sized() {
-        return;
-    }
     if arg.layout.pass_indirectly_in_non_rustic_abis(cx) {
         arg.make_indirect();
         // The pointer to the indirectly passed value takes up a register.

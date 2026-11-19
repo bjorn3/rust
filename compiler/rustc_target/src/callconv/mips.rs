@@ -48,11 +48,6 @@ where
     Ty: TyAbiInterface<'a, C> + Copy,
     C: HasDataLayout,
 {
-    if !arg.layout.is_sized() {
-        // FIXME: Update offset?
-        // Not touching this...
-        return;
-    }
     let dl = cx.data_layout();
     let align = arg.layout.align.max(dl.i32_align).min(dl.i64_align);
 
