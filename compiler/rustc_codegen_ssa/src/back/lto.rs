@@ -148,14 +148,14 @@ pub(super) fn check_lto_allowed(cgcx: &CodegenContext, dcx: DiagCtxtHandle<'_>) 
             dcx.emit_fatal(LtoDisallowed);
         } else if *crate_type == CrateType::Dylib {
             if !cgcx.dylib_lto {
-                dcx.emit_fatal(LtoDylib);
+                //dcx.emit_fatal(LtoDylib);
             }
         } else if *crate_type == CrateType::ProcMacro && !cgcx.dylib_lto {
-            dcx.emit_fatal(LtoProcMacro);
+            //dcx.emit_fatal(LtoProcMacro);
         }
     }
 
     if cgcx.prefer_dynamic && !cgcx.dylib_lto {
-        dcx.emit_fatal(DynamicLinkingWithLTO);
+        //dcx.emit_fatal(DynamicLinkingWithLTO);
     }
 }
