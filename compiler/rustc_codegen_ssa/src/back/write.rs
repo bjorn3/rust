@@ -19,7 +19,7 @@ use rustc_fs_util::link_or_copy;
 use rustc_incremental::{copy_cgu_workproduct_to_incr_comp_cache_dir, in_old_incr_comp_dir_sess};
 use rustc_macros::{Decodable, Encodable};
 use rustc_metadata::fs::copy_to_stdout;
-use rustc_middle::dep_graph::{BorrowedIncrCompSession, IncrCompSession, WorkProductMap};
+use rustc_middle::dep_graph::{BorrowedIncrCompSession, IncrCompSession};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::Session;
 use rustc_session::config::{
@@ -353,18 +353,18 @@ pub struct CodegenContext {
 
 fn generate_thin_lto_work<B: WriteBackendMethods>(
     cgcx: &CodegenContext,
-    prof: &SelfProfilerRef,
-    incr_comp_session: Option<(&BorrowedIncrCompSession, &WorkProductMap)>,
+    sess: &Session,
+    incr_comp_session: Option<&IncrCompSession>,
     dcx: DiagCtxtHandle<'_>,
     exported_symbols_for_lto: &[String],
     each_linked_rlib_for_lto: &[PathBuf],
     needs_thin_lto: Vec<ThinLtoInput<B>>,
 ) -> Vec<(ThinLtoWorkItem<B>, u64)> {
-    let _prof_timer = prof.generic_activity("codegen_thin_generate_lto_work");
+    let _prof_timer = sess.prof.generic_activity("codegen_thin_generate_lto_work");
 
     let (lto_modules, copy_jobs) = B::run_thin_lto(
         cgcx,
-        prof,
+        sess,
         incr_comp_session,
         dcx,
         exported_symbols_for_lto,
@@ -992,8 +992,8 @@ fn do_fat_lto<B: WriteBackendMethods>(
 
 fn do_thin_lto<B: WriteBackendMethods>(
     cgcx: &CodegenContext,
-    prof: &SelfProfilerRef,
-    incr_comp_session: Option<(BorrowedIncrCompSession, &WorkProductMap)>,
+    sess: &Session,
+    incr_comp_session: Option<&IncrCompSession>,
     shared_emitter: SharedEmitter,
     tm_factory: TargetMachineFactoryFn<B>,
     exported_symbols_for_lto: &[String],
@@ -1001,7 +1001,7 @@ fn do_thin_lto<B: WriteBackendMethods>(
     needs_thin_lto: Vec<ThinLtoInput<B>>,
     stack_size: usize,
 ) -> Vec<CompiledModule> {
-    let _timer = prof.verbose_generic_activity("LLVM_thinlto");
+    let _timer = sess.prof.verbose_generic_activity("LLVM_thinlto");
 
     let dcx = DiagCtxt::new(Box::new(shared_emitter.clone()));
     let dcx = dcx.handle();
@@ -1036,10 +1036,8 @@ fn do_thin_lto<B: WriteBackendMethods>(
     // we don't worry about tokens.
     for (i, (work, cost)) in generate_thin_lto_work::<B>(
         cgcx,
-        prof,
-        incr_comp_session.as_ref().map(|(incr_comp_session, prev_work_products)| {
-            (incr_comp_session, *prev_work_products)
-        }),
+        sess,
+        incr_comp_session,
         dcx,
         &exported_symbols_for_lto,
         &each_linked_rlib_for_lto,
@@ -1088,10 +1086,10 @@ fn do_thin_lto<B: WriteBackendMethods>(
             {
                 spawn_thin_lto_work(
                     &cgcx,
-                    prof,
+                    &sess.prof,
                     incr_comp_session
                         .as_ref()
-                        .and_then(|(incr_comp_session, _prev_work_products)| {
+                        .and_then(|incr_comp_session| {
                             incr_comp_session.old_session_directory.as_deref()
                         })
                         .map(ToOwned::to_owned),
@@ -2221,7 +2219,7 @@ impl<B: WriteBackendMethods> PendingLto<B> {
     pub fn perform_lto(
         self,
         sess: &Session,
-        incr_comp_session: Option<(&mut IncrCompSession, &WorkProductMap)>,
+        incr_comp_session: Option<&mut IncrCompSession>,
         crate_info: &CrateInfo,
     ) -> CompiledModules {
         let (shared_emitter, shared_emitter_main) = SharedEmitter::new();
@@ -2250,12 +2248,8 @@ impl<B: WriteBackendMethods> PendingLto<B> {
                 let compiled_modules = CompiledModules {
                     modules: do_thin_lto::<B>(
                         &cgcx,
-                        &sess.prof,
-                        incr_comp_session.as_ref().map(
-                            |(incr_comp_session, prev_work_products)| {
-                                (incr_comp_session.borrow(), *prev_work_products)
-                            },
-                        ),
+                        &sess,
+                        incr_comp_session.as_deref(),
                         shared_emitter,
                         tm_factory,
                         &crate_info.exported_symbols_for_lto,
@@ -2266,7 +2260,7 @@ impl<B: WriteBackendMethods> PendingLto<B> {
                     allocator_module,
                 };
 
-                if let Some((incr_comp_session, _prev_work_products)) = incr_comp_session {
+                if let Some(incr_comp_session) = incr_comp_session {
                     copy_all_cgu_workproducts_to_incr_comp_cache_dir(
                         sess,
                         incr_comp_session,

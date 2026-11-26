@@ -18,7 +18,7 @@ use rustc_data_structures::base_n::{CASE_INSENSITIVE, ToBaseN};
 use rustc_data_structures::jobserver::Proxy;
 use rustc_data_structures::sync;
 use rustc_metadata::{DylibError, EncodedMetadata, load_symbol_from_dylib};
-use rustc_middle::dep_graph::{IncrCompSession, WorkProductMap};
+use rustc_middle::dep_graph::IncrCompSession;
 use rustc_middle::ty::{CurrentGcx, TyCtxt};
 use rustc_query_impl::{CollectActiveJobsKind, collect_active_query_jobs};
 pub use rustc_session::config::DEFAULT_STACK_SIZE;
@@ -489,7 +489,7 @@ impl CodegenBackend for DummyCodegenBackend {
         &self,
         _maybe_lto_modules: Box<dyn Any>,
         _sess: &Session,
-        _incr_comp_session: Option<(&mut IncrCompSession, &WorkProductMap)>,
+        _incr_comp_session: Option<&mut IncrCompSession>,
         _outputs: &OutputFilenames,
         _crate_info: &CrateInfo,
     ) -> CompiledModules {
