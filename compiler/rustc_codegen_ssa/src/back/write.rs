@@ -10,6 +10,7 @@ use std::{assert_matches, fs, io, str, thread};
 use rustc_abi::Size;
 use rustc_data_structures::jobserver::{self, Acquired};
 use rustc_data_structures::profiling::{SelfProfilerRef, VerboseTimingGuard};
+use rustc_data_structures::unord::UnordMap;
 use rustc_errors::emitter::Emitter;
 use rustc_errors::{
     Diag, DiagCtxt, DiagCtxtHandle, DiagInner, FatalError, FatalErrorMarker, Level,
@@ -21,7 +22,9 @@ use rustc_incremental::{
 };
 use rustc_macros::{Decodable, Encodable};
 use rustc_metadata::fs::copy_to_stdout;
-use rustc_middle::dep_graph::{BorrowedIncrCompSession, IncrCompSession, WorkProduct};
+use rustc_middle::dep_graph::{
+    BorrowedIncrCompSession, IncrCompSession, WorkProduct, WorkProductId,
+};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::Session;
 use rustc_session::config::{
@@ -2149,11 +2152,45 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
 
                 Box::new(compiled_modules) as Box<dyn Any>
             }
-            MaybeLtoModules::Lto(lto_modules) => Box::new(PendingLto {
-                backend: self.backend,
-                output_filenames: self.output_filenames,
-                lto_modules,
-            }),
+            MaybeLtoModules::Lto(lto_modules) => {
+                match &lto_modules {
+                    LtoModules::FatLto { cgcx: _, needs_fat_lto: _ } => {
+                        // FIXME cache local pre-LTO bitcode
+                    }
+                    LtoModules::ThinLto { cgcx: _, needs_thin_lto, allocator_module: _ } => {
+                        if let Some(incr_comp_session) = incr_comp_session {
+                            for module in needs_thin_lto {
+                                match module {
+                                    ThinLtoInput::Red { name, buffer: _ } => {
+                                        incr_comp_session.new_work_products.insert(
+                                            WorkProductId::from_cgu_name(name),
+                                            WorkProduct {
+                                                cgu_name: name.clone(),
+                                                saved_files: UnordMap::from_iter([(
+                                                    PRE_LTO_BC_EXT.to_owned(),
+                                                    pre_lto_bitcode_filename(name),
+                                                )]),
+                                            },
+                                        );
+                                    }
+                                    ThinLtoInput::Green { bitcode_path: _, cached_module } => {
+                                        incr_comp_session.new_work_products.insert(
+                                            WorkProductId::from_cgu_name(&cached_module.name),
+                                            cached_module.source.clone(),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Box::new(PendingLto {
+                    backend: self.backend,
+                    output_filenames: self.output_filenames,
+                    lto_modules,
+                })
+            }
         }
     }
 
@@ -2200,8 +2237,6 @@ impl<B: WriteBackendMethods> PendingLto<B> {
             LtoModules::FatLto { cgcx, needs_fat_lto } => {
                 let tm_factory = self.backend.target_machine_factory(sess);
 
-                // FIXME cache local pre-LTO bitcode
-
                 CompiledModules {
                     modules: vec![do_fat_lto(
                         sess,
@@ -2233,8 +2268,6 @@ impl<B: WriteBackendMethods> PendingLto<B> {
                     allocator_module,
                 };
 
-                // FIXME include pre-LTO bitcode in workproduct tracking
-                // FIXME add separate incr comp session for post-LTO outputs to use during link step
                 if let Some(incr_comp_session) = incr_comp_session {
                     copy_all_cgu_workproducts_to_incr_comp_cache_dir(
                         sess,
