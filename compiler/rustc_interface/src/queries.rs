@@ -6,9 +6,9 @@ use rustc_codegen_ssa::{CompiledModules, CrateInfo};
 use rustc_data_structures::svh::Svh;
 use rustc_errors::timings::TimingSection;
 use rustc_hir::def_id::LOCAL_CRATE;
-use rustc_incremental::prepare_session_directory;
+use rustc_incremental::{load_work_product_index, prepare_session_directory};
 use rustc_metadata::EncodedMetadata;
-use rustc_middle::dep_graph::{DepGraph, IncrCompSession, WorkProduct};
+use rustc_middle::dep_graph::{DepGraph, IncrCompSession, WorkProduct, WorkProductMap};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::config::{self, OutputFilenames};
 use rustc_session::output::OutputType;
@@ -123,23 +123,33 @@ impl Linker {
 
                 Err(pending_lto) => {
                     let mut lto_incr_comp_session = sess.opts.incremental.is_some().then(|| {
-                        prepare_session_directory(
+                        let incr_comp_session = prepare_session_directory(
                             sess,
                             self.crate_info.local_crate_name,
                             self.local_crate_id,
                             "thinlto",
-                        )
+                        );
+
+                        // Try to load the previous session's dep graph and work products.
+                        let prev_work_products = load_work_product_index(sess, &incr_comp_session)
+                            .unwrap_or_else(|()| WorkProductMap::default());
+
+                        (incr_comp_session, prev_work_products)
                     });
 
                     let compiled_modules = codegen_backend.perform_lto(
                         pending_lto,
                         sess,
-                        lto_incr_comp_session.as_mut(),
+                        lto_incr_comp_session.as_mut().map(
+                            |(incr_comp_session, prev_work_products)| {
+                                (incr_comp_session, &*prev_work_products)
+                            },
+                        ),
                         &self.output_filenames,
                         &self.crate_info,
                     );
 
-                    if let Some(lto_incr_comp_session) = lto_incr_comp_session {
+                    if let Some((lto_incr_comp_session, _)) = lto_incr_comp_session {
                         // Now that we won't touch anything in the incremental compilation directory
                         // any more, we can finalize it (which involves renaming it)
                         rustc_incremental::finalize_session_directory(

@@ -10,21 +10,16 @@ use std::{assert_matches, fs, io, str, thread};
 use rustc_abi::Size;
 use rustc_data_structures::jobserver::{self, Acquired};
 use rustc_data_structures::profiling::{SelfProfilerRef, VerboseTimingGuard};
-use rustc_data_structures::unord::UnordMap;
 use rustc_errors::emitter::Emitter;
 use rustc_errors::{
     Diag, DiagCtxt, DiagCtxtHandle, DiagInner, FatalError, FatalErrorMarker, Level,
     catch_fatal_errors,
 };
 use rustc_fs_util::link_or_copy;
-use rustc_incremental::{
-    copy_cgu_workproduct_to_incr_comp_cache_dir, in_incr_comp_dir_sess, in_old_incr_comp_dir_sess,
-};
+use rustc_incremental::{copy_cgu_workproduct_to_incr_comp_cache_dir, in_old_incr_comp_dir_sess};
 use rustc_macros::{Decodable, Encodable};
 use rustc_metadata::fs::copy_to_stdout;
-use rustc_middle::dep_graph::{
-    BorrowedIncrCompSession, IncrCompSession, WorkProduct, WorkProductId,
-};
+use rustc_middle::dep_graph::{BorrowedIncrCompSession, IncrCompSession, WorkProductMap};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::Session;
 use rustc_session::config::{
@@ -359,7 +354,7 @@ pub struct CodegenContext {
 fn generate_thin_lto_work<B: WriteBackendMethods>(
     cgcx: &CodegenContext,
     prof: &SelfProfilerRef,
-    incr_comp_session: Option<&BorrowedIncrCompSession>,
+    incr_comp_session: Option<(&BorrowedIncrCompSession, &WorkProductMap)>,
     dcx: DiagCtxtHandle<'_>,
     exported_symbols_for_lto: &[String],
     each_linked_rlib_for_lto: &[PathBuf],
@@ -769,7 +764,7 @@ pub(crate) enum WorkItemResult<B: WriteBackendMethods> {
 
     /// The backend has finished compiling a CGU, which now needs to go through
     /// thin LTO.
-    NeedsThinLto(String, B::ModuleBuffer),
+    NeedsThinLto(String, Option<PathBuf>, B::ModuleBuffer),
 }
 
 pub enum FatLtoInput<B: WriteBackendMethods> {
@@ -778,8 +773,16 @@ pub enum FatLtoInput<B: WriteBackendMethods> {
 }
 
 pub enum ThinLtoInput<B: WriteBackendMethods> {
-    Red { name: String, buffer: SerializedModule<B::ModuleBuffer> },
-    Green { bitcode_path: PathBuf, cached_module: CachedModuleCodegen },
+    Red {
+        name: String,
+        path: Option<PathBuf>,
+        buffer: SerializedModule<B::ModuleBuffer>,
+    },
+    Green {
+        /// Contains only post-LTO artifacts
+        name: String,
+        bitcode_path: PathBuf,
+    },
 }
 
 /// Actual LTO type we end up choosing based on multiple factors.
@@ -819,7 +822,6 @@ pub(crate) fn compute_per_cgu_lto_type(
 fn execute_optimize_work_item<B: WriteBackendMethods>(
     cgcx: &CodegenContext,
     prof: &SelfProfilerRef,
-    new_incr_comp_session_dir: Option<&Path>,
     shared_emitter: SharedEmitter,
     mut module: ModuleCodegen<B::Module>,
 ) -> WorkItemResult<B> {
@@ -838,8 +840,7 @@ fn execute_optimize_work_item<B: WriteBackendMethods>(
     // If we're doing some form of incremental LTO then we need to be sure to
     // save our module to disk first.
     let bitcode = if cgcx.module_config.emit_pre_lto_bc {
-        let filename = pre_lto_bitcode_filename(&module.name);
-        new_incr_comp_session_dir.map(|path| path.join(&filename))
+        Some(cgcx.output_filenames.temp_path_ext_for_cgu(PRE_LTO_BC_EXT, &module.name))
     } else {
         None
     };
@@ -851,12 +852,12 @@ fn execute_optimize_work_item<B: WriteBackendMethods>(
         }
         ComputedLtoType::Thin => {
             let thin_buffer = B::serialize_module(module.module_llvm, true);
-            if let Some(path) = bitcode {
+            if let Some(path) = &bitcode {
                 fs::write(&path, thin_buffer.data()).unwrap_or_else(|e| {
                     panic!("Error writing pre-lto-bitcode file `{}`: {}", path.display(), e);
                 });
             }
-            WorkItemResult::NeedsThinLto(module.name, thin_buffer)
+            WorkItemResult::NeedsThinLto(module.name, bitcode, thin_buffer)
         }
         ComputedLtoType::Fat => match bitcode {
             Some(path) => {
@@ -992,7 +993,7 @@ fn do_fat_lto<B: WriteBackendMethods>(
 fn do_thin_lto<B: WriteBackendMethods>(
     cgcx: &CodegenContext,
     prof: &SelfProfilerRef,
-    incr_comp_session: Option<BorrowedIncrCompSession>,
+    incr_comp_session: Option<(BorrowedIncrCompSession, &WorkProductMap)>,
     shared_emitter: SharedEmitter,
     tm_factory: TargetMachineFactoryFn<B>,
     exported_symbols_for_lto: &[String],
@@ -1036,7 +1037,9 @@ fn do_thin_lto<B: WriteBackendMethods>(
     for (i, (work, cost)) in generate_thin_lto_work::<B>(
         cgcx,
         prof,
-        incr_comp_session.as_ref(),
+        incr_comp_session.as_ref().map(|(incr_comp_session, prev_work_products)| {
+            (incr_comp_session, *prev_work_products)
+        }),
         dcx,
         &exported_symbols_for_lto,
         &each_linked_rlib_for_lto,
@@ -1088,7 +1091,7 @@ fn do_thin_lto<B: WriteBackendMethods>(
                     prof,
                     incr_comp_session
                         .as_ref()
-                        .and_then(|incr_comp_session| {
+                        .and_then(|(incr_comp_session, _prev_work_products)| {
                             incr_comp_session.old_session_directory.as_deref()
                         })
                         .map(ToOwned::to_owned),
@@ -1174,7 +1177,7 @@ pub(crate) enum Message<B: WriteBackendMethods> {
 
     /// Similar to `CodegenDone`, but for reusing a pre-LTO artifact
     /// Sent from the main thread.
-    AddImportOnlyModule { bitcode_path: PathBuf, work_product: WorkProduct },
+    AddImportOnlyModule { bitcode_path: PathBuf, name: String },
 
     /// The frontend has finished generating everything for all codegen units.
     /// Sent from the main thread.
@@ -1686,10 +1689,11 @@ fn start_executing_work<B: WriteBackendMethods>(
                             assert!(needs_thin_lto.is_empty());
                             needs_fat_lto.push(fat_lto_input);
                         }
-                        Ok(WorkItemResult::NeedsThinLto(name, thin_buffer)) => {
+                        Ok(WorkItemResult::NeedsThinLto(name, path, thin_buffer)) => {
                             assert!(needs_fat_lto.is_empty());
                             needs_thin_lto.push(ThinLtoInput::Red {
                                 name,
+                                path,
                                 buffer: SerializedModule::Local(thin_buffer),
                             });
                         }
@@ -1705,10 +1709,10 @@ fn start_executing_work<B: WriteBackendMethods>(
                     }
                 }
 
-                Message::AddImportOnlyModule { bitcode_path, work_product } => {
+                Message::AddImportOnlyModule { bitcode_path, name } => {
                     assert_eq!(codegen_state, Ongoing);
                     assert_eq!(main_thread_state, MainThreadState::Codegenning);
-                    lto_import_only_modules.push((bitcode_path, work_product));
+                    lto_import_only_modules.push((bitcode_path, name));
                     main_thread_state = MainThreadState::Idle;
                 }
             }
@@ -1734,8 +1738,8 @@ fn start_executing_work<B: WriteBackendMethods>(
                 needs_fat_lto.push(FatLtoInput::InMemory(allocator_module));
             }
 
-            for (bitcode_path, wp) in lto_import_only_modules {
-                needs_fat_lto.push(FatLtoInput::Serialized { name: wp.cgu_name, bitcode_path })
+            for (bitcode_path, name) in lto_import_only_modules {
+                needs_fat_lto.push(FatLtoInput::Serialized { name, bitcode_path })
             }
 
             return Ok(MaybeLtoModules::Lto(LtoModules::FatLto { cgcx, needs_fat_lto }));
@@ -1743,11 +1747,8 @@ fn start_executing_work<B: WriteBackendMethods>(
             assert!(compiled_modules.is_empty());
             assert!(needs_fat_lto.is_empty());
 
-            for (bitcode_path, wp) in lto_import_only_modules {
-                needs_thin_lto.push(ThinLtoInput::Green {
-                    bitcode_path,
-                    cached_module: CachedModuleCodegen { name: wp.cgu_name.clone(), source: wp },
-                })
+            for (bitcode_path, name) in lto_import_only_modules {
+                needs_thin_lto.push(ThinLtoInput::Green { name, bitcode_path })
             }
 
             let allocator_module = if let Some(allocator_module) = allocator_module {
@@ -1763,6 +1764,7 @@ fn start_executing_work<B: WriteBackendMethods>(
                     let thin_buffer = B::serialize_module(allocator_module.module_llvm, true);
                     needs_thin_lto.push(ThinLtoInput::Red {
                         name: allocator_module.name,
+                        path: None,
                         buffer: SerializedModule::Local(thin_buffer),
                     });
 
@@ -1869,8 +1871,6 @@ fn spawn_work<'a, B: WriteBackendMethods>(
 
     let old_incr_comp_session_dir = incr_comp_session
         .and_then(|incr_comp_session| incr_comp_session.old_session_directory.clone());
-    let new_incr_comp_session_dir =
-        incr_comp_session.map(|incr_comp_session| incr_comp_session.new_session_directory.clone());
 
     let cgcx = cgcx.clone();
     let prof = prof.clone();
@@ -1880,13 +1880,7 @@ fn spawn_work<'a, B: WriteBackendMethods>(
         let _profiler = if cgcx.time_trace { B::thread_profiler() } else { Box::new(()) };
 
         let result = std::panic::catch_unwind(AssertUnwindSafe(|| match work {
-            WorkItem::Optimize(m) => execute_optimize_work_item(
-                &cgcx,
-                &prof,
-                new_incr_comp_session_dir.as_deref(),
-                shared_emitter,
-                m,
-            ),
+            WorkItem::Optimize(m) => execute_optimize_work_item(&cgcx, &prof, shared_emitter, m),
             WorkItem::CopyPostLtoArtifacts(m) => {
                 WorkItemResult::Finished(execute_copy_from_cache_work_item(
                     &cgcx,
@@ -2161,23 +2155,23 @@ impl<B: WriteBackendMethods> OngoingCodegen<B> {
                         if let Some(incr_comp_session) = incr_comp_session {
                             for module in needs_thin_lto {
                                 match module {
-                                    ThinLtoInput::Red { name, buffer: _ } => {
-                                        incr_comp_session.new_work_products.insert(
-                                            WorkProductId::from_cgu_name(name),
-                                            WorkProduct {
-                                                cgu_name: name.clone(),
-                                                saved_files: UnordMap::from_iter([(
-                                                    PRE_LTO_BC_EXT.to_owned(),
-                                                    pre_lto_bitcode_filename(name),
-                                                )]),
-                                            },
+                                    ThinLtoInput::Green { name, bitcode_path } => {
+                                        copy_cgu_workproduct_to_incr_comp_cache_dir(
+                                            sess,
+                                            incr_comp_session,
+                                            name,
+                                            &[(PRE_LTO_BC_EXT, bitcode_path)],
                                         );
                                     }
-                                    ThinLtoInput::Green { bitcode_path: _, cached_module } => {
-                                        incr_comp_session.new_work_products.insert(
-                                            WorkProductId::from_cgu_name(&cached_module.name),
-                                            cached_module.source.clone(),
-                                        );
+                                    ThinLtoInput::Red { name, path, buffer: _ } => {
+                                        if let Some(path) = path {
+                                            copy_cgu_workproduct_to_incr_comp_cache_dir(
+                                                sess,
+                                                incr_comp_session,
+                                                name,
+                                                &[(PRE_LTO_BC_EXT, path)],
+                                            );
+                                        }
                                     }
                                 }
                             }
@@ -2227,7 +2221,7 @@ impl<B: WriteBackendMethods> PendingLto<B> {
     pub fn perform_lto(
         self,
         sess: &Session,
-        incr_comp_session: Option<&mut IncrCompSession>,
+        incr_comp_session: Option<(&mut IncrCompSession, &WorkProductMap)>,
         crate_info: &CrateInfo,
     ) -> CompiledModules {
         let (shared_emitter, shared_emitter_main) = SharedEmitter::new();
@@ -2257,7 +2251,11 @@ impl<B: WriteBackendMethods> PendingLto<B> {
                     modules: do_thin_lto::<B>(
                         &cgcx,
                         &sess.prof,
-                        incr_comp_session.as_deref().map(IncrCompSession::borrow),
+                        incr_comp_session.as_ref().map(
+                            |(incr_comp_session, prev_work_products)| {
+                                (incr_comp_session.borrow(), *prev_work_products)
+                            },
+                        ),
                         shared_emitter,
                         tm_factory,
                         &crate_info.exported_symbols_for_lto,
@@ -2268,7 +2266,7 @@ impl<B: WriteBackendMethods> PendingLto<B> {
                     allocator_module,
                 };
 
-                if let Some(incr_comp_session) = incr_comp_session {
+                if let Some((incr_comp_session, _prev_work_products)) = incr_comp_session {
                     copy_all_cgu_workproducts_to_incr_comp_cache_dir(
                         sess,
                         incr_comp_session,
@@ -2317,13 +2315,14 @@ pub(crate) fn submit_post_lto_module_to_llvm<B: WriteBackendMethods>(
 
 pub(crate) fn submit_pre_lto_module_to_llvm<B: WriteBackendMethods>(
     sess: &Session,
+    output_filenames: &OutputFilenames,
     incr_comp_session: &IncrCompSession,
     coordinator: &Coordinator<B>,
     module: CachedModuleCodegen,
 ) {
     let filename = pre_lto_bitcode_filename(&module.name);
     let old_bitcode_path = in_old_incr_comp_dir_sess(incr_comp_session, &filename).unwrap();
-    let bitcode_path = in_incr_comp_dir_sess(incr_comp_session, &filename);
+    let bitcode_path = output_filenames.temp_path_ext_for_cgu(PRE_LTO_BC_EXT, &module.name);
 
     match link_or_copy(&old_bitcode_path, &bitcode_path, false /* allow_overwrite */) {
         Ok(_) => {}
@@ -2341,7 +2340,7 @@ pub(crate) fn submit_pre_lto_module_to_llvm<B: WriteBackendMethods>(
     drop(
         coordinator
             .sender
-            .send(Message::AddImportOnlyModule::<B> { bitcode_path, work_product: module.source }),
+            .send(Message::AddImportOnlyModule::<B> { bitcode_path, name: module.name }),
     );
 }
 
